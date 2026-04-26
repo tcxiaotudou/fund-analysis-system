@@ -1,0 +1,36 @@
+# 依赖
+node_modules/
+frontend/node_modules/
+
+# 构建产物
+dist/
+frontend/dist/
+target/
+backend/target/
+build/
+
+# 日志
+logs/
+backend/logs/
+*.log
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.temp
+*.swp
+*.swo
+*~

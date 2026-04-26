@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.analysis.mapper.RsiAnalysisMapper">
+    
+    <!-- 查询最新的RSI分析记录 -->
+    <select id="selectLatestAnalysis" resultType="com.fund.analysis.entity.RsiAnalysis">
+        SELECT * FROM rsi_analysis 
+        ORDER BY data_time DESC
+        LIMIT #{limit}
+    </select>
+    
+    <!-- 查询有买入信号的RSI分析记录 -->
+    <select id="selectBuySignals" resultType="com.fund.analysis.entity.RsiAnalysis">
+        SELECT * FROM rsi_analysis 
+        WHERE is_buy_signal = 1
+        AND data_time >= DATE_SUB(NOW(), INTERVAL 1 DAY)
+        ORDER BY current_rsi ASC, data_time DESC
+    </select>
+    
+    <!-- 查询指定标的和周期的最新RSI分析记录 -->
+    <select id="selectLatestByCodeAndPeriod" resultType="com.fund.analysis.entity.RsiAnalysis">
+        SELECT * FROM rsi_analysis 
+        WHERE code = #{code} AND period = #{period}
+        ORDER BY data_time DESC
+        LIMIT 1
+    </select>
+    
+    <!-- 删除指定标的和周期的旧数据 -->
+    <delete id="deleteOldData">
+        DELETE FROM rsi_analysis 
+        WHERE code = #{code} AND period = #{period}
+        AND id NOT IN (
+            SELECT id FROM (
+                SELECT id FROM rsi_analysis 
+                WHERE code = #{code} AND period = #{period}
+                ORDER BY data_time DESC 
+                LIMIT #{keepCount}
+            ) tmp
+        )
+    </delete>
+    
+</mapper>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.fund.analysis.mapper.FundPortfolioRsiMapper">
+    
+    <resultMap id="FundPortfolioRsiResult" type="com.fund.analysis.entity.FundPortfolioRsi">
+        <id property="id" column="id"/>
+        <result property="rsi14" column="rsi14"/>
+        <result property="rsi90" column="rsi90"/>
+        <result property="weeklyRsi14" column="weekly_rsi14"/>
+        <result property="fundCount" column="fund_count"/>
+        <result property="fundCodes" column="fund_codes"/>
+        <result property="dataTime" column="data_time"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+    
+    <insert id="insert" parameterType="com.fund.analysis.entity.FundPortfolioRsi">
+        INSERT INTO fund_portfolio_rsi (
+            rsi14,
+            rsi90,
+            weekly_rsi14,
+            fund_count,
+            fund_codes,
+            data_time,
+            create_time
+        ) VALUES (
+            #{rsi14},
+            #{rsi90},
+            #{weeklyRsi14},
+            #{fundCount},
+            #{fundCodes},
+            #{dataTime},
+            #{createTime}
+        )
+    </insert>
+    
+    <select id="selectLatest" resultMap="FundPortfolioRsiResult">
+        SELECT * FROM fund_portfolio_rsi
+        ORDER BY data_time DESC
+        LIMIT 1
+    </select>
+    
+    <delete id="deleteOldData" parameterType="int">
+        DELETE FROM fund_portfolio_rsi
+        WHERE id NOT IN (
+            SELECT id FROM (
+                SELECT id FROM fund_portfolio_rsi
+                ORDER BY data_time DESC
+                LIMIT #{keepCount}
+            ) AS temp
+        )
+    </delete>
+    
+</mapper>

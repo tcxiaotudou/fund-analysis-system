@@ -1,0 +1,119 @@
+/* 全局样式文件 */
+
+/* 重置默认样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f0f2f5;
+}
+
+#root {
+  height: 100vh;
+}
+
+/* 卡片样式 */
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* 页面标题样式 */
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #262626;
+}
+
+/* 统计卡片样式 */
+.stat-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+  padding: 24px;
+  color: white;
+  transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+}
+
+.stat-card-title {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 12px;
+}
+
+.stat-card-value {
+  font-size: 32px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.stat-card-desc {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* 表格样式优化 */
+.ant-table-wrapper {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+/* 按钮样式 */
+.action-button {
+  margin-right: 8px;
+}
+
+/* 标签样式 */
+.tag-success {
+  background-color: #f6ffed;
+  border-color: #b7eb8f;
+  color: #52c41a;
+}
+
+.tag-warning {
+  background-color: #fffbe6;
+  border-color: #ffe58f;
+  color: #faad14;
+}
+
+.tag-danger {
+  background-color: #fff2e8;
+  border-color: #ffbb96;
+  color: #ff7a45;
+}
+
+/* 加载动画 */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 20px;
+  }
+  
+  .stat-card-value {
+    font-size: 24px;
+  }
+}
+

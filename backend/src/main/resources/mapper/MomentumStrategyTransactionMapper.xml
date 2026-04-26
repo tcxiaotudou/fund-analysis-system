@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.analysis.mapper.MomentumStrategyTransactionMapper">
+    
+    <!-- 查询指定日期范围内的交易记录 -->
+    <select id="selectByDateRange" resultType="com.fund.analysis.entity.MomentumStrategyTransaction">
+        SELECT * FROM momentum_strategy_transaction 
+        WHERE transaction_date >= #{startDate}
+        AND transaction_date &lt;= #{endDate}
+        ORDER BY transaction_date DESC, create_time DESC
+    </select>
+    
+    <!-- 查询所有交易记录（按日期倒序） -->
+    <select id="selectAllOrderByDateDesc" resultType="com.fund.analysis.entity.MomentumStrategyTransaction">
+        SELECT * FROM momentum_strategy_transaction 
+        ORDER BY transaction_date DESC, create_time DESC
+    </select>
+    
+    <!-- 查询指定ETF代码的交易记录 -->
+    <select id="selectByEtfCode" resultType="com.fund.analysis.entity.MomentumStrategyTransaction">
+        SELECT * FROM momentum_strategy_transaction 
+        WHERE etf_code = #{etfCode}
+        ORDER BY transaction_date DESC, create_time DESC
+    </select>
+    
+    <!-- 删除指定日期之前的数据 -->
+    <delete id="deleteBeforeDate">
+        DELETE FROM momentum_strategy_transaction 
+        WHERE transaction_date &lt; #{beforeDate}
+    </delete>
+
+    <!-- 删除指定日期范围内的交易记录 -->
+    <delete id="deleteByDateRange">
+        DELETE FROM momentum_strategy_transaction
+        WHERE transaction_date &gt;= #{startDate}
+        AND transaction_date &lt;= #{endDate}
+    </delete>
+    
+    <!-- 查询最新的交易日期 -->
+    <select id="selectLatestTransactionDate" resultType="java.util.Date">
+        SELECT MAX(transaction_date) FROM momentum_strategy_transaction
+    </select>
+    
+</mapper>

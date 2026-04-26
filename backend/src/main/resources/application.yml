@@ -1,0 +1,100 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: fund-analysis
+  
+  # Jackson日期格式配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+  
+  # 数据源配置（通过环境变量覆盖）
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://127.0.0.1:3306/fund_analysis?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+  
+  # Redis配置（通过环境变量覆盖）
+  redis:
+    host: ${SPRING_REDIS_HOST:127.0.0.1}
+    port: ${SPRING_REDIS_PORT:6379}
+    password: ${SPRING_REDIS_PASSWORD:}
+    database: 0
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
+  
+  # 邮件配置
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.qq.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+# MyBatis Plus配置
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.fund.analysis.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# 日志配置
+logging:
+  level:
+    com.fund.analysis: info
+    com.fund.analysis.mapper: info
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n'
+  file:
+    name: logs/fund-analysis.log
+
+# 自定义配置
+fund:
+  # 定时任务配置
+  schedule:
+    # 市场数据刷新时间（每天早上9:30）
+    market-data-refresh: 0 30 9 * * ?
+    # ETF RSI数据刷新时间（每天下午3:30）
+    etf-rsi-refresh: 0 30 15 * * ?
+    # ETF MA策略数据刷新时间（每天下午4:00）
+    etf-ma-refresh: 0 0 16 * * ?
+    # 基金推荐数据刷新时间（每周一早上10:00）
+    fund-refresh: 0 0 10 ? * MON
+    # 完整数据刷新时间（每天午夜12:00）
+    full-refresh: 0 0 0 * * ?

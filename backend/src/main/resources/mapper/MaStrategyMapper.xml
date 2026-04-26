@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.analysis.mapper.MaStrategyMapper">
+    
+    <!-- 查询有买入信号的MA策略记录 -->
+    <select id="selectBuySignals" resultType="com.fund.analysis.entity.MaStrategy">
+        SELECT * FROM ma_strategy 
+        WHERE is_buy_signal = 1
+        AND data_time >= DATE_SUB(NOW(), INTERVAL 1 DAY)
+        ORDER BY data_time DESC
+    </select>
+    
+    <!-- 查询有卖出信号的MA策略记录 -->
+    <select id="selectSellSignals" resultType="com.fund.analysis.entity.MaStrategy">
+        SELECT * FROM ma_strategy 
+        WHERE is_sell_signal = 1
+        AND data_time >= DATE_SUB(NOW(), INTERVAL 1 DAY)
+        ORDER BY data_time DESC
+    </select>
+    
+    <!-- 查询指定ETF代码的最新MA策略记录 -->
+    <select id="selectLatestByCode" resultType="com.fund.analysis.entity.MaStrategy">
+        SELECT * FROM ma_strategy 
+        WHERE etf_code = #{etfCode}
+        ORDER BY data_time DESC
+        LIMIT 1
+    </select>
+    
+    <!-- 删除指定ETF代码的旧数据 -->
+    <delete id="deleteOldData">
+        DELETE FROM ma_strategy 
+        WHERE etf_code = #{etfCode}
+        AND id NOT IN (
+            SELECT id FROM (
+                SELECT id FROM ma_strategy 
+                WHERE etf_code = #{etfCode}
+                ORDER BY data_time DESC 
+                LIMIT #{keepCount}
+            ) tmp
+        )
+    </delete>
+    
+    <!-- 查询最新的所有MA策略记录 -->
+    <select id="selectLatestAll" resultType="com.fund.analysis.entity.MaStrategy">
+        SELECT t1.* FROM ma_strategy t1
+        INNER JOIN (
+            SELECT etf_code, MAX(data_time) as max_time 
+            FROM ma_strategy 
+            GROUP BY etf_code
+        ) t2 ON t1.etf_code = t2.etf_code AND t1.data_time = t2.max_time
+        ORDER BY t1.data_time DESC
+    </select>
+    
+</mapper>

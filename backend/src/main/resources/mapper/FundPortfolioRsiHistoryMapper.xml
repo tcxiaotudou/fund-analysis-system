@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.analysis.mapper.FundPortfolioRsiHistoryMapper">
+    
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.fund.analysis.entity.FundPortfolioRsiHistory">
+        <id column="id" property="id" />
+        <result column="rsi14" property="rsi14" />
+        <result column="fund_count" property="fundCount" />
+        <result column="fund_codes" property="fundCodes" />
+        <result column="data_date" property="dataDate" />
+        <result column="data_time" property="dataTime" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+    
+    <!-- 插入基金组合RSI历史数据 -->
+    <insert id="insert" parameterType="com.fund.analysis.entity.FundPortfolioRsiHistory">
+        INSERT INTO fund_portfolio_rsi_history (
+            rsi14, fund_count, fund_codes, data_date, data_time, create_time
+        ) VALUES (
+            #{rsi14}, #{fundCount}, #{fundCodes}, #{dataDate}, #{dataTime}, #{createTime}
+        )
+    </insert>
+    
+    <!-- 批量插入基金组合RSI历史数据 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO fund_portfolio_rsi_history (
+            rsi14, fund_count, fund_codes, data_date, data_time, create_time
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.rsi14}, #{item.fundCount}, #{item.fundCodes}, #{item.dataDate}, #{item.dataTime}, #{item.createTime})
+        </foreach>
+    </insert>
+    
+    <!-- 查询最近N天的RSI历史数据 -->
+    <select id="selectRecentDays" resultMap="BaseResultMap">
+        SELECT * FROM fund_portfolio_rsi_history
+        ORDER BY data_date DESC
+        LIMIT #{days}
+    </select>
+    
+    <!-- 查询指定日期的RSI历史数据 -->
+    <select id="selectByDate" resultMap="BaseResultMap">
+        SELECT * FROM fund_portfolio_rsi_history
+        WHERE data_date = #{dataDate}
+        ORDER BY data_time DESC
+        LIMIT 1
+    </select>
+    
+    <!-- 删除旧数据，只保留最新的N天 -->
+    <delete id="deleteOldData">
+        DELETE FROM fund_portfolio_rsi_history
+        WHERE id NOT IN (
+            SELECT id FROM (
+                SELECT id FROM fund_portfolio_rsi_history
+                ORDER BY data_time DESC
+                LIMIT #{keepDays}
+            ) tmp
+        )
+    </delete>
+    
+    <!-- 删除所有历史数据 -->
+    <delete id="deleteAll">
+        DELETE FROM fund_portfolio_rsi_history
+    </delete>
+    
+</mapper>

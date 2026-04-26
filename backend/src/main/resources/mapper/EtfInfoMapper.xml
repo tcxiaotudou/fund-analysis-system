@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.analysis.mapper.EtfInfoMapper">
+    
+    <!-- 查询所有启用的ETF -->
+    <select id="selectEnabledEtfs" resultType="com.fund.analysis.entity.EtfInfo">
+        SELECT * FROM etf_info 
+        WHERE enabled = 1 AND deleted = 0
+        ORDER BY category, etf_name
+    </select>
+    
+    <!-- 根据ETF代码查询ETF信息 -->
+    <select id="selectByCode" resultType="com.fund.analysis.entity.EtfInfo">
+        SELECT * FROM etf_info 
+        WHERE etf_code = #{code} AND deleted = 0
+        LIMIT 1
+    </select>
+    
+</mapper>

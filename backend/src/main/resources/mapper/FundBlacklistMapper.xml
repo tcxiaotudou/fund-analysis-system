@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.analysis.mapper.FundBlacklistMapper">
+    
+    <!-- 根据基金代码查询黑名单 -->
+    <select id="selectByFundCode" resultType="com.fund.analysis.entity.FundBlacklist">
+        SELECT * FROM fund_blacklist
+        WHERE fund_code = #{fundCode}
+        LIMIT 1
+    </select>
+    
+</mapper>

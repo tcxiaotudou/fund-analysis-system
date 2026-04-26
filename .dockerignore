@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+.github
+
+# IDE
+.vscode
+.idea
+*.iml
+
+# 日志文件
+*.log
+logs/
+backend/logs/
+
+# 构建产物
+target/
+dist/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# 临时文件
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 环境变量文件（如果需要）
+.env.local
+.env.*.local
