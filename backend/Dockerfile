@@ -2,7 +2,7 @@
 # 使用多阶段构建，减小镜像体积
 
 # 第一阶段：构建阶段
-FROM maven:3.8.7-openjdk-8-slim AS build
+FROM maven:3.8.7-eclipse-temurin-8 AS build
 
 # 设置工作目录
 WORKDIR /app
@@ -20,7 +20,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests -B
 
 # 第二阶段：运行阶段
-FROM openjdk:8-jre-slim
+FROM eclipse-temurin:8-jre-jammy
 
 # 设置工作目录
 WORKDIR /app
