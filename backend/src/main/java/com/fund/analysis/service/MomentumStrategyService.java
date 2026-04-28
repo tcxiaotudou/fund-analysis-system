@@ -777,7 +777,7 @@ public class MomentumStrategyService {
      * @return 新生成的交易记录数
      */
     @Transactional
-    public int refreshMomentumStrategy() {
+    public synchronized int refreshMomentumStrategy() {
         logger.info("========== 开始刷新动量策略数据 ==========");
 
         Date latestDate = transactionMapper.selectLatestTransactionDate();

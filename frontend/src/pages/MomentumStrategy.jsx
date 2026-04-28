@@ -45,12 +45,15 @@ function MomentumStrategy() {
       
       if (response.code === 0) {
         setData(response.data || [])
+        return true
       } else {
         message.error(response.message || '加载数据失败')
+        return false
       }
     } catch (error) {
       console.error('加载交易记录失败:', error)
       message.error('加载交易记录失败')
+      return false
     } finally {
       setLoading(false)
     }
@@ -71,20 +74,30 @@ function MomentumStrategy() {
         if (perfData.length > 0) {
           setDateRange([0, 100])
         }
+        return true
       } else {
         message.error(response.message || '加载收益曲线数据失败')
+        return false
       }
     } catch (error) {
       console.error('加载收益曲线数据失败:', error)
       message.error('加载收益曲线数据失败')
+      return false
     } finally {
       setPerformanceLoading(false)
     }
   }
 
+  const reloadStrategyData = async () => {
+    const [transactionsLoaded, performanceLoaded] = await Promise.all([
+      loadData(),
+      loadPerformanceData(),
+    ])
+    return transactionsLoaded && performanceLoaded
+  }
+
   useEffect(() => {
-    loadData()
-    loadPerformanceData()
+    reloadStrategyData()
   }, [])
 
   /**
@@ -108,13 +121,13 @@ function MomentumStrategy() {
       )
       
       if (response.code === 0) {
-        message.success('回测完成！')
         setBacktestModalVisible(false)
-        // 刷新数据
-        setTimeout(() => {
-          loadData()
-          loadPerformanceData()
-        }, 2000)
+        const refreshed = await reloadStrategyData()
+        if (refreshed) {
+          message.success('回测完成，数据已刷新！')
+        } else {
+          message.warning('回测完成，但刷新最新数据失败')
+        }
       } else {
         message.error(response.message || '执行回测失败')
       }

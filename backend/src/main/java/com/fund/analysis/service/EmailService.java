@@ -78,6 +78,9 @@ public class EmailService {
                 return false;
             }
 
+            // 邮件发送前先刷新动量策略，避免定时任务同一分钟并发导致日报读到旧交易记录
+            refreshMomentumStrategyForReport();
+
             // 收集各模块数据
             String emailContent = buildEmailContent();
 
@@ -92,6 +95,11 @@ public class EmailService {
             logger.error("发送每日报告邮件失败", e);
             throw new BusinessException("发送每日报告邮件失败", e);
         }
+    }
+
+    private void refreshMomentumStrategyForReport() {
+        int count = momentumStrategyService.refreshMomentumStrategy();
+        logger.info("日报发送前动量策略刷新完成，新增 {} 条交易记录", count);
     }
 
     /**

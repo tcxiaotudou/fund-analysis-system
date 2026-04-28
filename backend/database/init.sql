@@ -1,4 +1,7 @@
 -- 基金和ETF投资策略分析系统数据库初始化脚本
+-- 明确指定客户端字符集，避免初始化导入中文时被按错误字符集解析
+SET NAMES utf8mb4;
+
 -- 创建数据库
 CREATE DATABASE IF NOT EXISTS fund_analysis DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
