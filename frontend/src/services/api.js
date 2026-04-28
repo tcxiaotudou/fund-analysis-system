@@ -165,6 +165,12 @@ export const momentumStrategyApi = {
   
   // 获取收益曲线数据
   getPerformance: () => api.get('/momentum-strategy/performance'),
+
+  // 获取指定日期范围内的收益曲线数据
+  getPerformanceByRange: (startDate, endDate) =>
+    api.get('/momentum-strategy/performance/range', {
+      params: { startDate, endDate }
+    }),
 }
 
 /**

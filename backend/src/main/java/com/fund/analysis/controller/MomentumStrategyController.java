@@ -45,4 +45,11 @@ public class MomentumStrategyController {
     public Result<List<MomentumPerformanceDTO>> getPerformance() {
         return Result.success(momentumStrategyService.calculatePerformance());
     }
+
+    @GetMapping("/performance/range")
+    public Result<List<MomentumPerformanceDTO>> getPerformanceByDateRange(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+        return Result.success(momentumStrategyService.calculatePerformanceByDateRange(startDate, endDate));
+    }
 }

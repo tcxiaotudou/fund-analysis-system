@@ -1,6 +1,7 @@
 package com.fund.analysis.service;
 
 import com.fund.analysis.client.ExternalApiClient;
+import com.fund.analysis.dto.MomentumPerformanceDTO;
 import com.fund.analysis.dto.MomentumTransactionDTO;
 import com.fund.analysis.entity.MomentumStrategyTransaction;
 import com.fund.analysis.exception.BusinessException;
@@ -539,9 +540,17 @@ public class MomentumStrategyService {
      * 根据交易记录计算每个交易日的资产总值和收益率
      * @return 收益曲线数据列表
      */
-    public List<com.fund.analysis.dto.MomentumPerformanceDTO> calculatePerformance() {
+    public List<MomentumPerformanceDTO> calculatePerformance() {
         List<MomentumStrategyTransaction> transactions = transactionMapper.selectAllOrderByDateDesc();
-        
+        return calculatePerformance(transactions);
+    }
+
+    public List<MomentumPerformanceDTO> calculatePerformanceByDateRange(Date startDate, Date endDate) {
+        List<MomentumStrategyTransaction> transactions = transactionMapper.selectByDateRange(startDate, endDate);
+        return calculatePerformance(transactions);
+    }
+
+    private List<MomentumPerformanceDTO> calculatePerformance(List<MomentumStrategyTransaction> transactions) {
         if (transactions.isEmpty()) {
             return new ArrayList<>();
         }
@@ -569,7 +578,7 @@ public class MomentumStrategyService {
         dates.sort(String::compareTo);
         
         // 存储每日的资产总值和持仓信息
-        Map<String, com.fund.analysis.dto.MomentumPerformanceDTO> performanceMap = new LinkedHashMap<>();
+        Map<String, MomentumPerformanceDTO> performanceMap = new LinkedHashMap<>();
         
         // 记录每个ETF的最新价格（用于计算持仓价值）
         Map<String, BigDecimal> etfLatestPrice = new HashMap<>();
@@ -622,7 +631,7 @@ public class MomentumStrategyService {
             }
             
             // 创建收益数据点
-            com.fund.analysis.dto.MomentumPerformanceDTO performance = new com.fund.analysis.dto.MomentumPerformanceDTO();
+            MomentumPerformanceDTO performance = new MomentumPerformanceDTO();
             performance.setDate(dateStr);
             performance.setTotalValue(totalValue);
             

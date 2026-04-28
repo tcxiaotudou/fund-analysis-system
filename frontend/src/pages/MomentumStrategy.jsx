@@ -32,16 +32,19 @@ function MomentumStrategy() {
   const [backtestStartDate, setBacktestStartDate] = useState(null)
   const [backtestEndDate, setBacktestEndDate] = useState(null)
   const [initialCapital, setInitialCapital] = useState(100000)
+  const [activeBacktestRange, setActiveBacktestRange] = useState(null)
   // 时间范围选择器状态（0-100的百分比）
   const [dateRange, setDateRange] = useState([0, 100])
 
   /**
    * 加载交易记录数据
    */
-  const loadData = async () => {
+  const loadData = async (range = activeBacktestRange) => {
     try {
       setLoading(true)
-      const response = await momentumStrategyApi.getTransactions()
+      const response = range
+        ? await momentumStrategyApi.getTransactionsByRange(range.startDate, range.endDate)
+        : await momentumStrategyApi.getTransactions()
       
       if (response.code === 0) {
         setData(response.data || [])
@@ -62,10 +65,12 @@ function MomentumStrategy() {
   /**
    * 加载收益曲线数据
    */
-  const loadPerformanceData = async () => {
+  const loadPerformanceData = async (range = activeBacktestRange) => {
     try {
       setPerformanceLoading(true)
-      const response = await momentumStrategyApi.getPerformance()
+      const response = range
+        ? await momentumStrategyApi.getPerformanceByRange(range.startDate, range.endDate)
+        : await momentumStrategyApi.getPerformance()
       
       if (response.code === 0) {
         const perfData = response.data || []
@@ -88,10 +93,10 @@ function MomentumStrategy() {
     }
   }
 
-  const reloadStrategyData = async () => {
+  const reloadStrategyData = async (range = activeBacktestRange) => {
     const [transactionsLoaded, performanceLoaded] = await Promise.all([
-      loadData(),
-      loadPerformanceData(),
+      loadData(range),
+      loadPerformanceData(range),
     ])
     return transactionsLoaded && performanceLoaded
   }
@@ -122,7 +127,9 @@ function MomentumStrategy() {
       
       if (response.code === 0) {
         setBacktestModalVisible(false)
-        const refreshed = await reloadStrategyData()
+        const backtestRange = { startDate: startDateStr, endDate: endDateStr }
+        setActiveBacktestRange(backtestRange)
+        const refreshed = await reloadStrategyData(backtestRange)
         if (refreshed) {
           message.success('回测完成，数据已刷新！')
         } else {
@@ -533,7 +540,7 @@ function MomentumStrategy() {
         extra={
           <Button 
             icon={<ReloadOutlined />}
-            onClick={loadPerformanceData}
+            onClick={() => loadPerformanceData()}
             loading={performanceLoading}
             size="small"
           >
@@ -691,7 +698,7 @@ function MomentumStrategy() {
           <Button 
             type="primary" 
             icon={<ReloadOutlined />}
-            onClick={loadData}
+            onClick={() => loadData()}
             loading={loading}
           >
             刷新数据
