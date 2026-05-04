@@ -5,7 +5,12 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Card, Table, Tag, Button, Space, DatePicker, InputNumber, message, Modal, Slider, Row, Col } from 'antd'
 import { ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons'
+import { useSearchParams } from 'react-router-dom'
 import { momentumStrategyApi } from '../services/api'
+import {
+  createMomentumBacktestSearchParams,
+  getMomentumBacktestRangeFromSearchParams,
+} from '../utils/momentumBacktestRange'
 import dayjs from 'dayjs'
 import {
   ComposedChart,
@@ -23,16 +28,25 @@ import {
 const { RangePicker } = DatePicker
 
 function MomentumStrategy() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialBacktestRange = useMemo(
+    () => getMomentumBacktestRangeFromSearchParams(searchParams),
+    [searchParams],
+  )
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState([])
   const [performanceData, setPerformanceData] = useState([])
   const [performanceLoading, setPerformanceLoading] = useState(false)
   const [backtestLoading, setBacktestLoading] = useState(false)
   const [backtestModalVisible, setBacktestModalVisible] = useState(false)
-  const [backtestStartDate, setBacktestStartDate] = useState(null)
-  const [backtestEndDate, setBacktestEndDate] = useState(null)
+  const [backtestStartDate, setBacktestStartDate] = useState(() => (
+    initialBacktestRange ? dayjs(initialBacktestRange.startDate) : null
+  ))
+  const [backtestEndDate, setBacktestEndDate] = useState(() => (
+    initialBacktestRange ? dayjs(initialBacktestRange.endDate) : null
+  ))
   const [initialCapital, setInitialCapital] = useState(100000)
-  const [activeBacktestRange, setActiveBacktestRange] = useState(null)
+  const [activeBacktestRange, setActiveBacktestRange] = useState(initialBacktestRange)
   // 时间范围选择器状态（0-100的百分比）
   const [dateRange, setDateRange] = useState([0, 100])
 
@@ -129,6 +143,7 @@ function MomentumStrategy() {
         setBacktestModalVisible(false)
         const backtestRange = { startDate: startDateStr, endDate: endDateStr }
         setActiveBacktestRange(backtestRange)
+        setSearchParams(createMomentumBacktestSearchParams(backtestRange), { replace: true })
         const refreshed = await reloadStrategyData(backtestRange)
         if (refreshed) {
           message.success('回测完成，数据已刷新！')

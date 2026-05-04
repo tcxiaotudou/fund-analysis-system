@@ -1,6 +1,7 @@
 package com.fund.analysis.controller;
 
 import com.fund.analysis.dto.Result;
+import com.fund.analysis.entity.MomentumStrategyPerformance;
 import com.fund.analysis.entity.MomentumStrategyTransaction;
 import com.fund.analysis.exception.BadRequestException;
 import com.fund.analysis.exception.DataUnavailableException;
@@ -43,24 +44,29 @@ public class MomentumBacktestController {
             throw new BadRequestException("初始资金必须大于0");
         }
 
-        List<MomentumStrategyTransaction> transactions = momentumStrategyService.runBacktest(
+        MomentumStrategyService.BacktestResult result = momentumStrategyService.runBacktestWithPerformance(
                 startDate, endDate, initialCapital);
+        List<MomentumStrategyTransaction> transactions = result.getTransactions();
+        List<MomentumStrategyPerformance> performances = result.getPerformances();
 
-        if (transactions.isEmpty()) {
-            throw new DataUnavailableException("回测未生成任何交易记录，请检查日期范围和ETF数据");
+        if (performances.isEmpty()) {
+            throw new DataUnavailableException("回测未生成每日绩效，请检查日期范围和ETF数据");
         }
 
         momentumStrategyService.deleteByDateRange(startDate, endDate);
+        momentumStrategyService.deletePerformanceByDateRange(startDate, endDate);
         momentumStrategyService.saveTransactions(transactions);
+        momentumStrategyService.savePerformanceRecords(performances);
 
         long buyCount = transactions.stream().filter(t -> "buy".equals(t.getTransactionType())).count();
         long sellCount = transactions.stream().filter(t -> "sell".equals(t.getTransactionType())).count();
         String message = String.format(
-                "回测完成！\n回测期间: %s 至 %s\n初始资金: %.2f\n生成交易记录: %d 条\n买入次数: %d\n卖出次数: %d",
+                "回测完成！\n回测期间: %s 至 %s\n初始资金: %.2f\n生成交易记录: %d 条\n生成每日绩效: %d 条\n买入次数: %d\n卖出次数: %d",
                 dateFormat.format(startDate),
                 dateFormat.format(endDate),
                 initialCapital,
                 transactions.size(),
+                performances.size(),
                 buyCount,
                 sellCount
         );

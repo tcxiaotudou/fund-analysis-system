@@ -163,6 +163,7 @@ docker compose down
 - `rsi_analysis`：RSI 计算结果
 - `ma_strategy`：MA 策略结果
 - `momentum_strategy_transaction`：动量策略交易记录
+- `momentum_strategy_performance`：动量策略每日绩效
 - `fund_info`：基金推荐与持仓数据
 - `fund_blacklist`：基金黑名单
 - `fund_portfolio_rsi`：基金组合 RSI 汇总

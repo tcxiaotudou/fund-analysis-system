@@ -3,10 +3,12 @@ package com.fund.analysis.service;
 import com.fund.analysis.client.ExternalApiClient;
 import com.fund.analysis.dto.MomentumPerformanceDTO;
 import com.fund.analysis.dto.MomentumTransactionDTO;
+import com.fund.analysis.entity.MomentumStrategyPerformance;
 import com.fund.analysis.entity.MomentumStrategyTransaction;
 import com.fund.analysis.exception.BusinessException;
 import com.fund.analysis.exception.DataUnavailableException;
 import com.fund.analysis.exception.ExternalApiException;
+import com.fund.analysis.mapper.MomentumStrategyPerformanceMapper;
 import com.fund.analysis.mapper.MomentumStrategyTransactionMapper;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -42,7 +44,12 @@ public class MomentumStrategyService {
     private MomentumStrategyTransactionMapper transactionMapper;
 
     @Autowired
+    private MomentumStrategyPerformanceMapper performanceMapper;
+
+    @Autowired
     private ExternalApiClient externalApiClient;
+
+    private final MomentumPerformanceCalculator performanceCalculator = new MomentumPerformanceCalculator();
     
     /**
      * 获取所有交易记录
@@ -105,6 +112,25 @@ public class MomentumStrategyService {
                 transaction.getTransactionDate(), transaction.getTransactionType(),
                 transaction.getEtfName(), transaction.getPrice());
     }
+
+    /**
+     * 批量保存每日绩效
+     * @param performances 每日绩效列表
+     */
+    @Transactional
+    public void savePerformanceRecords(List<MomentumStrategyPerformance> performances) {
+        if (performances == null || performances.isEmpty()) {
+            logger.warn("No momentum strategy performance records to save");
+            return;
+        }
+
+        for (MomentumStrategyPerformance performance : performances) {
+            validatePerformanceForSave(performance);
+            performanceMapper.insert(performance);
+        }
+
+        logger.info("Saved {} momentum strategy performance records", performances.size());
+    }
     
     /**
      * 删除指定日期之前的数据
@@ -129,6 +155,20 @@ public class MomentumStrategyService {
                 deleted, dateFormat.format(startDate), dateFormat.format(endDate));
         return deleted;
     }
+
+    /**
+     * 删除指定日期范围内的每日绩效
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 删除记录数
+     */
+    @Transactional
+    public int deletePerformanceByDateRange(Date startDate, Date endDate) {
+        int deleted = performanceMapper.deleteByDateRange(startDate, endDate);
+        logger.info("Deleted {} momentum strategy performance records from {} to {}",
+                deleted, dateFormat.format(startDate), dateFormat.format(endDate));
+        return deleted;
+    }
     
     /**
      * 执行21日动量策略回测
@@ -138,6 +178,10 @@ public class MomentumStrategyService {
      * @return 交易记录列表
      */
     public List<MomentumStrategyTransaction> runBacktest(Date startDate, Date endDate, BigDecimal initialCapital) {
+        return runBacktestWithPerformance(startDate, endDate, initialCapital).getTransactions();
+    }
+
+    public BacktestResult runBacktestWithPerformance(Date startDate, Date endDate, BigDecimal initialCapital) {
         return runBacktest(startDate, endDate, initialCapital, null);
     }
 
@@ -149,8 +193,8 @@ public class MomentumStrategyService {
      * @param initialState 起始持仓状态，null表示空仓开始
      * @return 交易记录列表
      */
-    private List<MomentumStrategyTransaction> runBacktest(Date startDate, Date endDate, BigDecimal initialCapital,
-                                                          BacktestState initialState) {
+    private BacktestResult runBacktest(Date startDate, Date endDate, BigDecimal initialCapital,
+                                       BacktestState initialState) {
         logger.info("开始执行回测: {} 到 {}, 初始资金: {}", 
                 dateFormat.format(startDate), dateFormat.format(endDate), initialCapital);
         
@@ -158,6 +202,7 @@ public class MomentumStrategyService {
         Map<String, String> etfList = buildMomentumEtfList();
         
         List<MomentumStrategyTransaction> transactions = new ArrayList<>();
+        List<MomentumStrategyPerformance> performances = new ArrayList<>();
         String currentHolding = null; // 当前持有的ETF代码
         long currentQuantity = 0;
         BigDecimal availableCapital = initialCapital;
@@ -186,7 +231,7 @@ public class MomentumStrategyService {
         
         if (etfHistories.isEmpty()) {
             logger.warn("没有获取到任何ETF的历史数据");
-            return transactions;
+            return new BacktestResult(transactions, performances);
         }
         
         // 找到所有交易日期（所有ETF的交易日期的并集）
@@ -302,10 +347,21 @@ public class MomentumStrategyService {
                     }
                 }
             }
+
+            MomentumStrategyPerformance performance = performanceCalculator.buildDailyPerformance(
+                    date,
+                    recordInitialCapital,
+                    availableCapital,
+                    currentHolding,
+                    currentQuantity,
+                    priceMap,
+                    etfList
+            );
+            performances.add(performance);
         }
         
-        logger.info("回测完成，共生成{}条交易记录", transactions.size());
-        return transactions;
+        logger.info("回测完成，共生成{}条交易记录，{}条每日绩效", transactions.size(), performances.size());
+        return new BacktestResult(transactions, performances);
     }
 
     private Map<String, String> buildMomentumEtfList() {
@@ -344,6 +400,28 @@ public class MomentumStrategyService {
         
         public BigDecimal getPrice() {
             return price;
+        }
+    }
+
+    /**
+     * 回测结果
+     */
+    public static class BacktestResult {
+        private final List<MomentumStrategyTransaction> transactions;
+        private final List<MomentumStrategyPerformance> performances;
+
+        private BacktestResult(List<MomentumStrategyTransaction> transactions,
+                               List<MomentumStrategyPerformance> performances) {
+            this.transactions = transactions;
+            this.performances = performances;
+        }
+
+        public List<MomentumStrategyTransaction> getTransactions() {
+            return transactions;
+        }
+
+        public List<MomentumStrategyPerformance> getPerformances() {
+            return performances;
         }
     }
 
@@ -537,139 +615,57 @@ public class MomentumStrategyService {
     
     /**
      * 计算收益曲线数据
-     * 根据交易记录计算每个交易日的资产总值和收益率
+     * 根据已落库的每日绩效返回资产总值和收益率
      * @return 收益曲线数据列表
      */
     public List<MomentumPerformanceDTO> calculatePerformance() {
-        List<MomentumStrategyTransaction> transactions = transactionMapper.selectAllOrderByDateDesc();
-        return calculatePerformance(transactions);
+        List<MomentumStrategyPerformance> performances = performanceMapper.selectAllOrderByDateAsc();
+        return convertPerformanceToDTOList(performances);
     }
 
     public List<MomentumPerformanceDTO> calculatePerformanceByDateRange(Date startDate, Date endDate) {
-        List<MomentumStrategyTransaction> transactions = transactionMapper.selectByDateRange(startDate, endDate);
-        return calculatePerformance(transactions);
+        List<MomentumStrategyPerformance> performances = performanceMapper.selectByDateRange(startDate, endDate);
+        return convertPerformanceToDTOList(performances);
     }
 
-    private List<MomentumPerformanceDTO> calculatePerformance(List<MomentumStrategyTransaction> transactions) {
-        if (transactions.isEmpty()) {
-            return new ArrayList<>();
-        }
-        
-        sortTransactionsForSimulation(transactions);
+    private List<MomentumPerformanceDTO> convertPerformanceToDTOList(List<MomentumStrategyPerformance> performances) {
+        validatePerformanceInitialCapital(performances);
+        return performances.stream()
+                .map(this::convertPerformanceToDTO)
+                .collect(Collectors.toList());
+    }
 
-        BigDecimal initialCapital = requireInitialCapital(transactions.get(0));
-        for (MomentumStrategyTransaction txn : transactions) {
-            BigDecimal txnInitialCapital = requireInitialCapital(txn);
-            if (txnInitialCapital.compareTo(initialCapital) != 0) {
-                throw new DataUnavailableException("动量策略交易记录初始资金不一致，请清理旧记录后重新回测");
-            }
+    private MomentumPerformanceDTO convertPerformanceToDTO(MomentumStrategyPerformance performance) {
+        MomentumPerformanceDTO dto = new MomentumPerformanceDTO();
+        dto.setDate(dateFormat.format(performance.getPerformanceDate()));
+        dto.setTotalValue(performance.getTotalValue());
+        dto.setReturnRate(performance.getReturnRate());
+        dto.setHoldingEtfCode(performance.getHoldingEtfCode());
+        dto.setHoldingEtfName(performance.getHoldingEtfName());
+        dto.setHoldingQuantity(performance.getHoldingQuantity());
+        dto.setCurrentPrice(performance.getCurrentPrice());
+        return dto;
+    }
+
+    private void validatePerformanceInitialCapital(List<MomentumStrategyPerformance> performances) {
+        if (performances == null || performances.isEmpty()) {
+            return;
         }
 
-        String currentHolding = null;
-        long currentQuantity = 0;
-        BigDecimal availableCapital = initialCapital;
-        
-        // 按日期分组交易记录
-        Map<String, List<MomentumStrategyTransaction>> transactionsByDate = transactions.stream()
-                .collect(Collectors.groupingBy(t -> dateFormat.format(t.getTransactionDate())));
-        
-        // 获取所有交易日期并排序
-        List<String> dates = new ArrayList<>(transactionsByDate.keySet());
-        dates.sort(String::compareTo);
-        
-        // 存储每日的资产总值和持仓信息
-        Map<String, MomentumPerformanceDTO> performanceMap = new LinkedHashMap<>();
-        
-        // 记录每个ETF的最新价格（用于计算持仓价值）
-        Map<String, BigDecimal> etfLatestPrice = new HashMap<>();
-        
-        // 按日期遍历交易记录，计算每日资产总值
-        for (String dateStr : dates) {
-            List<MomentumStrategyTransaction> dayTransactions = transactionsByDate.get(dateStr);
-
-            sortTransactionsForSimulation(dayTransactions);
-            for (MomentumStrategyTransaction txn : dayTransactions) {
-                etfLatestPrice.put(txn.getEtfCode(), txn.getPrice());
-                if ("sell".equals(txn.getTransactionType())) {
-                    BigDecimal proceeds = txn.getPrice().multiply(BigDecimal.valueOf(Math.abs(txn.getQuantity())));
-                    availableCapital = availableCapital.add(proceeds);
-                    currentHolding = null;
-                    currentQuantity = 0;
-                } else if ("buy".equals(txn.getTransactionType())) {
-                    BigDecimal cost = txn.getPrice().multiply(BigDecimal.valueOf(txn.getQuantity()));
-                    availableCapital = availableCapital.subtract(cost);
-                    currentHolding = txn.getEtfCode();
-                    currentQuantity = txn.getQuantity();
-                }
-            }
-            
-            // 计算当天资产总值 = 可用资金 + 持仓价值
-            BigDecimal totalValue = availableCapital;
-            BigDecimal currentPrice = null;
-            
-            if (currentHolding != null && currentQuantity > 0) {
-                // 优先使用当天交易的价格
-                for (MomentumStrategyTransaction txn : dayTransactions) {
-                    if (txn.getEtfCode().equals(currentHolding)) {
-                        currentPrice = txn.getPrice();
-                        break;
-                    }
-                }
-                
-                // 如果当天没有该ETF的交易，使用该ETF的最新价格
-                if (currentPrice == null) {
-                    currentPrice = etfLatestPrice.get(currentHolding);
-                }
-                
-                if (currentPrice != null) {
-                    BigDecimal holdingValue = currentPrice.multiply(BigDecimal.valueOf(currentQuantity));
-                    totalValue = totalValue.add(holdingValue);
-                } else {
-                    throw new DataUnavailableException("动量策略收益曲线缺少持仓价格: "
-                            + currentHolding + ", 日期=" + dateStr);
-                }
-            }
-            
-            // 创建收益数据点
-            MomentumPerformanceDTO performance = new MomentumPerformanceDTO();
-            performance.setDate(dateStr);
-            performance.setTotalValue(totalValue);
-            
-            // 计算收益率
-            BigDecimal returnRate = totalValue.subtract(initialCapital)
-                    .divide(initialCapital, 4, RoundingMode.HALF_UP)
-                    .multiply(BigDecimal.valueOf(100));
-            performance.setReturnRate(returnRate);
-            
-            // 设置持仓信息
-            if (currentHolding != null && currentQuantity > 0) {
-                performance.setHoldingEtfCode(currentHolding);
-                // 找到ETF名称
-                for (MomentumStrategyTransaction txn : dayTransactions) {
-                    if (txn.getEtfCode().equals(currentHolding)) {
-                        performance.setHoldingEtfName(txn.getEtfName());
-                        break;
-                    }
-                }
-                if (performance.getHoldingEtfName() == null) {
-                    for (MomentumStrategyTransaction txn : transactions) {
-                        if (txn.getEtfCode().equals(currentHolding)) {
-                            performance.setHoldingEtfName(txn.getEtfName());
-                            break;
-                        }
-                    }
-                }
-                performance.setHoldingQuantity(currentQuantity);
-                if (currentPrice != null) {
-                    performance.setCurrentPrice(currentPrice);
-                }
-            }
-            
-            performanceMap.put(dateStr, performance);
+        BigDecimal initialCapital = performances.get(0).getInitialCapital();
+        if (initialCapital == null || initialCapital.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new DataUnavailableException("动量策略每日绩效缺少初始资金，请重新执行回测生成新记录");
         }
-        
-        // 返回按日期排序的列表
-        return new ArrayList<>(performanceMap.values());
+
+        for (MomentumStrategyPerformance performance : performances) {
+            BigDecimal performanceInitialCapital = performance.getInitialCapital();
+            if (performanceInitialCapital == null || performanceInitialCapital.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new DataUnavailableException("动量策略每日绩效缺少初始资金，请重新执行回测生成新记录");
+            }
+            if (performanceInitialCapital.compareTo(initialCapital) != 0) {
+                throw new DataUnavailableException("动量策略每日绩效初始资金不一致，请清理旧记录后重新回测");
+            }
+        }
     }
 
     private void sortTransactionsForSimulation(List<MomentumStrategyTransaction> transactions) {
@@ -737,6 +733,27 @@ public class MomentumStrategyService {
             throw new BusinessException("动量策略交易记录不能为空");
         }
         requireInitialCapital(transaction);
+    }
+
+    private void validatePerformanceForSave(MomentumStrategyPerformance performance) {
+        if (performance == null) {
+            throw new BusinessException("动量策略每日绩效不能为空");
+        }
+        if (performance.getPerformanceDate() == null) {
+            throw new BusinessException("动量策略每日绩效日期不能为空");
+        }
+        BigDecimal initialCapital = performance.getInitialCapital();
+        if (initialCapital == null || initialCapital.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new DataUnavailableException("动量策略每日绩效缺少初始资金，请重新执行回测生成新记录");
+        }
+        if (performance.getTotalValue() == null) {
+            throw new DataUnavailableException("动量策略每日绩效缺少资产总值，请重新执行回测生成新记录");
+        }
+        if (performance.getHoldingEtfCode() != null && performance.getCurrentPrice() == null) {
+            throw new DataUnavailableException("动量策略每日绩效缺少持仓价格: "
+                    + performance.getHoldingEtfCode()
+                    + ", 日期=" + dateFormat.format(performance.getPerformanceDate()));
+        }
     }
     
     /**
@@ -823,12 +840,23 @@ public class MomentumStrategyService {
             return 0;
         }
 
-        List<MomentumStrategyTransaction> newTransactions = runBacktest(startDate, endDate, initialCapital, state);
+        BacktestResult result = runBacktest(startDate, endDate, initialCapital, state);
+        List<MomentumStrategyTransaction> newTransactions = result.getTransactions();
+        List<MomentumStrategyPerformance> newPerformances = result.getPerformances();
+        if (newPerformances.isEmpty()) {
+            logger.info("增量回测未生成每日绩效");
+            return 0;
+        }
+
+        deletePerformanceByDateRange(startDate, endDate);
+        savePerformanceRecords(newPerformances);
+
         if (newTransactions.isEmpty()) {
             logger.info("增量回测未生成新的交易记录");
             return 0;
         }
 
+        deleteByDateRange(startDate, endDate);
         saveTransactions(newTransactions);
         logger.info("动量策略数据刷新完成，共生成 {} 条新交易记录", newTransactions.size());
         return newTransactions.size();

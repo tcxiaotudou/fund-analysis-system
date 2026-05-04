@@ -148,6 +148,25 @@ CREATE TABLE `momentum_strategy_transaction` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='21日动量策略交易记录表';
 
 
+-- fund_analysis.momentum_strategy_performance definition
+
+CREATE TABLE `momentum_strategy_performance` (
+                                                 `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+                                                 `performance_date` date NOT NULL COMMENT '绩效日期',
+                                                 `total_value` decimal(18,3) NOT NULL COMMENT '资产总值',
+                                                 `return_rate` decimal(10,4) NOT NULL COMMENT '累计收益率（百分比）',
+                                                 `holding_etf_code` varchar(20) DEFAULT NULL COMMENT '持仓ETF代码',
+                                                 `holding_etf_name` varchar(100) DEFAULT NULL COMMENT '持仓ETF名称',
+                                                 `holding_quantity` bigint DEFAULT NULL COMMENT '持仓数量',
+                                                 `current_price` decimal(10,3) DEFAULT NULL COMMENT '当前ETF价格',
+                                                 `initial_capital` decimal(18,2) NOT NULL COMMENT '本轮回测初始资金',
+                                                 `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                                                 PRIMARY KEY (`id`),
+                                                 KEY `idx_performance_date` (`performance_date`),
+                                                 KEY `idx_holding_etf_code` (`holding_etf_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='21日动量策略每日绩效表';
+
+
 -- fund_analysis.rsi_analysis definition
 
 CREATE TABLE `rsi_analysis` (
