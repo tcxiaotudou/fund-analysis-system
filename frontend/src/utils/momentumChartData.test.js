@@ -1,7 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildMomentumChartData } from './momentumChartData.js'
+import {
+  buildMomentumChartData,
+  shouldRenderMomentumMarker,
+} from './momentumChartData.js'
 
 test('资金曲线保留每日绩效点并把买卖点合并到同一数据源', () => {
   const performanceData = [
@@ -46,3 +49,7 @@ test('资金曲线保留每日绩效点并把买卖点合并到同一数据源',
   assert.equal(result[2].sellInfo.quantity, -100)
 })
 
+test('空买卖点不渲染交易标记', () => {
+  assert.equal(shouldRenderMomentumMarker({ payload: { buyValue: null } }, 'buyValue'), false)
+  assert.equal(shouldRenderMomentumMarker({ payload: { buyValue: 101000 } }, 'buyValue'), true)
+})

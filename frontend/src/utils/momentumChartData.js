@@ -86,3 +86,7 @@ export function buildMomentumChartData(performanceData, dateRange, transactions)
   return filteredData.sort((a, b) => a.dateValue - b.dateValue)
 }
 
+export function shouldRenderMomentumMarker(props, markerKey) {
+  const value = props?.payload?.[markerKey]
+  return value !== null && value !== undefined
+}

@@ -11,7 +11,10 @@ import {
   createMomentumBacktestSearchParams,
   getMomentumBacktestRangeFromSearchParams,
 } from '../utils/momentumBacktestRange'
-import { buildMomentumChartData } from '../utils/momentumChartData'
+import {
+  buildMomentumChartData,
+  shouldRenderMomentumMarker,
+} from '../utils/momentumChartData'
 import dayjs from 'dayjs'
 import {
   ComposedChart,
@@ -267,6 +270,15 @@ function MomentumStrategy() {
   const hasBuyPoints = chartData.some(d => d.buyValue !== null)
   const hasSellPoints = chartData.some(d => d.sellValue !== null)
 
+  const renderTradeMarker = (markerKey, color) => (props) => {
+    if (!shouldRenderMomentumMarker(props, markerKey)) {
+      return null
+    }
+
+    const { cx, cy } = props
+    return <circle cx={cx} cy={cy} r={6} fill={color} stroke="#fff" strokeWidth={2} />
+  }
+
   // 格式化日期显示
   const formatDate = (dateStr) => {
     return dayjs(dateStr).format('YYYY-MM-DD')
@@ -503,10 +515,7 @@ function MomentumStrategy() {
                       dataKey="buyValue"
                       fill="#52c41a"
                       name="买入点"
-                      shape={(props) => {
-                        const { cx, cy } = props
-                        return <circle cx={cx} cy={cy} r={6} fill="#52c41a" stroke="#fff" strokeWidth={2} />
-                      }}
+                      shape={renderTradeMarker('buyValue', '#52c41a')}
                     />
                   )}
                   {/* 卖出点 */}
@@ -516,10 +525,7 @@ function MomentumStrategy() {
                       dataKey="sellValue"
                       fill="#ff4d4f"
                       name="卖出点"
-                      shape={(props) => {
-                        const { cx, cy } = props
-                        return <circle cx={cx} cy={cy} r={6} fill="#ff4d4f" stroke="#fff" strokeWidth={2} />
-                      }}
+                      shape={renderTradeMarker('sellValue', '#ff4d4f')}
                     />
                   )}
                 </ComposedChart>
