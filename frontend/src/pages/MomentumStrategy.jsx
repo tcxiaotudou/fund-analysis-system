@@ -11,6 +11,7 @@ import {
   createMomentumBacktestSearchParams,
   getMomentumBacktestRangeFromSearchParams,
 } from '../utils/momentumBacktestRange'
+import { buildMomentumChartData } from '../utils/momentumChartData'
 import dayjs from 'dayjs'
 import {
   ComposedChart,
@@ -21,8 +22,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Scatter,
-  Cell
+  Scatter
 } from 'recharts'
 
 const { RangePicker } = DatePicker
@@ -259,125 +259,13 @@ function MomentumStrategy() {
       .reduce((sum, item) => sum + (item.quantity || 0), 0)
   )
 
-  // 处理图表数据：根据时间范围过滤数据，并合并买卖点信息
-  const chartData = useMemo(() => {
-    if (!performanceData || performanceData.length === 0) {
-      return []
-    }
-
-    // 使用 dayjs 确保日期正确排序
-    const sortedData = [...performanceData].sort((a, b) => {
-      const dateA = dayjs(a.date)
-      const dateB = dayjs(b.date)
-      if (dateA.isBefore(dateB)) return -1
-      if (dateA.isAfter(dateB)) return 1
-      return 0
-    })
-    const totalLength = sortedData.length
-    
-    // 根据百分比计算实际索引范围
-    const startIndex = Math.floor((dateRange[0] / 100) * totalLength)
-    const endIndex = Math.ceil((dateRange[1] / 100) * totalLength)
-    
-    const filteredData = sortedData.slice(startIndex, endIndex).map(item => ({
-      date: item.date,
-      dateValue: dayjs(item.date).valueOf(), // 添加数值型日期用于排序
-      totalValue: item.totalValue ? parseFloat(item.totalValue) : 0,
-      returnRate: item.returnRate ? parseFloat(item.returnRate) : 0,
-      holdingEtfCode: item.holdingEtfCode,
-      holdingEtfName: item.holdingEtfName,
-      buyValue: null, // 买入点的资产总值
-      sellValue: null, // 卖出点的资产总值
-      buyInfo: null, // 买入点详细信息
-      sellInfo: null, // 卖出点详细信息
-    }))
-
-    // 将买卖点信息合并到图表数据中
-    // 注意：同一天可能有多个交易（买入和卖出），需要合并显示
-    if (data && filteredData.length > 0) {
-      const chartDates = new Set(filteredData.map(d => d.date))
-      
-      // 按日期分组交易记录
-      const transactionsByDate = {}
-      data.forEach(transaction => {
-        if (chartDates.has(transaction.date)) {
-          if (!transactionsByDate[transaction.date]) {
-            transactionsByDate[transaction.date] = []
-          }
-          transactionsByDate[transaction.date].push(transaction)
-        }
-      })
-      
-      // 将交易信息合并到图表数据中
-      Object.keys(transactionsByDate).forEach(date => {
-        const chartPoint = filteredData.find(d => d.date === date)
-        if (chartPoint) {
-          const dayTransactions = transactionsByDate[date]
-          
-          // 处理买入交易（可能有多个）
-          const buyTransactions = dayTransactions.filter(t => t.type === 'buy')
-          if (buyTransactions.length > 0) {
-            // 如果有多个买入，合并显示（通常一天只有一个买入）
-            const buyTxn = buyTransactions[0]
-            chartPoint.buyValue = chartPoint.totalValue
-            chartPoint.buyInfo = {
-              code: buyTxn.code,
-              name: buyTxn.name,
-              price: buyTxn.price ? parseFloat(buyTxn.price) : 0,
-              quantity: buyTxn.quantity,
-            }
-            // 如果有多个买入，添加额外信息
-            if (buyTransactions.length > 1) {
-              chartPoint.buyInfo.multiple = true
-              chartPoint.buyInfo.count = buyTransactions.length
-            }
-          }
-          
-          // 处理卖出交易（可能有多个）
-          const sellTransactions = dayTransactions.filter(t => t.type === 'sell')
-          if (sellTransactions.length > 0) {
-            // 如果有多个卖出，合并显示（通常一天只有一个卖出）
-            const sellTxn = sellTransactions[0]
-            chartPoint.sellValue = chartPoint.totalValue
-            chartPoint.sellInfo = {
-              code: sellTxn.code,
-              name: sellTxn.name,
-              price: sellTxn.price ? parseFloat(sellTxn.price) : 0,
-              quantity: sellTxn.quantity,
-            }
-            // 如果有多个卖出，添加额外信息
-            if (sellTransactions.length > 1) {
-              chartPoint.sellInfo.multiple = true
-              chartPoint.sellInfo.count = sellTransactions.length
-            }
-          }
-        }
-      })
-    }
-
-    // 确保最终数据按日期排序
-    return filteredData.sort((a, b) => a.dateValue - b.dateValue)
-  }, [performanceData, dateRange, data])
-
-  // 提取买卖点数据用于 Scatter
-  // Scatter 需要与主数据共享相同的 x 轴，所以需要包含所有日期
-  const buyPoints = useMemo(() => {
-    return chartData.map(d => ({
-      date: d.date,
-      value: d.buyValue !== null ? d.buyValue : null,
-      ...(d.buyInfo || {}),
-      type: 'buy'
-    })).filter(d => d.value !== null)
-  }, [chartData])
-
-  const sellPoints = useMemo(() => {
-    return chartData.map(d => ({
-      date: d.date,
-      value: d.sellValue !== null ? d.sellValue : null,
-      ...(d.sellInfo || {}),
-      type: 'sell'
-    })).filter(d => d.value !== null)
-  }, [chartData])
+  // 处理图表数据：资金曲线和买卖点必须共用同一份每日绩效数据源
+  const chartData = useMemo(
+    () => buildMomentumChartData(performanceData, dateRange, data),
+    [performanceData, dateRange, data],
+  )
+  const hasBuyPoints = chartData.some(d => d.buyValue !== null)
+  const hasSellPoints = chartData.some(d => d.sellValue !== null)
 
   // 格式化日期显示
   const formatDate = (dateStr) => {
@@ -475,33 +363,6 @@ function MomentumStrategy() {
               )}
             </div>
           )}
-        </div>
-      )
-    }
-    return null
-  }
-
-  // 自定义买卖点 Tooltip
-  const TransactionTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload
-      const isBuy = data.type === 'buy'
-      return (
-        <div style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          border: `1px solid ${isBuy ? '#52c41a' : '#ff4d4f'}`,
-          borderRadius: '4px',
-          padding: '10px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-        }}>
-          <p style={{ margin: 0, fontWeight: 'bold', color: isBuy ? '#52c41a' : '#ff4d4f' }}>
-            {isBuy ? '买入' : '卖出'}
-          </p>
-          <p style={{ margin: '5px 0' }}>{formatDate(data.date)}</p>
-          <p style={{ margin: '5px 0' }}>{data.code} {data.name}</p>
-          <p style={{ margin: '5px 0' }}>价格: {data.price.toFixed(3)}</p>
-          <p style={{ margin: '5px 0' }}>数量: {Math.abs(data.quantity).toLocaleString()}</p>
-          <p style={{ margin: '5px 0' }}>资产总值: {formatCurrency(data.value)}</p>
         </div>
       )
     }
@@ -606,14 +467,15 @@ function MomentumStrategy() {
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
-                    dataKey="date" 
-                    type="category"
+                    dataKey="dateValue"
+                    type="number"
+                    scale="time"
+                    domain={['dataMin', 'dataMax']}
                     tickFormatter={formatDate}
                     angle={-45}
                     textAnchor="end"
                     height={80}
-                    interval="preserveStartEnd"
-                    allowDuplicatedCategory={false}
+                    tickCount={8}
                   />
                   <YAxis 
                     yAxisId="left"
@@ -635,14 +497,12 @@ function MomentumStrategy() {
                     isAnimationActive={false}
                   />
                   {/* 买入点 */}
-                  {buyPoints.length > 0 && (
+                  {hasBuyPoints && (
                     <Scatter
                       yAxisId="left"
-                      data={buyPoints}
-                      dataKey="value"
+                      dataKey="buyValue"
                       fill="#52c41a"
                       name="买入点"
-                      tooltip={<TransactionTooltip />}
                       shape={(props) => {
                         const { cx, cy } = props
                         return <circle cx={cx} cy={cy} r={6} fill="#52c41a" stroke="#fff" strokeWidth={2} />
@@ -650,14 +510,12 @@ function MomentumStrategy() {
                     />
                   )}
                   {/* 卖出点 */}
-                  {sellPoints.length > 0 && (
+                  {hasSellPoints && (
                     <Scatter
                       yAxisId="left"
-                      data={sellPoints}
-                      dataKey="value"
+                      dataKey="sellValue"
                       fill="#ff4d4f"
                       name="卖出点"
-                      tooltip={<TransactionTooltip />}
                       shape={(props) => {
                         const { cx, cy } = props
                         return <circle cx={cx} cy={cy} r={6} fill="#ff4d4f" stroke="#fff" strokeWidth={2} />
