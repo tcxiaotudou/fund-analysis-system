@@ -72,4 +72,38 @@ class MomentumStrategyServiceTest {
         assertEquals(0, new BigDecimal("12.000").compareTo(dto.getCurrentPrice()));
         verify(transactionMapper, never()).selectByDateRange(startDate, endDate);
     }
+
+    @Test
+    void latestStrategyDatePrefersPersistedPerformanceDate() throws Exception {
+        Date performanceDate = dateFormat.parse("2026-04-30");
+        when(performanceMapper.selectLatestPerformanceDate()).thenReturn(performanceDate);
+
+        Date result = ReflectionTestUtils.invokeMethod(momentumStrategyService, "resolveLatestStrategyDate");
+
+        assertEquals(performanceDate, result);
+        verify(transactionMapper, never()).selectLatestTransactionDate();
+    }
+
+    @Test
+    void restoreLatestStateUsesPersistedPerformance() throws Exception {
+        MomentumStrategyPerformance performance = new MomentumStrategyPerformance();
+        performance.setPerformanceDate(dateFormat.parse("2026-04-30"));
+        performance.setTotalValue(new BigDecimal("118032.692"));
+        performance.setHoldingEtfCode("sh513100");
+        performance.setHoldingEtfName("纳指ETF");
+        performance.setHoldingQuantity(60128L);
+        performance.setCurrentPrice(new BigDecimal("1.963"));
+        performance.setInitialCapital(new BigDecimal("100000.00"));
+        when(performanceMapper.selectLatestPerformance()).thenReturn(performance);
+
+        Object state = ReflectionTestUtils.invokeMethod(momentumStrategyService, "restoreLatestState");
+
+        assertEquals("sh513100", ReflectionTestUtils.invokeGetterMethod(state, "currentHolding"));
+        assertEquals(60128L, ReflectionTestUtils.invokeGetterMethod(state, "currentQuantity"));
+        assertEquals(0, new BigDecimal("1.428").compareTo(
+                (BigDecimal) ReflectionTestUtils.invokeGetterMethod(state, "availableCapital")));
+        assertEquals(0, new BigDecimal("100000.00").compareTo(
+                (BigDecimal) ReflectionTestUtils.invokeGetterMethod(state, "initialCapital")));
+        verify(transactionMapper, never()).selectAllOrderByDateDesc();
+    }
 }

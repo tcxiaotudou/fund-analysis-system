@@ -757,10 +757,15 @@ public class MomentumStrategyService {
     }
     
     /**
-     * 从历史交易记录中恢复最新状态（持仓和资金）
-     * @return 最新持仓状态，如果没有交易记录则返回null
+     * 从最新每日绩效中恢复最新状态（持仓和资金）
+     * @return 最新持仓状态，如果没有每日绩效则返回交易记录恢复的状态
      */
     private BacktestState restoreLatestState() {
+        MomentumStrategyPerformance latestPerformance = performanceMapper.selectLatestPerformance();
+        if (latestPerformance != null) {
+            return restoreStateFromPerformance(latestPerformance);
+        }
+
         List<MomentumStrategyTransaction> allTransactions = transactionMapper.selectAllOrderByDateDesc();
         
         if (allTransactions.isEmpty()) {
@@ -796,17 +801,54 @@ public class MomentumStrategyService {
 
         return new BacktestState(currentHolding, currentQuantity, availableCapital, initialCapital);
     }
+
+    private BacktestState restoreStateFromPerformance(MomentumStrategyPerformance performance) {
+        BigDecimal initialCapital = performance.getInitialCapital();
+        if (initialCapital == null || initialCapital.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new DataUnavailableException("动量策略每日绩效缺少初始资金，请重新执行回测生成新记录");
+        }
+
+        BigDecimal totalValue = performance.getTotalValue();
+        if (totalValue == null) {
+            throw new DataUnavailableException("动量策略每日绩效缺少资产总值，请重新执行回测生成新记录");
+        }
+
+        String currentHolding = performance.getHoldingEtfCode();
+        Long holdingQuantity = performance.getHoldingQuantity();
+        BigDecimal availableCapital = totalValue;
+
+        if (currentHolding != null && holdingQuantity != null && holdingQuantity > 0) {
+            BigDecimal currentPrice = performance.getCurrentPrice();
+            if (currentPrice == null || currentPrice.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new DataUnavailableException("动量策略每日绩效缺少持仓价格: "
+                        + currentHolding + ", 日期=" + dateFormat.format(performance.getPerformanceDate()));
+            }
+            BigDecimal holdingValue = currentPrice.multiply(BigDecimal.valueOf(holdingQuantity));
+            availableCapital = totalValue.subtract(holdingValue);
+            return new BacktestState(currentHolding, holdingQuantity, availableCapital, initialCapital);
+        }
+
+        return new BacktestState(null, 0, availableCapital, initialCapital);
+    }
+
+    private Date resolveLatestStrategyDate() {
+        Date latestPerformanceDate = performanceMapper.selectLatestPerformanceDate();
+        if (latestPerformanceDate != null) {
+            return latestPerformanceDate;
+        }
+        return transactionMapper.selectLatestTransactionDate();
+    }
     
     /**
      * 刷新动量策略数据（定时任务使用）
-     * 从最新交易记录的下一天开始，执行增量回测到今天
+     * 从最新每日绩效的下一天开始，执行增量回测到今天
      * @return 新生成的交易记录数
      */
     @Transactional
     public synchronized int refreshMomentumStrategy() {
         logger.info("========== 开始刷新动量策略数据 ==========");
 
-        Date latestDate = transactionMapper.selectLatestTransactionDate();
+        Date latestDate = resolveLatestStrategyDate();
         Date startDate;
         Date endDate = new Date();
         BigDecimal initialCapital = DEFAULT_INITIAL_CAPITAL;
@@ -823,7 +865,7 @@ public class MomentumStrategyService {
             cal.setTime(latestDate);
             cal.add(Calendar.DAY_OF_MONTH, 1);
             startDate = cal.getTime();
-            logger.info("从最新交易日期 {} 的下一天 {} 开始增量回测",
+            logger.info("从最新策略日期 {} 的下一天 {} 开始增量回测",
                     dateFormat.format(latestDate), dateFormat.format(startDate));
 
             state = restoreLatestState();

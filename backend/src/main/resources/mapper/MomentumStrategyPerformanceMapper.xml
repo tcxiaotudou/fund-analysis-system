@@ -16,6 +16,18 @@
         ORDER BY performance_date ASC, create_time ASC
     </select>
 
+    <!-- 查询最新绩效日期 -->
+    <select id="selectLatestPerformanceDate" resultType="java.util.Date">
+        SELECT MAX(performance_date) FROM momentum_strategy_performance
+    </select>
+
+    <!-- 查询最新每日绩效 -->
+    <select id="selectLatestPerformance" resultType="com.fund.analysis.entity.MomentumStrategyPerformance">
+        SELECT * FROM momentum_strategy_performance
+        ORDER BY performance_date DESC, create_time DESC, id DESC
+        LIMIT 1
+    </select>
+
     <!-- 删除指定日期范围内的每日绩效 -->
     <delete id="deleteByDateRange">
         DELETE FROM momentum_strategy_performance
