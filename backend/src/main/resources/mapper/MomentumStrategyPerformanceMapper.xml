@@ -28,6 +28,14 @@
         LIMIT 1
     </select>
 
+    <!-- 查询指定日期之前的最新每日绩效 -->
+    <select id="selectLatestPerformanceBefore" resultType="com.fund.analysis.entity.MomentumStrategyPerformance">
+        SELECT * FROM momentum_strategy_performance
+        WHERE performance_date &lt; #{beforeDate}
+        ORDER BY performance_date DESC, create_time DESC, id DESC
+        LIMIT 1
+    </select>
+
     <!-- 删除指定日期范围内的每日绩效 -->
     <delete id="deleteByDateRange">
         DELETE FROM momentum_strategy_performance

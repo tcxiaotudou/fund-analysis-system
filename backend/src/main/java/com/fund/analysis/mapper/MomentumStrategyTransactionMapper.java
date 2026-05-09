@@ -28,6 +28,13 @@ public interface MomentumStrategyTransactionMapper extends BaseMapper<MomentumSt
      * @return 交易记录列表
      */
     List<MomentumStrategyTransaction> selectAllOrderByDateDesc();
+
+    /**
+     * 查询指定日期之前的交易记录（按日期正序）
+     * @param beforeDate 指定日期
+     * @return 指定日期之前的交易记录列表
+     */
+    List<MomentumStrategyTransaction> selectBeforeDate(@Param("beforeDate") Date beforeDate);
     
     /**
      * 查询指定ETF代码的交易记录

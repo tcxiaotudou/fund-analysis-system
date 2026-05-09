@@ -767,20 +767,39 @@ public class MomentumStrategyService {
         }
 
         List<MomentumStrategyTransaction> allTransactions = transactionMapper.selectAllOrderByDateDesc();
-        
-        if (allTransactions.isEmpty()) {
+        return restoreStateFromTransactions(allTransactions);
+    }
+
+    /**
+     * 恢复指定日期之前的策略状态，用于重算最新交易日
+     */
+    private BacktestState restoreStateBefore(Date beforeDate) {
+        MomentumStrategyPerformance previousPerformance = performanceMapper.selectLatestPerformanceBefore(beforeDate);
+        if (previousPerformance != null) {
+            return restoreStateFromPerformance(previousPerformance);
+        }
+
+        List<MomentumStrategyTransaction> previousTransactions = transactionMapper.selectBeforeDate(beforeDate);
+        return restoreStateFromTransactions(previousTransactions);
+    }
+
+    /**
+     * 根据交易记录恢复持仓和现金状态
+     */
+    private BacktestState restoreStateFromTransactions(List<MomentumStrategyTransaction> transactions) {
+        if (transactions == null || transactions.isEmpty()) {
             return null;
         }
-        
-        sortTransactionsForSimulation(allTransactions);
-        BigDecimal initialCapital = requireInitialCapital(allTransactions.get(0));
-        
+
+        sortTransactionsForSimulation(transactions);
+        BigDecimal initialCapital = requireInitialCapital(transactions.get(0));
+
         String currentHolding = null;
         long currentQuantity = 0;
         BigDecimal availableCapital = initialCapital;
-        
-        // 遍历所有交易记录，恢复最新状态
-        for (MomentumStrategyTransaction txn : allTransactions) {
+
+        // 交易记录按时间顺序回放，得到区间末尾状态
+        for (MomentumStrategyTransaction txn : transactions) {
             BigDecimal txnInitialCapital = requireInitialCapital(txn);
             if (txnInitialCapital.compareTo(initialCapital) != 0) {
                 throw new DataUnavailableException("动量策略交易记录初始资金不一致，请清理旧记录后重新回测");
@@ -838,10 +857,35 @@ public class MomentumStrategyService {
         }
         return transactionMapper.selectLatestTransactionDate();
     }
+
+    /**
+     * 替换重算区间内的绩效和交易记录
+     */
+    private int replaceRefreshedStrategyRange(Date startDate, Date endDate,
+                                              List<MomentumStrategyTransaction> newTransactions,
+                                              List<MomentumStrategyPerformance> newPerformances) {
+        if (newPerformances == null || newPerformances.isEmpty()) {
+            logger.info("增量回测未生成每日绩效");
+            return 0;
+        }
+
+        deletePerformanceByDateRange(startDate, endDate);
+        savePerformanceRecords(newPerformances);
+
+        deleteByDateRange(startDate, endDate);
+        if (newTransactions == null || newTransactions.isEmpty()) {
+            logger.info("重算区间未生成新的交易记录，已清理区间内旧交易记录");
+            return 0;
+        }
+
+        saveTransactions(newTransactions);
+        logger.info("动量策略数据刷新完成，共生成 {} 条新交易记录", newTransactions.size());
+        return newTransactions.size();
+    }
     
     /**
      * 刷新动量策略数据（定时任务使用）
-     * 从最新每日绩效的下一天开始，执行增量回测到今天
+     * 从最新每日绩效日期开始重算，刷新收益曲线并重新判断调仓
      * @return 新生成的交易记录数
      */
     @Transactional
@@ -861,17 +905,14 @@ public class MomentumStrategyService {
             startDate = cal.getTime();
             logger.info("没有历史交易记录，从 {} 开始回测", dateFormat.format(startDate));
         } else {
-            Calendar cal = Calendar.getInstance();
-            cal.setTime(latestDate);
-            cal.add(Calendar.DAY_OF_MONTH, 1);
-            startDate = cal.getTime();
-            logger.info("从最新策略日期 {} 的下一天 {} 开始增量回测",
-                    dateFormat.format(latestDate), dateFormat.format(startDate));
+            startDate = latestDate;
+            logger.info("从最新策略日期 {} 开始重算收益曲线和交易信号",
+                    dateFormat.format(startDate));
 
-            state = restoreLatestState();
+            state = restoreStateBefore(startDate);
             if (state != null) {
                 initialCapital = state.getInitialCapital();
-                logger.info("从历史记录恢复资金状态: 持仓={}, 数量={}, 可用资金={}, 初始资金={}",
+                logger.info("从重算起始日前恢复资金状态: 持仓={}, 数量={}, 可用资金={}, 初始资金={}",
                         state.getCurrentHolding(), state.getCurrentQuantity(),
                         state.getAvailableCapital(), state.getInitialCapital());
             }
@@ -885,23 +926,7 @@ public class MomentumStrategyService {
         BacktestResult result = runBacktest(startDate, endDate, initialCapital, state);
         List<MomentumStrategyTransaction> newTransactions = result.getTransactions();
         List<MomentumStrategyPerformance> newPerformances = result.getPerformances();
-        if (newPerformances.isEmpty()) {
-            logger.info("增量回测未生成每日绩效");
-            return 0;
-        }
-
-        deletePerformanceByDateRange(startDate, endDate);
-        savePerformanceRecords(newPerformances);
-
-        if (newTransactions.isEmpty()) {
-            logger.info("增量回测未生成新的交易记录");
-            return 0;
-        }
-
-        deleteByDateRange(startDate, endDate);
-        saveTransactions(newTransactions);
-        logger.info("动量策略数据刷新完成，共生成 {} 条新交易记录", newTransactions.size());
-        return newTransactions.size();
+        return replaceRefreshedStrategyRange(startDate, endDate, newTransactions, newPerformances);
     }
     
 }

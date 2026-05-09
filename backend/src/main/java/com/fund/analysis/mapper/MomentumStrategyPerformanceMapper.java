@@ -42,6 +42,13 @@ public interface MomentumStrategyPerformanceMapper extends BaseMapper<MomentumSt
     MomentumStrategyPerformance selectLatestPerformance();
 
     /**
+     * 查询指定日期之前的最新每日绩效
+     * @param beforeDate 指定日期
+     * @return 指定日期之前的最新每日绩效，如果没有记录则返回null
+     */
+    MomentumStrategyPerformance selectLatestPerformanceBefore(@Param("beforeDate") Date beforeDate);
+
+    /**
      * 删除指定日期范围内的每日绩效
      * @param startDate 开始日期
      * @param endDate 结束日期

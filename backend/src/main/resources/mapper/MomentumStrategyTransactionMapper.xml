@@ -15,6 +15,13 @@
         SELECT * FROM momentum_strategy_transaction 
         ORDER BY transaction_date DESC, create_time DESC
     </select>
+
+    <!-- 查询指定日期之前的交易记录（按日期正序） -->
+    <select id="selectBeforeDate" resultType="com.fund.analysis.entity.MomentumStrategyTransaction">
+        SELECT * FROM momentum_strategy_transaction
+        WHERE transaction_date &lt; #{beforeDate}
+        ORDER BY transaction_date ASC, create_time ASC, id ASC
+    </select>
     
     <!-- 查询指定ETF代码的交易记录 -->
     <select id="selectByEtfCode" resultType="com.fund.analysis.entity.MomentumStrategyTransaction">
