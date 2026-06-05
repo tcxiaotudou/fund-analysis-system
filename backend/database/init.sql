@@ -276,7 +276,8 @@ INSERT INTO `system_config` (`config_key`, `config_value`, `config_group`, `conf
 ('email_port', '587', 'email', 'SMTP端口', 'SMTP服务器端口', 1),
 ('email_username', '', 'email', '发件邮箱', '发件人邮箱地址', 1),
 ('email_password', '', 'email', '邮箱授权码', '邮箱授权码（QQ邮箱需要使用授权码）', 1),
-('email_schedule', '12:00,14:50', 'email', '邮件发送时间', '每天发送邮件的时间点，多个时间用逗号分隔（周一到周五）', 1)
+('email_schedule', '12:00,14:50', 'email', '邮件发送时间', '每天发送邮件的时间点，多个时间用逗号分隔（周一到周五）', 1),
+('fund_recommendation_condition_id', '2374632', 'fund', '基金推荐条件ID', '韭圈儿基金推荐接口 condition_id', 1)
 ON DUPLICATE KEY UPDATE
 `config_value` = VALUES(`config_value`),
 `update_time` = CURRENT_TIMESTAMP;

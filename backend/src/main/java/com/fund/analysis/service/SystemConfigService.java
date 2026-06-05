@@ -3,6 +3,7 @@ package com.fund.analysis.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fund.analysis.config.DynamicScheduleConfig;
 import com.fund.analysis.entity.SystemConfig;
+import com.fund.analysis.exception.BadRequestException;
 import com.fund.analysis.mapper.SystemConfigMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,11 +23,25 @@ import java.util.Map;
 @Service
 public class SystemConfigService {
 
+    /**
+     * 基金推荐条件ID配置键
+     */
+    public static final String FUND_RECOMMENDATION_CONDITION_ID_KEY = "fund_recommendation_condition_id";
+
+    /**
+     * 日志记录器
+     */
     private static final Logger logger = LoggerFactory.getLogger(SystemConfigService.class);
 
+    /**
+     * 系统配置数据访问对象
+     */
     @Autowired
     private SystemConfigMapper systemConfigMapper;
 
+    /**
+     * 动态定时任务配置
+     */
     @Autowired(required = false)
     private DynamicScheduleConfig dynamicScheduleConfig;
 
@@ -145,6 +160,52 @@ public class SystemConfigService {
     }
 
     /**
+     * 批量保存基金推荐配置
+     *
+     * @param configMap 配置映射
+     */
+    @Transactional
+    public void saveFundRecommendationConfigs(Map<String, String> configMap) {
+        String conditionId = configMap.get("conditionId");
+        if (conditionId == null || conditionId.trim().isEmpty()) {
+            throw new BadRequestException("基金推荐 condition_id 不能为空");
+        }
+
+        saveOrUpdateConfig(
+                FUND_RECOMMENDATION_CONDITION_ID_KEY,
+                conditionId.trim(),
+                "fund",
+                "基金推荐条件ID"
+        );
+        logger.info("批量保存基金推荐配置成功");
+    }
+
+    /**
+     * 获取所有基金推荐配置
+     *
+     * @return 配置映射
+     */
+    public Map<String, String> getFundRecommendationConfigs() {
+        Map<String, String> configMap = new HashMap<>();
+        String conditionId = getConfigValue(FUND_RECOMMENDATION_CONDITION_ID_KEY);
+        configMap.put("conditionId", conditionId == null ? "" : conditionId);
+        return configMap;
+    }
+
+    /**
+     * 获取基金推荐条件ID
+     *
+     * @return 基金推荐条件ID
+     */
+    public String getFundRecommendationConditionId() {
+        String conditionId = getConfigValue(FUND_RECOMMENDATION_CONDITION_ID_KEY);
+        if (conditionId == null || conditionId.trim().isEmpty()) {
+            throw new BadRequestException("未配置基金推荐 condition_id，请先在基金推荐页面保存配置");
+        }
+        return conditionId.trim();
+    }
+
+    /**
      * 获取所有邮件配置
      *
      * @return 配置映射
@@ -221,4 +282,3 @@ public class SystemConfigService {
         logger.info("删除配置: {}", configKey);
     }
 }
-

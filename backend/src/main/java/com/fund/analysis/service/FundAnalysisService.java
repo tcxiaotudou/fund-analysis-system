@@ -22,17 +22,35 @@ import java.util.*;
  */
 @Service
 public class FundAnalysisService {
-    
+
+    /**
+     * 日志记录器
+     */
     private static final Logger logger = LoggerFactory.getLogger(FundAnalysisService.class);
-    
+
+    /**
+     * 基金信息数据访问对象
+     */
     @Autowired
     private FundInfoMapper fundInfoMapper;
-    
+
+    /**
+     * 基金黑名单服务
+     */
     @Autowired
     private FundBlacklistService fundBlacklistService;
 
+    /**
+     * 第三方接口客户端
+     */
     @Autowired
     private ExternalApiClient externalApiClient;
+
+    /**
+     * 系统配置服务
+     */
+    @Autowired
+    private SystemConfigService systemConfigService;
     
     /**
      * 获取基金推荐列表（从数据库读取）
@@ -55,7 +73,7 @@ public class FundAnalysisService {
     public List<FundInfo> refreshFundRecommendations() {
         String url = "https://api.jiucaishuo.com/v2/fundchoose/result2";
         Map<String, String> payload = new HashMap<>();
-        payload.put("condition_id", "2374632");
+        payload.put("condition_id", systemConfigService.getFundRecommendationConditionId());
 
         JsonObject jsonObject = externalApiClient.postJsonElement(url, payload).getAsJsonObject();
         if (jsonObject.get("code").getAsInt() != 0) {

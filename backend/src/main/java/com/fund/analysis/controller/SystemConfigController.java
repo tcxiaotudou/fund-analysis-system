@@ -21,23 +21,67 @@ import java.util.Map;
 @RequestMapping("/system-config")
 public class SystemConfigController {
 
+    /**
+     * 系统配置服务
+     */
     @Autowired
     private SystemConfigService systemConfigService;
 
+    /**
+     * 邮件服务
+     */
     @Autowired
     private EmailService emailService;
 
+    /**
+     * 获取邮件配置
+     *
+     * @return 邮件配置
+     */
     @GetMapping("/email")
     public Result<Map<String, String>> getEmailConfig() {
         return Result.success(systemConfigService.getEmailConfigs());
     }
 
+    /**
+     * 保存邮件配置
+     *
+     * @param configMap 邮件配置映射
+     * @return 保存结果
+     */
     @PostMapping("/email")
     public Result<Void> saveEmailConfig(@RequestBody Map<String, String> configMap) {
         systemConfigService.saveEmailConfigs(configMap);
         return Result.success("保存成功", null);
     }
 
+    /**
+     * 获取基金推荐配置
+     *
+     * @return 基金推荐配置
+     */
+    @GetMapping("/fund-recommendation")
+    public Result<Map<String, String>> getFundRecommendationConfig() {
+        return Result.success(systemConfigService.getFundRecommendationConfigs());
+    }
+
+    /**
+     * 保存基金推荐配置
+     *
+     * @param configMap 基金推荐配置映射
+     * @return 保存结果
+     */
+    @PostMapping("/fund-recommendation")
+    public Result<Void> saveFundRecommendationConfig(@RequestBody Map<String, String> configMap) {
+        systemConfigService.saveFundRecommendationConfigs(configMap);
+        return Result.success("保存成功", null);
+    }
+
+    /**
+     * 立即发送邮件
+     *
+     * @return 发送结果
+     */
     @PostMapping("/email/send-now")
     public Result<Void> sendEmailNow() {
         if (!systemConfigService.isEmailEnabled()) {

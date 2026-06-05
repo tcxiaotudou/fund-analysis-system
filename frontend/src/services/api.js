@@ -81,6 +81,9 @@ export const maStrategyApi = {
 export const fundApi = {
   // 获取基金推荐列表
   getRecommendations: () => api.get('/fund/recommendations'),
+
+  // 重新获取基金推荐列表
+  refreshRecommendations: () => api.post('/fund/recommendations/refresh'),
   
   // 获取黑名单列表
   getBlacklist: () => api.get('/fund/blacklist'),
@@ -189,9 +192,20 @@ export const rsiBacktestApi = {
  * 系统配置相关API
  */
 export const systemConfigApi = {
+  // 获取邮件配置
   getEmailConfig: () => api.get('/system-config/email'),
+
+  // 保存邮件配置
   saveEmailConfig: (data) => api.post('/system-config/email', data),
+
+  // 立即发送邮件
   sendEmailNow: () => api.post('/system-config/email/send-now'),
+
+  // 获取基金推荐配置
+  getFundRecommendationConfig: () => api.get('/system-config/fund-recommendation'),
+
+  // 保存基金推荐配置
+  saveFundRecommendationConfig: (data) => api.post('/system-config/fund-recommendation', data),
 }
 
 export default api

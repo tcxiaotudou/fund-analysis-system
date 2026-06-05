@@ -4,19 +4,51 @@
  */
 import React, { useState, useEffect } from 'react'
 import { Card, Table, Tag, Button, Space, Tooltip, Modal, Input, message } from 'antd'
-import { ReloadOutlined, StarOutlined, StarFilled, StopOutlined, CheckCircleOutlined } from '@ant-design/icons'
-import { fundApi } from '../services/api'
+import { ReloadOutlined, SaveOutlined, StarOutlined, StarFilled, StopOutlined } from '@ant-design/icons'
+import { fundApi, systemConfigApi } from '../services/api'
 
 const { TextArea } = Input
 
 function FundRecommendation() {
+  // 推荐列表加载状态
   const [loading, setLoading] = useState(false)
+  // 推荐列表数据
   const [data, setData] = useState([])
+  // 基金黑名单数据
   const [blacklist, setBlacklist] = useState([])
+  // 排除弹窗显示状态
   const [excludeModalVisible, setExcludeModalVisible] = useState(false)
+  // 当前操作基金
   const [currentFund, setCurrentFund] = useState(null)
+  // 排除原因
   const [excludeReason, setExcludeReason] = useState('')
+  // 已持有基金代码集合
   const [holdings, setHoldings] = useState(new Set())
+  // 基金推荐条件ID
+  const [conditionId, setConditionId] = useState('')
+  // 基金推荐配置加载状态
+  const [configLoading, setConfigLoading] = useState(false)
+  // 基金推荐配置保存状态
+  const [savingConfig, setSavingConfig] = useState(false)
+  // 第三方推荐数据刷新状态
+  const [refreshingRemote, setRefreshingRemote] = useState(false)
+
+  /**
+   * 应用基金推荐数据
+   * @param {Array} newData 基金推荐数据
+   */
+  const applyRecommendationData = (newData) => {
+    setData(newData)
+
+    // 提取持有状态
+    const holdingSet = new Set()
+    newData.forEach(fund => {
+      if (fund.isHolding === 1) {
+        holdingSet.add(fund.fundCode)
+      }
+    })
+    setHoldings(holdingSet)
+  }
 
   /**
    * 加载基金推荐数据
@@ -32,21 +64,32 @@ function FundRecommendation() {
       if (response.code === 0) {
         // 创建全新的数组，避免引用问题
         const newData = [...(response.data || [])]
-        setData(newData)
-        
-        // 提取持有状态
-        const holdingSet = new Set()
-        newData.forEach(fund => {
-          if (fund.isHolding === 1) {
-            holdingSet.add(fund.fundCode)
-          }
-        })
-        setHoldings(holdingSet)
+        applyRecommendationData(newData)
       }
     } catch (error) {
       console.error('加载基金推荐数据失败:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  /**
+   * 加载基金推荐配置
+   */
+  const loadRecommendationConfig = async () => {
+    try {
+      setConfigLoading(true)
+      const response = await systemConfigApi.getFundRecommendationConfig()
+      if (response.code === 0) {
+        setConditionId(response.data?.conditionId || '')
+      } else {
+        message.error(response.message || '加载基金推荐配置失败')
+      }
+    } catch (error) {
+      console.error('加载基金推荐配置失败:', error)
+      message.error('加载基金推荐配置失败: ' + (error.normalizedMessage || error.message || '网络错误'))
+    } finally {
+      setConfigLoading(false)
     }
   }
 
@@ -159,9 +202,73 @@ function FundRecommendation() {
     }
   }
 
+  /**
+   * 保存基金推荐条件ID
+   */
+  const handleSaveConditionId = async () => {
+    const nextConditionId = conditionId.trim()
+    if (!nextConditionId) {
+      message.warning('请输入 condition_id')
+      return false
+    }
+
+    try {
+      setSavingConfig(true)
+      const response = await systemConfigApi.saveFundRecommendationConfig({
+        conditionId: nextConditionId,
+      })
+
+      if (response.code === 0) {
+        setConditionId(nextConditionId)
+        message.success('基金推荐配置已保存')
+        return true
+      }
+
+      message.error(response.message || '保存基金推荐配置失败')
+      return false
+    } catch (error) {
+      console.error('保存基金推荐配置失败:', error)
+      message.error('保存基金推荐配置失败: ' + (error.normalizedMessage || error.message || '网络错误'))
+      return false
+    } finally {
+      setSavingConfig(false)
+    }
+  }
+
+  /**
+   * 保存条件ID并重新获取最新基金推荐
+   */
+  const handleRefreshRecommendations = async () => {
+    const saved = await handleSaveConditionId()
+    if (!saved) {
+      return
+    }
+
+    try {
+      setRefreshingRemote(true)
+      setData([])
+      const response = await fundApi.refreshRecommendations()
+
+      if (response.code === 0) {
+        const newData = [...(response.data || [])]
+        applyRecommendationData(newData)
+        await loadBlacklist()
+        message.success('基金推荐数据已重新获取')
+      } else {
+        message.error(response.message || '重新获取基金推荐数据失败')
+      }
+    } catch (error) {
+      console.error('重新获取基金推荐数据失败:', error)
+      message.error('重新获取基金推荐数据失败: ' + (error.normalizedMessage || error.message || '网络错误'))
+    } finally {
+      setRefreshingRemote(false)
+    }
+  }
+
   useEffect(() => {
     loadData()
     loadBlacklist()
+    loadRecommendationConfig()
   }, [])
 
   /**
@@ -363,14 +470,53 @@ function FundRecommendation() {
 
       <Card>
         {/* 操作栏 */}
-        <Space style={{ marginBottom: 16 }}>
+        <Space style={{ marginBottom: 16 }} wrap>
+          <div style={{ display: 'inline-flex', maxWidth: '100%' }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '0 11px',
+              color: '#666',
+              background: '#fafafa',
+              border: '1px solid #d9d9d9',
+              borderRight: 0,
+              borderRadius: '6px 0 0 6px',
+              whiteSpace: 'nowrap',
+            }}>
+              condition_id
+            </span>
+            <Input
+              placeholder="请输入 condition_id"
+              value={conditionId}
+              onChange={(event) => setConditionId(event.target.value)}
+              disabled={configLoading || savingConfig || refreshingRemote}
+              style={{ width: 220, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+            />
+          </div>
+          <Button
+            icon={<SaveOutlined />}
+            onClick={handleSaveConditionId}
+            loading={savingConfig}
+            disabled={configLoading || refreshingRemote}
+          >
+            保存配置
+          </Button>
           <Button 
             type="primary" 
             icon={<ReloadOutlined />}
+            onClick={handleRefreshRecommendations}
+            loading={refreshingRemote}
+            disabled={configLoading || savingConfig}
+          >
+            重新获取最新数据
+          </Button>
+          <Button 
+            icon={<ReloadOutlined />}
             onClick={loadData}
             loading={loading}
+            disabled={refreshingRemote}
           >
-            刷新数据
+            重新加载列表
           </Button>
         </Space>
 
@@ -379,7 +525,7 @@ function FundRecommendation() {
           columns={columns}
           dataSource={data}
           rowKey="fundCode"
-          loading={loading}
+          loading={loading || refreshingRemote}
           pagination={false}
           scroll={{ x: 1600 }}
           rowClassName={(record) => {
@@ -475,7 +621,7 @@ function FundRecommendation() {
         </div>
       </Modal>
 
-      <style jsx>{`
+      <style>{`
         .blacklisted-row {
           background-color: #f5f5f5 !important;
           opacity: 0.6;
