@@ -30,7 +30,7 @@ api.interceptors.response.use(
   error => {
     const message = error.response?.data?.message || error.message || '网络错误'
     error.normalizedMessage = message
-    console.error('API请求错误:', message)
+    error.statusCode = error.response?.status
     return Promise.reject(error)
   }
 )

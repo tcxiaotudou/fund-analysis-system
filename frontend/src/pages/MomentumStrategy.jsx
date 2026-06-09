@@ -3,7 +3,7 @@
  * 展示基于21日动量的ETF轮动策略交易记录
  */
 import React, { useState, useEffect, useMemo } from 'react'
-import { Card, Table, Tag, Button, Space, DatePicker, InputNumber, message, Modal, Slider, Row, Col } from 'antd'
+import { Alert, Card, Table, Tag, Button, Space, DatePicker, InputNumber, message, Modal, Slider, Row, Col } from 'antd'
 import { ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
 import { momentumStrategyApi } from '../services/api'
@@ -32,10 +32,12 @@ const { RangePicker } = DatePicker
 
 function MomentumStrategy() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialBacktestRange = useMemo(
+  const initialBacktestState = useMemo(
     () => getMomentumBacktestRangeFromSearchParams(searchParams),
     [searchParams],
   )
+  const initialBacktestRange = initialBacktestState.range
+  const [urlRangeError, setUrlRangeError] = useState(initialBacktestState.error)
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState([])
   const [performanceData, setPerformanceData] = useState([])
@@ -119,8 +121,13 @@ function MomentumStrategy() {
   }
 
   useEffect(() => {
-    reloadStrategyData()
-  }, [])
+    const nextState = getMomentumBacktestRangeFromSearchParams(searchParams)
+    setUrlRangeError(nextState.error)
+    setActiveBacktestRange(nextState.range)
+    setBacktestStartDate(nextState.range ? dayjs(nextState.range.startDate) : null)
+    setBacktestEndDate(nextState.range ? dayjs(nextState.range.endDate) : null)
+    reloadStrategyData(nextState.range)
+  }, [searchParams])
 
   /**
    * 执行回测
@@ -384,6 +391,15 @@ function MomentumStrategy() {
   return (
     <div>
       <h1 className="page-title">📊 21日动量策略 - ETF轮动交易记录</h1>
+      {urlRangeError && (
+        <Alert
+          type="error"
+          showIcon
+          message="回测区间参数错误"
+          description={urlRangeError}
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       {/* 统计信息卡片 */}
       <Card style={{ marginBottom: 16 }}>

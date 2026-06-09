@@ -16,6 +16,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [marketData, setMarketData] = useState(null)
   const [portfolioRsiData, setPortfolioRsiData] = useState(null)
+  const [portfolioRsiError, setPortfolioRsiError] = useState(null)
   const [error, setError] = useState(null)
 
   /**
@@ -27,24 +28,26 @@ function Dashboard() {
         setLoading(true)
         setError(null)
         
-        // 并行加载市场概览数据和基金组合RSI数据
-        const [marketResponse, portfolioRsiResponse] = await Promise.all([
-          marketApi.getOverview(),
-          portfolioApi.getPortfolioRsi().catch(err => {
-            console.warn('加载基金组合RSI失败:', err)
-            return { code: -1, data: null }
-          })
-        ])
-        
+        const marketResponse = await marketApi.getOverview()
         if (marketResponse.code === 0) {
           setMarketData(marketResponse.data)
         } else {
           setError(marketResponse.message)
+          return
         }
-        
-        // 加载基金组合RSI数据（失败不影响整体）
-        if (portfolioRsiResponse.code === 0) {
-          setPortfolioRsiData(portfolioRsiResponse.data)
+
+        try {
+          const portfolioRsiResponse = await portfolioApi.getPortfolioRsi()
+          if (portfolioRsiResponse.code === 0) {
+            setPortfolioRsiData(portfolioRsiResponse.data)
+            setPortfolioRsiError(null)
+          } else {
+            setPortfolioRsiData(null)
+            setPortfolioRsiError(portfolioRsiResponse.message || '组合 RSI 加载失败')
+          }
+        } catch (portfolioError) {
+          setPortfolioRsiData(null)
+          setPortfolioRsiError(portfolioError.normalizedMessage || portfolioError.message || '组合 RSI 加载失败')
         }
       } catch (err) {
         setError('加载数据失败，请检查后端服务是否启动')
@@ -266,6 +269,15 @@ function Dashboard() {
         
         <Col xs={24} lg={12}>
           <Card title="💼 养老基金组合RSI">
+            {portfolioRsiError && (
+              <Alert
+                type="warning"
+                showIcon
+                message="组合 RSI 加载失败"
+                description={portfolioRsiError}
+                style={{ marginBottom: 12 }}
+              />
+            )}
             <div style={{ lineHeight: '2' }}>
               <p><strong>14日RSI：</strong>{portfolioRsiData?.rsi14 != null ? portfolioRsiData.rsi14.toFixed(2) : 'N/A'}</p>
               <p><strong>90日RSI：</strong>{portfolioRsiData?.rsi90 != null ? portfolioRsiData.rsi90.toFixed(2) : 'N/A'}</p>
@@ -330,4 +342,3 @@ function Dashboard() {
 }
 
 export default Dashboard
-

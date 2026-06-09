@@ -332,7 +332,7 @@ function FundRecommendation() {
       key: 'calmarRank',
       width: 130,
       render: (val) => {
-        if (!val) return '-'
+        if (val == null || val === '') return '-'
         let color = '#000'
         if (val <= 10) color = '#cf1322'  // 前10名红色
         else if (val <= 30) color = '#fa8c16'  // 前30名橙色
@@ -350,7 +350,7 @@ function FundRecommendation() {
       key: 'yearToDateReturn',
       width: 120,
       render: (val) => {
-        if (!val) return '-'
+        if (val == null || val === '') return '-'
         const num = parseFloat(val)
         const color = num > 0 ? '#cf1322' : '#3f8600'
         return <span style={{ color }}>{val}</span>
@@ -362,7 +362,7 @@ function FundRecommendation() {
       key: 'fiveYearReturn',
       width: 120,
       render: (val) => {
-        if (!val) return '-'
+        if (val == null || val === '') return '-'
         const color = val > 10 ? '#cf1322' : val > 5 ? '#fa8c16' : '#000'
         return <strong style={{ color }}>{val?.toFixed(2)}%</strong>
       },
@@ -386,7 +386,7 @@ function FundRecommendation() {
       key: 'dataTime',
       width: 180,
       render: (val) => {
-        if (!val) return '-'
+        if (val == null || val === '') return '-'
         // 如果是时间戳，转换为日期字符串
         const date = new Date(val)
         return date.toLocaleString('zh-CN', { 
