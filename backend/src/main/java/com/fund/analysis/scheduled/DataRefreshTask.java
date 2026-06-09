@@ -1,5 +1,6 @@
 package com.fund.analysis.scheduled;
 
+import com.fund.analysis.exception.BusinessException;
 import com.fund.analysis.service.FundAnalysisService;
 import com.fund.analysis.service.FundPortfolioService;
 import com.fund.analysis.service.MarketDataService;
@@ -47,20 +48,13 @@ public class DataRefreshTask {
      */
     @Scheduled(cron = "0 0/5 9-16 * * MON-FRI")
     public void refreshMarketData() {
-        logger.info("========== 开始刷新市场数据 ==========");
-        
-        try {
+        runRefreshTask("刷新市场数据", () -> {
             boolean success = marketDataService.refreshMarketOverview();
-            if (success) {
-                logger.info("市场数据刷新成功");
-            } else {
-                logger.warn("市场数据刷新失败");
+            if (!success) {
+                throw new BusinessException("市场数据刷新返回失败");
             }
-        } catch (Exception e) {
-            logger.error("市场数据刷新异常", e);
-        }
-        
-        logger.info("========== 市场数据刷新完成 ==========");
+            logger.info("市场数据刷新成功");
+        });
     }
 
     /**
@@ -68,16 +62,10 @@ public class DataRefreshTask {
      */
     @Scheduled(cron = "0 0/2 9-16 * * MON-FRI")
     public void refreshEtfRsi() {
-        logger.info("========== 开始刷新ETF RSI数据 ==========");
-        
-        try {
+        runRefreshTask("刷新ETF RSI数据", () -> {
             int count = rsiAnalysisService.refreshAllEtfRsi();
             logger.info("ETF RSI数据刷新完成，共刷新 {} 条记录", count);
-        } catch (Exception e) {
-            logger.error("ETF RSI数据刷新异常", e);
-        }
-        
-        logger.info("========== ETF RSI数据刷新完成 ==========");
+        });
     }
     
     /**
@@ -85,16 +73,10 @@ public class DataRefreshTask {
      */
     @Scheduled(cron = "0 0/2 9-16 * * MON-FRI")
     public void refreshEtfMa() {
-        logger.info("========== 开始刷新ETF MA策略数据 ==========");
-        
-        try {
+        runRefreshTask("刷新ETF MA策略数据", () -> {
             int count = maStrategyService.refreshAllEtfMa();
             logger.info("ETF MA策略数据刷新完成，共刷新 {} 条记录", count);
-        } catch (Exception e) {
-            logger.error("ETF MA策略数据刷新异常", e);
-        }
-        
-        logger.info("========== ETF MA策略数据刷新完成 ==========");
+        });
     }
     
     /**
@@ -103,16 +85,10 @@ public class DataRefreshTask {
      */
     @Scheduled(cron = "0 0/5 9-18 ? * MON-FRI")
     public void refreshFundRecommendations() {
-        logger.info("========== 开始刷新基金推荐数据 ==========");
-        
-        try {
+        runRefreshTask("刷新基金推荐数据", () -> {
             fundAnalysisService.refreshFundRecommendations();
             logger.info("基金推荐数据刷新完成");
-        } catch (Exception e) {
-            logger.error("基金推荐数据刷新异常", e);
-        }
-        
-        logger.info("========== 基金推荐数据刷新完成 ==========");
+        });
     }
     
     /**
@@ -120,32 +96,17 @@ public class DataRefreshTask {
      */
     @Scheduled(cron = "0 0/5 9-16 * * MON-FRI")
     public void refreshFundPortfolioRsi() {
-        logger.info("========== 开始刷新基金组合 RSI 数据 ==========");
-        
-        try {
-            // 刷新当前RSI数据
+        runRefreshTask("刷新基金组合 RSI 数据", () -> {
             boolean success = fundPortfolioService.refreshPortfolioRsi();
-            if (success) {
-                logger.info("基金组合 RSI 数据刷新成功");
-            } else {
-                logger.warn("基金组合 RSI 数据刷新失败");
+            if (!success) {
+                throw new BusinessException("基金组合 RSI 数据刷新返回失败");
             }
-            
-            // 等待2秒避免API限流
-            Thread.sleep(2000);
-            
-            // 刷新RSI历史数据（最近100天）
+            sleepForRateLimit(2000);
             boolean historySuccess = fundPortfolioService.refreshPortfolioRsiHistory(100);
-            if (historySuccess) {
-                logger.info("基金组合 RSI 历史数据刷新成功");
-            } else {
-                logger.warn("基金组合 RSI 历史数据刷新失败");
+            if (!historySuccess) {
+                throw new BusinessException("基金组合 RSI 历史数据刷新返回失败");
             }
-        } catch (Exception e) {
-            logger.error("基金组合 RSI 数据刷新异常", e);
-        }
-        
-        logger.info("========== 基金组合 RSI 数据刷新完成 ==========");
+        });
     }
     
     /**
@@ -153,16 +114,10 @@ public class DataRefreshTask {
      */
     @Scheduled(cron = "0 0/5 9-16 * * MON-FRI")
     public void refreshMomentumStrategy() {
-        logger.info("========== 开始刷新动量策略数据 ==========");
-        
-        try {
+        runRefreshTask("刷新动量策略数据", () -> {
             int count = momentumStrategyService.refreshMomentumStrategy();
             logger.info("动量策略数据刷新完成，共生成 {} 条新交易记录", count);
-        } catch (Exception e) {
-            logger.error("动量策略数据刷新异常", e);
-        }
-        
-        logger.info("========== 动量策略数据刷新完成 ==========");
+        });
     }
     
     /**
@@ -171,20 +126,10 @@ public class DataRefreshTask {
      */
     @Scheduled(cron = "0 0 14 * * MON-FRI")
     public void executeDailyMomentumStrategy() {
-        logger.info("========== 开始执行每日动量策略 ==========");
-        
-        try {
+        runRefreshTask("执行每日动量策略", () -> {
             int count = momentumStrategyService.refreshMomentumStrategy();
-            if (count > 0) {
-                logger.info("每日动量策略执行完成，共生成 {} 条新交易记录", count);
-            } else {
-                logger.info("每日动量策略执行完成，无新交易记录生成");
-            }
-        } catch (Exception e) {
-            logger.error("每日动量策略执行异常", e);
-        }
-        
-        logger.info("========== 每日动量策略执行完成 ==========");
+            logger.info("每日动量策略执行完成，共生成 {} 条新交易记录", count);
+        });
     }
     
     /**
@@ -192,68 +137,70 @@ public class DataRefreshTask {
      */
     @Scheduled(cron = "0 30 15 * * MON-FRI")
     public void fullDataRefresh() {
-        logger.info("========== 开始执行完整数据刷新 ==========");
-        
-        try {
-            // 刷新市场数据
+        runRefreshTask("执行完整数据刷新", () -> {
             logger.info("正在刷新市场数据...");
             marketDataService.refreshMarketOverview();
-            
-            // 等待5秒避免API限流
-            Thread.sleep(5000);
-            
-            // 刷新ETF RSI数据
+            sleepForRateLimit(5000);
+
             logger.info("正在刷新ETF RSI数据...");
             int rsiCount = rsiAnalysisService.refreshAllEtfRsi();
             logger.info("刷新了 {} 条RSI记录", rsiCount);
-            
-            // 等待5秒避免API限流
-            Thread.sleep(5000);
-            
-            // 刷新ETF MA策略数据
+            sleepForRateLimit(5000);
+
             logger.info("正在刷新ETF MA策略数据...");
             int maCount = maStrategyService.refreshAllEtfMa();
             logger.info("刷新了 {} 条MA记录", maCount);
-            
-            // 等待5秒避免API限流
-            Thread.sleep(5000);
-            
-            // 刷新基金组合RSI数据
+            sleepForRateLimit(5000);
+
             logger.info("正在刷新基金组合 RSI 数据...");
-            boolean portfolioSuccess = fundPortfolioService.refreshPortfolioRsi();
-            if (portfolioSuccess) {
-                logger.info("基金组合 RSI 数据刷新成功");
-            } else {
-                logger.warn("基金组合 RSI 数据刷新失败");
+            if (!fundPortfolioService.refreshPortfolioRsi()) {
+                throw new BusinessException("基金组合 RSI 数据刷新返回失败");
             }
-            
-            // 等待2秒避免API限流
-            Thread.sleep(2000);
-            
-            // 刷新基金组合RSI历史数据
+            sleepForRateLimit(2000);
+
             logger.info("正在刷新基金组合 RSI 历史数据...");
-            boolean historySuccess = fundPortfolioService.refreshPortfolioRsiHistory(100);
-            if (historySuccess) {
-                logger.info("基金组合 RSI 历史数据刷新成功");
-            } else {
-                logger.warn("基金组合 RSI 历史数据刷新失败");
+            if (!fundPortfolioService.refreshPortfolioRsiHistory(100)) {
+                throw new BusinessException("基金组合 RSI 历史数据刷新返回失败");
             }
-            
-            // 等待5秒避免API限流
-            Thread.sleep(5000);
-            
-            // 刷新动量策略数据
+            sleepForRateLimit(5000);
+
             logger.info("正在刷新动量策略数据...");
             int momentumCount = momentumStrategyService.refreshMomentumStrategy();
             logger.info("刷新了 {} 条动量策略交易记录", momentumCount);
-            
-            logger.info("完整数据刷新完成");
-            
+        });
+    }
+
+    /**
+     * 执行刷新任务，失败时显式抛出异常
+     *
+     * @param taskName 任务名称
+     * @param task 刷新逻辑
+     */
+    private void runRefreshTask(String taskName, Runnable task) {
+        logger.info("========== 开始{} ==========", taskName);
+        try {
+            task.run();
+            logger.info("========== {}完成 ==========", taskName);
+        } catch (RuntimeException e) {
+            logger.error("{}失败", taskName, e);
+            throw e;
         } catch (Exception e) {
-            logger.error("完整数据刷新异常", e);
+            logger.error("{}失败", taskName, e);
+            throw new BusinessException(taskName + "失败", e);
         }
-        
-        logger.info("========== 完整数据刷新完成 ==========");
+    }
+
+    /**
+     * 等待第三方接口限流窗口
+     *
+     * @param millis 等待毫秒数
+     */
+    private void sleepForRateLimit(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException("刷新任务等待被中断", e);
+        }
     }
 }
-
