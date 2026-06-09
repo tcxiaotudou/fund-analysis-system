@@ -128,13 +128,13 @@ docker compose down
 
 ```json
 {
-  "code": 200,
+  "code": 0,
   "message": "success",
   "data": {}
 }
 ```
 
-错误响应仍使用同一结构，同时 HTTP 状态码反映错误类型：
+成功响应使用 code=0；错误响应仍使用同一结构，code 使用 HTTP 状态码，同时 HTTP 状态码反映错误类型：
 
 - `400`：请求参数或业务输入错误
 - `502`：第三方行情/基金接口错误
@@ -178,8 +178,11 @@ cd /Users/fciasth/project/trade/fund/backend
 mvn test
 
 cd /Users/fciasth/project/trade/fund/frontend
+npm test
 npm run build
 
 cd /Users/fciasth/project/trade/fund
 docker compose config
 ```
+
+`docker compose config` 需要本机已安装 Docker CLI；如果命令不存在，应记录为环境缺口，不要用其他命令伪造验证成功。
