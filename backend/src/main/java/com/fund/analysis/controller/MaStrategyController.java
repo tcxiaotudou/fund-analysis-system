@@ -61,10 +61,22 @@ public class MaStrategyController {
         if (startDate.after(endDate)) {
             throw new BadRequestException("开始日期不能晚于结束日期");
         }
+        validateInitialCapital(initialCapital);
         MaStrategyBacktestDTO result = maStrategyService.runBacktest(etfCode, startDate, endDate, initialCapital);
         if (result == null) {
             throw new DataUnavailableException("回测失败：数据不足或ETF代码无效");
         }
         return Result.success(result);
+    }
+
+    /**
+     * 校验回测初始资金
+     *
+     * @param initialCapital 初始资金
+     */
+    private void validateInitialCapital(BigDecimal initialCapital) {
+        if (initialCapital == null || initialCapital.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("初始资金必须大于0");
+        }
     }
 }

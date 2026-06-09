@@ -8,11 +8,12 @@
         INNER JOIN (
             SELECT fund_code, MAX(data_time) as max_time
             FROM fund_info
-            WHERE data_time >= DATE_SUB(NOW(), INTERVAL 1 DAY)
-              AND (is_custom = 0 OR is_custom IS NULL)
+            WHERE (is_custom = 0 OR is_custom IS NULL)
+              AND deleted = 0
             GROUP BY fund_code
         ) t2 ON t1.fund_code = t2.fund_code AND t1.data_time = t2.max_time
         WHERE (t1.is_custom = 0 OR t1.is_custom IS NULL)
+          AND t1.deleted = 0
         ORDER BY t1.calmar_rank
         LIMIT #{limit}
     </select>

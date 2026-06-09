@@ -58,19 +58,19 @@ function EtfManagement() {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
-      
-      if (editingRecord) {
-        // 更新
-        await etfApi.update({ ...values, id: editingRecord.id })
-        message.success('更新成功')
-      } else {
-        // 添加
-        await etfApi.add(values)
-        message.success('添加成功')
+
+      const response = editingRecord
+        ? await etfApi.update({ ...values, id: editingRecord.id })
+        : await etfApi.add(values)
+
+      if (response.code !== 0) {
+        message.error(response.message || '保存失败')
+        return
       }
-      
+
+      message.success(editingRecord ? '更新成功' : '添加成功')
       setModalVisible(false)
-      loadData()
+      await loadData()
     } catch (error) {
       console.error('保存失败:', error)
       message.error('保存失败')
@@ -88,9 +88,13 @@ function EtfManagement() {
       cancelText: '取消',
       onOk: async () => {
         try {
-          await etfApi.delete(record.id)
+          const response = await etfApi.delete(record.id)
+          if (response.code !== 0) {
+            message.error(response.message || '删除失败')
+            return
+          }
           message.success('删除成功')
-          loadData()
+          await loadData()
         } catch (error) {
           message.error('删除失败')
         }
@@ -318,4 +322,3 @@ function EtfManagement() {
 }
 
 export default EtfManagement
-
