@@ -206,7 +206,7 @@ function MaStrategy() {
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <Row gutter={16}>
-            <Col span={6}>
+            <Col xs={24} sm={12} lg={6}>
               <div>
                 <div style={{ marginBottom: 8 }}>ETF编码：</div>
                 <Input
@@ -217,7 +217,7 @@ function MaStrategy() {
                 />
               </div>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={12} lg={6}>
               <div>
                 <div style={{ marginBottom: 8 }}>开始时间：</div>
                 <DatePicker
@@ -229,7 +229,7 @@ function MaStrategy() {
                 />
               </div>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={12} lg={6}>
               <div>
                 <div style={{ marginBottom: 8 }}>结束时间：</div>
                 <DatePicker
@@ -241,7 +241,7 @@ function MaStrategy() {
                 />
               </div>
             </Col>
-            <Col span={6}>
+            <Col xs={24} sm={12} lg={6}>
               <div>
                 <div style={{ marginBottom: 8 }}>初始资金：</div>
                 <InputNumber

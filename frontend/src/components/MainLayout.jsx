@@ -3,7 +3,7 @@
  * 提供应用的整体布局结构，包括头部、侧边栏和内容区域
  */
 import React, { useState } from 'react'
-import { Layout, Menu } from 'antd'
+import { Layout, Menu, Grid } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   DashboardOutlined,
@@ -18,6 +18,7 @@ import {
 } from '@ant-design/icons'
 
 const { Header, Sider, Content } = Layout
+const { useBreakpoint } = Grid
 
 /**
  * 侧边栏菜单配置
@@ -73,6 +74,11 @@ const menuItems = [
 function MainLayout({ children }) {
   // 控制侧边栏的折叠状态
   const [collapsed, setCollapsed] = useState(false)
+
+  // 根据屏幕断点调整侧边栏和内容间距
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
+  const siderWidth = collapsed ? 80 : 200
   
   // 路由导航钩子
   const navigate = useNavigate()
@@ -95,6 +101,8 @@ function MainLayout({ children }) {
         collapsible 
         collapsed={collapsed} 
         onCollapse={setCollapsed}
+        breakpoint="md"
+        collapsedWidth={isMobile ? 0 : 80}
         style={{
           overflow: 'auto',
           height: '100vh',
@@ -102,6 +110,7 @@ function MainLayout({ children }) {
           left: 0,
           top: 0,
           bottom: 0,
+          zIndex: 1000,
         }}
       >
         {/* Logo区域 */}
@@ -129,10 +138,10 @@ function MainLayout({ children }) {
       </Sider>
 
       {/* 右侧内容区域 */}
-      <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'all 0.2s' }}>
+      <Layout style={{ marginLeft: isMobile ? 0 : siderWidth, transition: 'all 0.2s' }}>
         {/* 顶部导航栏 */}
         <Header style={{
-          padding: '0 24px',
+          padding: isMobile ? '0 12px' : '0 24px',
           background: '#fff',
           display: 'flex',
           alignItems: 'center',
@@ -146,8 +155,8 @@ function MainLayout({ children }) {
 
         {/* 主内容区域 */}
         <Content style={{
-          margin: '24px',
-          padding: '24px',
+          margin: isMobile ? '12px' : '24px',
+          padding: isMobile ? '12px' : '24px',
           minHeight: 280,
         }}>
           {children}
@@ -158,4 +167,3 @@ function MainLayout({ children }) {
 }
 
 export default MainLayout
-

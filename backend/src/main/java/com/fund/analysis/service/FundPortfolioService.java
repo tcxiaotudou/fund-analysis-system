@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
@@ -29,21 +30,27 @@ import java.util.stream.Collectors;
  */
 @Service
 public class FundPortfolioService {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(FundPortfolioService.class);
-    
+
     @Autowired
     private FundInfoMapper fundInfoMapper;
-    
+
     @Autowired
     private FundPortfolioRsiMapper fundPortfolioRsiMapper;
-    
+
     @Autowired
     private FundPortfolioRsiHistoryMapper fundPortfolioRsiHistoryMapper;
 
     @Autowired
     private ExternalApiClient externalApiClient;
-    
+
+    /**
+     * 短事务执行器
+     */
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+
     /**
      * 获取持有的基金列表
      * @return 持有的基金列表
@@ -55,7 +62,7 @@ public class FundPortfolioService {
         List<FundInfo> funds = fundInfoMapper.selectByMap(queryMap);
         return funds != null ? funds : new ArrayList<>();
     }
-    
+
     /**
      * 计算持有基金组合的 RSI
      * @param period RSI 周期（14或90）
@@ -67,52 +74,15 @@ public class FundPortfolioService {
             throw new DataUnavailableException("没有持有基金，无法计算组合RSI");
         }
 
-        BigDecimal totalWeight = holdingFunds.stream()
-                .map(f -> f.getPortfolioWeight() != null ? f.getPortfolioWeight() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        boolean useEqualWeight = totalWeight.compareTo(new BigDecimal("100")) != 0;
-        if (useEqualWeight) {
-            logger.info("Total weight is {}, using equal weight", totalWeight);
-        }
-
-        List<BigDecimal> dailyWeightedPrices = null;
-        int fundCount = holdingFunds.size();
-
-        for (FundInfo fund : holdingFunds) {
-            List<BigDecimal> prices = getFundPrices(fund.getFundCode());
-            if (prices.isEmpty()) {
-                throw new DataUnavailableException("基金净值数据为空: " + fund.getFundCode());
-            }
-
-            BigDecimal weight = useEqualWeight
-                    ? BigDecimal.valueOf(100.0 / fundCount)
-                    : fund.getPortfolioWeight() != null ? fund.getPortfolioWeight() : BigDecimal.ZERO;
-
-            if (dailyWeightedPrices == null) {
-                dailyWeightedPrices = new ArrayList<>();
-                for (int i = 0; i < prices.size(); i++) {
-                    dailyWeightedPrices.add(BigDecimal.ZERO);
-                }
-            }
-
-            for (int i = 0; i < Math.min(prices.size(), dailyWeightedPrices.size()); i++) {
-                BigDecimal weightedPrice = prices.get(i).multiply(weight);
-                dailyWeightedPrices.set(i, dailyWeightedPrices.get(i).add(weightedPrice));
-            }
-        }
-
-        if (dailyWeightedPrices == null || dailyWeightedPrices.isEmpty()) {
-            throw new DataUnavailableException("组合加权价格为空，无法计算RSI");
-        }
-
-        List<BigDecimal> rsiValues = RsiCalculator.calculateRSI(dailyWeightedPrices, period);
+        PortfolioPriceAligner.AlignedPortfolioPrices alignedPrices = buildAlignedPortfolioPrices(holdingFunds);
+        List<BigDecimal> rsiValues = RsiCalculator.calculateRSI(alignedPrices.getPrices(), period);
         if (rsiValues.isEmpty()) {
             throw new DataUnavailableException("组合RSI数据不足，period=" + period);
         }
 
         return rsiValues.get(rsiValues.size() - 1);
     }
-    
+
     /**
      * 计算持有基金组合的周 RSI
      * @param period RSI 周期（通常是14）
@@ -124,41 +94,66 @@ public class FundPortfolioService {
             throw new DataUnavailableException("没有持有基金，无法计算组合周RSI");
         }
 
+        PortfolioPriceAligner.AlignedPortfolioPrices alignedPrices = buildAlignedPortfolioPrices(holdingFunds);
+        List<BigDecimal> weeklyPrices = extractWeeklyPrices(alignedPrices.getPrices());
+        List<BigDecimal> rsiValues = RsiCalculator.calculateRSI(weeklyPrices, period);
+        if (rsiValues.isEmpty()) {
+            throw new DataUnavailableException("组合周RSI数据不足，period=" + period);
+        }
+
+        return rsiValues.get(rsiValues.size() - 1);
+    }
+
+    /**
+     * 构建按共同交易日对齐后的组合价格
+     *
+     * @param holdingFunds 持有基金列表
+     * @return 对齐后的组合价格
+     */
+    private PortfolioPriceAligner.AlignedPortfolioPrices buildAlignedPortfolioPrices(List<FundInfo> holdingFunds) {
+        List<BigDecimal> weights = resolvePortfolioWeights(holdingFunds);
+        List<PortfolioPriceAligner.FundPriceSeries> seriesList = new ArrayList<>();
+
+        for (FundInfo fund : holdingFunds) {
+            seriesList.add(getFundPriceSeries(fund.getFundCode()));
+        }
+
+        return PortfolioPriceAligner.align(seriesList, weights);
+    }
+
+    /**
+     * 解析组合权重，权重总和不等于100时使用等权重
+     *
+     * @param holdingFunds 持有基金列表
+     * @return 权重列表
+     */
+    private List<BigDecimal> resolvePortfolioWeights(List<FundInfo> holdingFunds) {
         BigDecimal totalWeight = holdingFunds.stream()
                 .map(f -> f.getPortfolioWeight() != null ? f.getPortfolioWeight() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         boolean useEqualWeight = totalWeight.compareTo(new BigDecimal("100")) != 0;
+        if (useEqualWeight) {
+            logger.info("Total weight is {}, using equal weight", totalWeight);
+        }
 
-        List<BigDecimal> dailyWeightedPrices = null;
+        List<BigDecimal> weights = new ArrayList<>();
         int fundCount = holdingFunds.size();
-
         for (FundInfo fund : holdingFunds) {
-            List<BigDecimal> prices = getFundPrices(fund.getFundCode());
-            if (prices.isEmpty()) {
-                throw new DataUnavailableException("基金净值数据为空: " + fund.getFundCode());
-            }
-
             BigDecimal weight = useEqualWeight
                     ? BigDecimal.valueOf(100.0 / fundCount)
                     : fund.getPortfolioWeight() != null ? fund.getPortfolioWeight() : BigDecimal.ZERO;
-
-            if (dailyWeightedPrices == null) {
-                dailyWeightedPrices = new ArrayList<>();
-                for (int i = 0; i < prices.size(); i++) {
-                    dailyWeightedPrices.add(BigDecimal.ZERO);
-                }
-            }
-
-            for (int i = 0; i < Math.min(prices.size(), dailyWeightedPrices.size()); i++) {
-                BigDecimal weightedPrice = prices.get(i).multiply(weight);
-                dailyWeightedPrices.set(i, dailyWeightedPrices.get(i).add(weightedPrice));
-            }
+            weights.add(weight);
         }
+        return weights;
+    }
 
-        if (dailyWeightedPrices == null || dailyWeightedPrices.isEmpty()) {
-            throw new DataUnavailableException("组合加权价格为空，无法计算周RSI");
-        }
-
+    /**
+     * 从日价格中提取周价格
+     *
+     * @param dailyWeightedPrices 日组合价格
+     * @return 周组合价格
+     */
+    private List<BigDecimal> extractWeeklyPrices(List<BigDecimal> dailyWeightedPrices) {
         List<BigDecimal> weeklyPrices = new ArrayList<>();
         for (int i = 4; i < dailyWeightedPrices.size(); i += 5) {
             weeklyPrices.add(dailyWeightedPrices.get(i));
@@ -168,51 +163,9 @@ public class FundPortfolioService {
         if (remainder != 0 && !dailyWeightedPrices.isEmpty()) {
             weeklyPrices.add(dailyWeightedPrices.get(dailyWeightedPrices.size() - 1));
         }
-
-        List<BigDecimal> rsiValues = RsiCalculator.calculateRSI(weeklyPrices, period);
-        if (rsiValues.isEmpty()) {
-            throw new DataUnavailableException("组合周RSI数据不足，period=" + period);
-        }
-
-        return rsiValues.get(rsiValues.size() - 1);
+        return weeklyPrices;
     }
-    
-    /**
-     * 获取基金的历史净值数据
-     * @param fundCode 基金代码
-     * @return 净值列表（按时间正序）
-     */
-    private List<BigDecimal> getFundPrices(String fundCode) {
-        String url = "https://apiv2.jiucaishuo.com/funddetail/changepercent/achieve";
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("fund_code", fundCode);
-        payload.put("tags_id", 4);
-        payload.put("limit", 200);
-        payload.put("type", "h5");
-        payload.put("version", "2.5.6");
 
-        JsonObject jsonObject = externalApiClient.postJsonElement(url, payload).getAsJsonObject();
-        if (jsonObject.get("code").getAsInt() != 0) {
-            throw new ExternalApiException("获取基金净值失败: " + fundCode + ", response=" + jsonObject);
-        }
-
-        JsonArray listArray = jsonObject.getAsJsonObject("data").getAsJsonArray("list");
-        if (listArray.size() < 2) {
-            throw new DataUnavailableException("基金净值数据不足: " + fundCode);
-        }
-
-        JsonArray priceArray = listArray.get(1).getAsJsonArray();
-        List<BigDecimal> prices = new ArrayList<>();
-
-        for (int i = 1; i < priceArray.size(); i++) {
-            JsonObject item = priceArray.get(i).getAsJsonObject();
-            prices.add(new BigDecimal(item.get("name").getAsString()));
-        }
-
-        Collections.reverse(prices);
-        return prices;
-    }
-    
     /**
      * 获取基金组合 RSI 汇总数据（从数据库读取）
      * @return RSI 汇总数据
@@ -239,13 +192,12 @@ public class FundPortfolioService {
 
         return result;
     }
-    
+
     /**
      * 刷新基金组合 RSI 数据
      * 计算持有基金组合的 RSI 并保存到数据库
      * @return 是否成功
      */
-    @Transactional
     public boolean refreshPortfolioRsi() {
         logger.info("开始刷新基金组合 RSI 数据");
 
@@ -272,14 +224,16 @@ public class FundPortfolioService {
         portfolioRsi.setDataTime(new Date());
         portfolioRsi.setCreateTime(new Date());
 
-        fundPortfolioRsiMapper.insert(portfolioRsi);
-        fundPortfolioRsiMapper.deleteOldData(10);
+        transactionTemplate.executeWithoutResult(status -> {
+            fundPortfolioRsiMapper.insert(portfolioRsi);
+            fundPortfolioRsiMapper.deleteOldData(10);
+        });
 
         logger.info("基金组合 RSI 数据刷新完成 - RSI14: {}, RSI90: {}, WeeklyRSI14: {}, 基金数量: {}",
                 rsi14, rsi90, weeklyRsi14, holdingFunds.size());
         return true;
     }
-    
+
     /**
      * 更新单个基金的权重
      * @param fundCode 基金代码
@@ -305,7 +259,7 @@ public class FundPortfolioService {
         logger.info("Updated weight for fund {} to {}, affected rows: {}", fundCode, weight, count);
         return count > 0;
     }
-    
+
     /**
      * 批量更新基金权重
      * @param weights 权重映射 {fundCode: weight}
@@ -323,7 +277,7 @@ public class FundPortfolioService {
         logger.info("Successfully updated weights for {} funds", weights.size());
         return true;
     }
-    
+
     /**
      * 获取组合最近N个交易日的14日RSI历史数据（从数据库读取）
      * @param days 交易日数量
@@ -349,14 +303,13 @@ public class FundPortfolioService {
         logger.info("Successfully retrieved {} days of RSI history from database", result.size());
         return result;
     }
-    
+
     /**
      * 刷新基金组合RSI历史数据
      * 计算最近N个交易日的14日RSI历史数据并保存到数据库
      * @param days 交易日数量，默认100天
      * @return 是否成功
      */
-    @Transactional
     public boolean refreshPortfolioRsiHistory(int days) {
         logger.info("开始刷新基金组合 RSI 历史数据，计算最近 {} 个交易日", days);
 
@@ -366,52 +319,10 @@ public class FundPortfolioService {
             return false;
         }
 
-        BigDecimal totalWeight = holdingFunds.stream()
-                .map(f -> f.getPortfolioWeight() != null ? f.getPortfolioWeight() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        boolean useEqualWeight = totalWeight.compareTo(new BigDecimal("100")) != 0;
-        if (useEqualWeight) {
-            logger.info("Total weight is {}, using equal weight", totalWeight);
-        }
-
-        List<BigDecimal> dailyWeightedPrices = null;
-        List<String> dates = null;
         int fundCount = holdingFunds.size();
-
-        for (FundInfo fund : holdingFunds) {
-            Map<String, List<Object>> priceData = getFundPricesWithDates(fund.getFundCode());
-
-            @SuppressWarnings("unchecked")
-            List<BigDecimal> prices = (List<BigDecimal>) (List<?>) priceData.get("prices");
-            @SuppressWarnings("unchecked")
-            List<String> fundDates = (List<String>) (List<?>) priceData.get("dates");
-
-            if (prices.isEmpty()) {
-                throw new DataUnavailableException("基金净值数据为空: " + fund.getFundCode());
-            }
-
-            BigDecimal weight = useEqualWeight
-                    ? BigDecimal.valueOf(100.0 / fundCount)
-                    : fund.getPortfolioWeight() != null ? fund.getPortfolioWeight() : BigDecimal.ZERO;
-
-            if (dailyWeightedPrices == null) {
-                dailyWeightedPrices = new ArrayList<>();
-                dates = new ArrayList<>(fundDates);
-                for (int i = 0; i < prices.size(); i++) {
-                    dailyWeightedPrices.add(BigDecimal.ZERO);
-                }
-            }
-
-            for (int i = 0; i < Math.min(prices.size(), dailyWeightedPrices.size()); i++) {
-                BigDecimal weightedPrice = prices.get(i).multiply(weight);
-                dailyWeightedPrices.set(i, dailyWeightedPrices.get(i).add(weightedPrice));
-            }
-        }
-
-        if (dailyWeightedPrices == null || dailyWeightedPrices.isEmpty()) {
-            throw new DataUnavailableException("组合加权价格为空，无法计算RSI历史");
-        }
+        PortfolioPriceAligner.AlignedPortfolioPrices alignedPrices = buildAlignedPortfolioPrices(holdingFunds);
+        List<BigDecimal> dailyWeightedPrices = alignedPrices.getPrices();
+        List<String> dates = alignedPrices.getDates();
 
         List<BigDecimal> rsiValues = RsiCalculator.calculateRSI(dailyWeightedPrices, 14);
         if (rsiValues.isEmpty()) {
@@ -421,9 +332,6 @@ public class FundPortfolioService {
         String fundCodes = holdingFunds.stream()
                 .map(FundInfo::getFundCode)
                 .collect(Collectors.joining(","));
-
-        fundPortfolioRsiHistoryMapper.deleteAll();
-        logger.info("已清空旧的 RSI 历史数据，准备重新计算");
 
         List<FundPortfolioRsiHistory> historyList = new ArrayList<>();
         Date now = new Date();
@@ -451,23 +359,28 @@ public class FundPortfolioService {
             historyList.add(history);
         }
 
-        if (!historyList.isEmpty()) {
-            fundPortfolioRsiHistoryMapper.batchInsert(historyList);
-            logger.info("成功插入 {} 条基金组合 RSI 历史数据", historyList.size());
-        } else {
-            logger.info("无历史数据可插入");
-        }
+        transactionTemplate.executeWithoutResult(status -> {
+            fundPortfolioRsiHistoryMapper.deleteAll();
+            logger.info("已清空旧的 RSI 历史数据，准备重新计算");
+            if (!historyList.isEmpty()) {
+                fundPortfolioRsiHistoryMapper.batchInsert(historyList);
+                logger.info("成功插入 {} 条基金组合 RSI 历史数据", historyList.size());
+            } else {
+                logger.info("无历史数据可插入");
+            }
+        });
 
         logger.info("基金组合 RSI 历史数据刷新完成");
         return true;
     }
-    
+
     /**
-     * 获取基金的历史净值数据和日期
+     * 获取基金的历史净值日期价格序列
+     *
      * @param fundCode 基金代码
-     * @return 包含净值列表和日期列表的Map
+     * @return 基金日期价格序列
      */
-    private Map<String, List<Object>> getFundPricesWithDates(String fundCode) {
+    private PortfolioPriceAligner.FundPriceSeries getFundPriceSeries(String fundCode) {
         String url = "https://apiv2.jiucaishuo.com/funddetail/changepercent/achieve";
         Map<String, Object> payload = new HashMap<>();
         payload.put("fund_code", fundCode);
@@ -487,25 +400,18 @@ public class FundPortfolioService {
         }
 
         JsonArray dateArray = listArray.get(0).getAsJsonArray();
-        List<String> dates = new ArrayList<>();
-        for (int i = 1; i < dateArray.size(); i++) {
-            JsonObject item = dateArray.get(i).getAsJsonObject();
-            dates.add(item.get("name").getAsString());
-        }
-
         JsonArray priceArray = listArray.get(1).getAsJsonArray();
-        List<BigDecimal> prices = new ArrayList<>();
-        for (int i = 1; i < priceArray.size(); i++) {
-            JsonObject item = priceArray.get(i).getAsJsonObject();
-            prices.add(new BigDecimal(item.get("name").getAsString()));
+        if (dateArray.size() != priceArray.size()) {
+            throw new DataUnavailableException("基金净值日期与价格数量不一致: " + fundCode);
         }
 
-        Collections.reverse(dates);
-        Collections.reverse(prices);
+        Map<String, BigDecimal> pricesByDate = new LinkedHashMap<>();
+        for (int i = 1; i < priceArray.size(); i++) {
+            JsonObject dateItem = dateArray.get(i).getAsJsonObject();
+            JsonObject priceItem = priceArray.get(i).getAsJsonObject();
+            pricesByDate.put(dateItem.get("name").getAsString(), new BigDecimal(priceItem.get("name").getAsString()));
+        }
 
-        Map<String, List<Object>> result = new HashMap<>();
-        result.put("dates", new ArrayList<>(dates));
-        result.put("prices", new ArrayList<>(prices));
-        return result;
+        return new PortfolioPriceAligner.FundPriceSeries(fundCode, pricesByDate);
     }
 }

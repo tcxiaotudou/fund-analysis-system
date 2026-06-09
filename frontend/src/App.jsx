@@ -2,20 +2,21 @@
  * 应用程序主组件
  * 包含路由配置和整体布局
  */
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { ConfigProvider } from 'antd'
+import { ConfigProvider, Spin } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import MainLayout from './components/MainLayout'
-import Dashboard from './pages/Dashboard'
-import RsiAnalysis from './pages/RsiAnalysis'
-import MaStrategy from './pages/MaStrategy'
-import MomentumStrategy from './pages/MomentumStrategy'
-import FundRecommendation from './pages/FundRecommendation'
-import FundPortfolio from './pages/FundPortfolio'
-import EtfManagement from './pages/EtfManagement'
-import SystemConfig from './pages/SystemConfig'
-import RsiBacktest from './pages/RsiBacktest'
+
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const RsiAnalysis = lazy(() => import('./pages/RsiAnalysis'))
+const MaStrategy = lazy(() => import('./pages/MaStrategy'))
+const MomentumStrategy = lazy(() => import('./pages/MomentumStrategy'))
+const FundRecommendation = lazy(() => import('./pages/FundRecommendation'))
+const FundPortfolio = lazy(() => import('./pages/FundPortfolio'))
+const EtfManagement = lazy(() => import('./pages/EtfManagement'))
+const SystemConfig = lazy(() => import('./pages/SystemConfig'))
+const RsiBacktest = lazy(() => import('./pages/RsiBacktest'))
 
 function App() {
   return (
@@ -25,35 +26,41 @@ function App() {
       <Router>
         {/* 主布局组件，包含导航栏和侧边栏 */}
         <MainLayout>
-          {/* 定义路由规则 */}
-          <Routes>
-            {/* 首页：市场概览仪表板 */}
-            <Route path="/" element={<Dashboard />} />
-            
-            {/* RSI分析页面 */}
-            <Route path="/rsi-analysis" element={<RsiAnalysis />} />
-            
-            {/* RSI策略回测页面 */}
-            <Route path="/rsi-backtest" element={<RsiBacktest />} />
-            
-            {/* 移动平均线策略页面 */}
-            <Route path="/ma-strategy" element={<MaStrategy />} />
-            
-            {/* 21日动量策略页面 */}
-            <Route path="/momentum-strategy" element={<MomentumStrategy />} />
-            
-            {/* 基金推荐页面 */}
-            <Route path="/fund-recommendation" element={<FundRecommendation />} />
-            
-            {/* 基金组合页面 */}
-            <Route path="/fund-portfolio" element={<FundPortfolio />} />
-            
-            {/* ETF管理页面 */}
-            <Route path="/etf-management" element={<EtfManagement />} />
-            
-            {/* 系统配置页面 */}
-            <Route path="/system-config" element={<SystemConfig />} />
-          </Routes>
+          <Suspense fallback={
+            <div className="loading-container">
+              <Spin size="large" tip="页面加载中..." />
+            </div>
+          }>
+            {/* 定义路由规则 */}
+            <Routes>
+              {/* 首页：市场概览仪表板 */}
+              <Route path="/" element={<Dashboard />} />
+
+              {/* RSI分析页面 */}
+              <Route path="/rsi-analysis" element={<RsiAnalysis />} />
+
+              {/* RSI策略回测页面 */}
+              <Route path="/rsi-backtest" element={<RsiBacktest />} />
+
+              {/* 移动平均线策略页面 */}
+              <Route path="/ma-strategy" element={<MaStrategy />} />
+
+              {/* 21日动量策略页面 */}
+              <Route path="/momentum-strategy" element={<MomentumStrategy />} />
+
+              {/* 基金推荐页面 */}
+              <Route path="/fund-recommendation" element={<FundRecommendation />} />
+
+              {/* 基金组合页面 */}
+              <Route path="/fund-portfolio" element={<FundPortfolio />} />
+
+              {/* ETF管理页面 */}
+              <Route path="/etf-management" element={<EtfManagement />} />
+
+              {/* 系统配置页面 */}
+              <Route path="/system-config" element={<SystemConfig />} />
+            </Routes>
+          </Suspense>
         </MainLayout>
       </Router>
     </ConfigProvider>
@@ -61,4 +68,3 @@ function App() {
 }
 
 export default App
-

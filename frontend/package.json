@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "基金和ETF投资策略分析系统 - 前端",
   "private": true,
+  "type": "module",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -20,7 +21,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test src/utils/*.test.js"
   },
   "browserslist": {
     "production": [
@@ -35,4 +37,3 @@
     ]
   }
 }
-

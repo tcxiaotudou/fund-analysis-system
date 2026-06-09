@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -48,6 +49,12 @@ public class MomentumStrategyService {
 
     @Autowired
     private ExternalApiClient externalApiClient;
+
+    /**
+     * 短事务执行器
+     */
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     private final MomentumPerformanceCalculator performanceCalculator = new MomentumPerformanceCalculator();
     
@@ -869,18 +876,20 @@ public class MomentumStrategyService {
             return 0;
         }
 
-        deletePerformanceByDateRange(startDate, endDate);
-        savePerformanceRecords(newPerformances);
+        return transactionTemplate.execute(status -> {
+            deletePerformanceByDateRange(startDate, endDate);
+            savePerformanceRecords(newPerformances);
 
-        deleteByDateRange(startDate, endDate);
-        if (newTransactions == null || newTransactions.isEmpty()) {
-            logger.info("重算区间未生成新的交易记录，已清理区间内旧交易记录");
-            return 0;
-        }
+            deleteByDateRange(startDate, endDate);
+            if (newTransactions == null || newTransactions.isEmpty()) {
+                logger.info("重算区间未生成新的交易记录，已清理区间内旧交易记录");
+                return 0;
+            }
 
-        saveTransactions(newTransactions);
-        logger.info("动量策略数据刷新完成，共生成 {} 条新交易记录", newTransactions.size());
-        return newTransactions.size();
+            saveTransactions(newTransactions);
+            logger.info("动量策略数据刷新完成，共生成 {} 条新交易记录", newTransactions.size());
+            return newTransactions.size();
+        });
     }
     
     /**
@@ -888,7 +897,6 @@ public class MomentumStrategyService {
      * 从最新每日绩效日期开始重算，刷新收益曲线并重新判断调仓
      * @return 新生成的交易记录数
      */
-    @Transactional
     public synchronized int refreshMomentumStrategy() {
         logger.info("========== 开始刷新动量策略数据 ==========");
 

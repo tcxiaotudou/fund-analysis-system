@@ -313,14 +313,14 @@ function FundPortfolio() {
       dataIndex: 'managerName',
       key: 'managerName',
       width: 100,
-      render: (text) => text || '-',
+      render: (text) => text == null || text === '' ? '-' : text,
     },
     {
       title: '规模',
       dataIndex: 'scale',
       key: 'scale',
       width: 100,
-      render: (text) => text || '-',
+      render: (text) => text == null || text === '' ? '-' : text,
     },
     {
       title: '卡玛比率排名',
@@ -328,7 +328,7 @@ function FundPortfolio() {
       key: 'calmarRank',
       width: 130,
       render: (val) => {
-        if (!val) return '-'
+        if (val == null || val === '') return '-'
         let color = '#000'
         if (val <= 10) color = '#cf1322'
         else if (val <= 30) color = '#fa8c16'
@@ -346,7 +346,7 @@ function FundPortfolio() {
       key: 'sharpeRank',
       width: 130,
       render: (val) => {
-        if (!val) return '-'
+        if (val == null || val === '') return '-'
         let color = '#000'
         if (val <= 10) color = '#cf1322'
         else if (val <= 30) color = '#fa8c16'
@@ -364,7 +364,7 @@ function FundPortfolio() {
       key: 'maxDrawdown',
       width: 110,
       render: (val) => {
-        if (!val) return '-'
+        if (val == null || val === '') return '-'
         const num = parseFloat(val)
         let color = '#000'
         if (num < -30) color = '#cf1322'
@@ -384,7 +384,7 @@ function FundPortfolio() {
       key: 'yearToDateReturn',
       width: 120,
       render: (val) => {
-        if (!val) return '-'
+        if (val == null || val === '') return '-'
         const num = parseFloat(val)
         const color = num > 0 ? '#cf1322' : '#3f8600'
         return <span style={{ color }}>{val}</span>
@@ -396,7 +396,7 @@ function FundPortfolio() {
       key: 'fiveYearReturn',
       width: 120,
       render: (val) => {
-        if (!val) return '-'
+        if (val == null || val === '') return '-'
         const color = val > 10 ? '#cf1322' : val > 5 ? '#fa8c16' : '#000'
         return <strong style={{ color }}>{val.toFixed(2)}%</strong>
       },
@@ -407,7 +407,7 @@ function FundPortfolio() {
       key: 'updateTime',
       width: 180,
       render: (val) => {
-        if (!val) return '-'
+        if (val == null || val === '') return '-'
         const date = new Date(val)
         return date.toLocaleString('zh-CN', {
           year: 'numeric',
@@ -501,29 +501,29 @@ function FundPortfolio() {
               <Col xs={24} sm={8}>
                 <Statistic
                   title="14日 RSI"
-                  value={rsiData.rsi14 ? rsiData.rsi14.toFixed(2) : 'N/A'}
-                  valueStyle={{ color: rsiData.rsi14 ? getRsiColor(rsiData.rsi14) : '#000' }}
-                  suffix={rsiData.rsi14 ? '' : ''}
+                  value={rsiData.rsi14 != null ? rsiData.rsi14.toFixed(2) : 'N/A'}
+                  valueStyle={{ color: rsiData.rsi14 != null ? getRsiColor(rsiData.rsi14) : '#000' }}
+                  suffix={rsiData.rsi14 != null ? '' : ''}
                 />
               </Col>
               <Col xs={24} sm={8}>
                 <Statistic
                   title="90日 RSI"
-                  value={rsiData.rsi90 ? rsiData.rsi90.toFixed(2) : 'N/A'}
-                  valueStyle={{ color: rsiData.rsi90 ? getRsiColor(rsiData.rsi90) : '#000' }}
-                  suffix={rsiData.rsi90 ? '' : ''}
+                  value={rsiData.rsi90 != null ? rsiData.rsi90.toFixed(2) : 'N/A'}
+                  valueStyle={{ color: rsiData.rsi90 != null ? getRsiColor(rsiData.rsi90) : '#000' }}
+                  suffix={rsiData.rsi90 != null ? '' : ''}
                 />
               </Col>
               <Col xs={24} sm={8}>
                 <Statistic
                   title="14周 RSI"
-                  value={rsiData.weeklyRsi14 ? rsiData.weeklyRsi14.toFixed(2) : 'N/A'}
-                  valueStyle={{ color: rsiData.weeklyRsi14 ? getRsiColor(rsiData.weeklyRsi14) : '#000' }}
-                  suffix={rsiData.weeklyRsi14 ? '' : ''}
+                  value={rsiData.weeklyRsi14 != null ? rsiData.weeklyRsi14.toFixed(2) : 'N/A'}
+                  valueStyle={{ color: rsiData.weeklyRsi14 != null ? getRsiColor(rsiData.weeklyRsi14) : '#000' }}
+                  suffix={rsiData.weeklyRsi14 != null ? '' : ''}
                 />
               </Col>
             </Row>
-            {rsiData.rsi14 && rsiData.rsi90 && (
+            {rsiData.rsi14 != null && rsiData.rsi90 != null && (
               <div style={{ marginTop: 16, padding: '12px', background: '#f0f2f5', borderRadius: '4px' }}>
                 <strong>建议：</strong>
                 <span style={{ color: getRsiSuggestion(rsiData.rsi14, rsiData.rsi90).color, marginLeft: 8 }}>
@@ -782,4 +782,3 @@ function FundPortfolio() {
 }
 
 export default FundPortfolio
-

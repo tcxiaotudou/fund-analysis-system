@@ -125,8 +125,12 @@ public class DynamicScheduleConfig implements SchedulingConfigurer {
                                     } else {
                                         logger.info("每日报告邮件发送跳过（邮件功能未启用或未配置）({})", time);
                                     }
+                                } catch (RuntimeException e) {
+                                    logger.error("发送每日报告邮件异常 ({})", time, e);
+                                    throw e;
                                 } catch (Exception e) {
                                     logger.error("发送每日报告邮件异常 ({})", time, e);
+                                    throw new IllegalStateException("发送每日报告邮件异常: " + time, e);
                                 }
                                 logger.info("========== 每日报告邮件发送完成 ({}) ==========", time);
                             },

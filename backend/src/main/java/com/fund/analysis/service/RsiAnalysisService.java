@@ -16,7 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
@@ -43,6 +43,12 @@ public class RsiAnalysisService {
     @Autowired
     private ExternalApiClient externalApiClient;
 
+    /**
+     * 短事务执行器
+     */
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+
     
     /**
      * 获取指定标的的最新RSI数据（从数据库读取）
@@ -65,7 +71,6 @@ public class RsiAnalysisService {
      * @param period RSI周期
      * @return RSI数据
      */
-    @Transactional
     public RsiDataDTO refreshRsi(String code, int period) {
         List<BigDecimal> prices = getPrices(code, period);
         if (prices.isEmpty()) {
@@ -87,8 +92,10 @@ public class RsiAnalysisService {
         }
 
         RsiDataDTO rsiData = analyzeRsi(code, period, validRsiList);
-        saveRsiAnalysis(rsiData);
-        rsiAnalysisMapper.deleteOldData(code, period, 1);
+        transactionTemplate.executeWithoutResult(status -> {
+            saveRsiAnalysis(rsiData);
+            rsiAnalysisMapper.deleteOldData(code, period, 1);
+        });
 
         return rsiData;
     }
@@ -251,7 +258,6 @@ public class RsiAnalysisService {
      * 刷新所有ETF的RSI数据（定时任务使用）
      * @return 刷新的记录数
      */
-    @Transactional
     public int refreshAllEtfRsi() {
         List<EtfInfo> etfList = etfInfoMapper.selectEnabledEtfs();
         int count = 0;

@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -51,6 +52,12 @@ public class FundAnalysisService {
      */
     @Autowired
     private SystemConfigService systemConfigService;
+
+    /**
+     * 短事务执行器
+     */
+    @Autowired
+    private TransactionTemplate transactionTemplate;
     
     /**
      * 获取基金推荐列表（从数据库读取）
@@ -69,7 +76,6 @@ public class FundAnalysisService {
      * 刷新基金推荐列表（从第三方API获取并保存）
      * @return 基金列表
      */
-    @Transactional
     public List<FundInfo> refreshFundRecommendations() {
         String url = "https://api.jiucaishuo.com/v2/fundchoose/result2";
         Map<String, String> payload = new HashMap<>();
@@ -118,11 +124,12 @@ public class FundAnalysisService {
 
         List<FundInfo> topFunds = uniqueFunds.size() > 12 ? uniqueFunds.subList(0, 12) : uniqueFunds;
 
-        fundInfoMapper.deleteOldData(30);
-
-        for (FundInfo fund : topFunds) {
-            saveFundInfo(fund);
-        }
+        transactionTemplate.executeWithoutResult(status -> {
+            fundInfoMapper.deleteOldData(30);
+            for (FundInfo fund : topFunds) {
+                saveFundInfo(fund);
+            }
+        });
 
         logger.info("Refreshed {} fund recommendations", topFunds.size());
         return topFunds;
