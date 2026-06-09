@@ -30,15 +30,15 @@ import java.util.stream.Collectors;
  */
 @Service
 public class FundPortfolioService {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(FundPortfolioService.class);
-    
+
     @Autowired
     private FundInfoMapper fundInfoMapper;
-    
+
     @Autowired
     private FundPortfolioRsiMapper fundPortfolioRsiMapper;
-    
+
     @Autowired
     private FundPortfolioRsiHistoryMapper fundPortfolioRsiHistoryMapper;
 
@@ -50,7 +50,7 @@ public class FundPortfolioService {
      */
     @Autowired
     private TransactionTemplate transactionTemplate;
-    
+
     /**
      * 获取持有的基金列表
      * @return 持有的基金列表
@@ -62,7 +62,7 @@ public class FundPortfolioService {
         List<FundInfo> funds = fundInfoMapper.selectByMap(queryMap);
         return funds != null ? funds : new ArrayList<>();
     }
-    
+
     /**
      * 计算持有基金组合的 RSI
      * @param period RSI 周期（14或90）
@@ -82,7 +82,7 @@ public class FundPortfolioService {
 
         return rsiValues.get(rsiValues.size() - 1);
     }
-    
+
     /**
      * 计算持有基金组合的周 RSI
      * @param period RSI 周期（通常是14）
@@ -103,7 +103,7 @@ public class FundPortfolioService {
 
         return rsiValues.get(rsiValues.size() - 1);
     }
-    
+
     /**
      * 构建按共同交易日对齐后的组合价格
      *
@@ -165,7 +165,7 @@ public class FundPortfolioService {
         }
         return weeklyPrices;
     }
-    
+
     /**
      * 获取基金组合 RSI 汇总数据（从数据库读取）
      * @return RSI 汇总数据
@@ -192,7 +192,7 @@ public class FundPortfolioService {
 
         return result;
     }
-    
+
     /**
      * 刷新基金组合 RSI 数据
      * 计算持有基金组合的 RSI 并保存到数据库
@@ -233,7 +233,7 @@ public class FundPortfolioService {
                 rsi14, rsi90, weeklyRsi14, holdingFunds.size());
         return true;
     }
-    
+
     /**
      * 更新单个基金的权重
      * @param fundCode 基金代码
@@ -259,7 +259,7 @@ public class FundPortfolioService {
         logger.info("Updated weight for fund {} to {}, affected rows: {}", fundCode, weight, count);
         return count > 0;
     }
-    
+
     /**
      * 批量更新基金权重
      * @param weights 权重映射 {fundCode: weight}
@@ -277,7 +277,7 @@ public class FundPortfolioService {
         logger.info("Successfully updated weights for {} funds", weights.size());
         return true;
     }
-    
+
     /**
      * 获取组合最近N个交易日的14日RSI历史数据（从数据库读取）
      * @param days 交易日数量
@@ -303,7 +303,7 @@ public class FundPortfolioService {
         logger.info("Successfully retrieved {} days of RSI history from database", result.size());
         return result;
     }
-    
+
     /**
      * 刷新基金组合RSI历史数据
      * 计算最近N个交易日的14日RSI历史数据并保存到数据库
@@ -373,7 +373,7 @@ public class FundPortfolioService {
         logger.info("基金组合 RSI 历史数据刷新完成");
         return true;
     }
-    
+
     /**
      * 获取基金的历史净值日期价格序列
      *
