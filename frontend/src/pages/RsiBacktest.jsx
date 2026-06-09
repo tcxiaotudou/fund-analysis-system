@@ -186,25 +186,25 @@ function RsiBacktest() {
       <Card title="回测参数设置" style={{ marginBottom: 16 }}>
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <Row gutter={16}>
-            <Col span={4}>
+            <Col xs={24} sm={12} lg={4}>
               <div>
                 <div style={{ marginBottom: 8 }}>ETF编码：</div>
                 <Input placeholder="例如：sh512170" value={etfCode} onChange={e => setEtfCode(e.target.value)} />
               </div>
             </Col>
-            <Col span={4}>
+            <Col xs={24} sm={12} lg={4}>
               <div>
                 <div style={{ marginBottom: 8 }}>开始时间：</div>
                 <DatePicker style={{ width: '100%' }} value={startDate} onChange={setStartDate} format="YYYY-MM-DD" />
               </div>
             </Col>
-            <Col span={4}>
+            <Col xs={24} sm={12} lg={4}>
               <div>
                 <div style={{ marginBottom: 8 }}>结束时间：</div>
                 <DatePicker style={{ width: '100%' }} value={endDate} onChange={setEndDate} format="YYYY-MM-DD" />
               </div>
             </Col>
-            <Col span={4}>
+            <Col xs={24} sm={12} lg={4}>
               <div>
                 <div style={{ marginBottom: 8 }}>初始资金：</div>
                 <InputNumber
@@ -215,7 +215,7 @@ function RsiBacktest() {
                 />
               </div>
             </Col>
-            <Col span={4}>
+            <Col xs={24} sm={12} lg={4}>
               <div>
                 <Tooltip title="每次触发买入/卖出信号时使用的固定金额，可连续多天操作">
                   <div style={{ marginBottom: 8 }}>每笔交易金额：</div>
@@ -228,7 +228,7 @@ function RsiBacktest() {
                 />
               </div>
             </Col>
-            <Col span={4}>
+            <Col xs={24} sm={12} lg={4}>
               <div>
                 <div style={{ marginBottom: 8 }}>RSI周期：</div>
                 <InputNumber style={{ width: '100%' }} value={rsiPeriod} onChange={setRsiPeriod} min={2} max={100} />
@@ -236,13 +236,13 @@ function RsiBacktest() {
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={4}>
+            <Col xs={24} sm={12} lg={4}>
               <div>
                 <div style={{ marginBottom: 8 }}>买入阈值(RSI≤)：</div>
                 <InputNumber style={{ width: '100%' }} value={buyThreshold} onChange={setBuyThreshold} min={1} max={99} />
               </div>
             </Col>
-            <Col span={4}>
+            <Col xs={24} sm={12} lg={4}>
               <div>
                 <div style={{ marginBottom: 8 }}>卖出阈值(RSI≥)：</div>
                 <InputNumber style={{ width: '100%' }} value={sellThreshold} onChange={setSellThreshold} min={1} max={99} />
