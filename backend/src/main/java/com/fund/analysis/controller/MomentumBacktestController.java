@@ -8,7 +8,6 @@ import com.fund.analysis.exception.DataUnavailableException;
 import com.fund.analysis.service.MomentumStrategyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -32,7 +31,6 @@ public class MomentumBacktestController {
     private MomentumStrategyService momentumStrategyService;
 
     @PostMapping("/run")
-    @Transactional
     public Result<String> runBacktest(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate,

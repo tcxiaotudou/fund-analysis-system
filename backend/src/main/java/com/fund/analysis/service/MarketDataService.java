@@ -15,7 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
@@ -52,6 +52,12 @@ public class MarketDataService {
 
     @Autowired
     private ExternalApiClient externalApiClient;
+
+    /**
+     * 短事务执行器
+     */
+    @Autowired
+    private TransactionTemplate transactionTemplate;
     
     /**
      * 获取市场概览数据（从数据库读取）
@@ -112,7 +118,6 @@ public class MarketDataService {
      * 刷新市场概览数据（定时任务使用）
      * @return 是否成功
      */
-    @Transactional
     public boolean refreshMarketOverview() {
         // 刷新国证指数的RSI
         rsiAnalysisService.refreshRsi(GUO_ZHENG, 14);
@@ -145,8 +150,10 @@ public class MarketDataService {
         balance.setDataTime(new Date());
         balance.setCreateTime(new Date());
 
-        stockBondBalanceMapper.insert(balance);
-        stockBondBalanceMapper.deleteOldData(1);
+        transactionTemplate.executeWithoutResult(status -> {
+            stockBondBalanceMapper.insert(balance);
+            stockBondBalanceMapper.deleteOldData(1);
+        });
 
         logger.info("Market overview data refreshed successfully");
         return true;

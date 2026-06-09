@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
@@ -43,6 +44,12 @@ public class FundPortfolioService {
 
     @Autowired
     private ExternalApiClient externalApiClient;
+
+    /**
+     * 短事务执行器
+     */
+    @Autowired
+    private TransactionTemplate transactionTemplate;
     
     /**
      * 获取持有的基金列表
@@ -191,7 +198,6 @@ public class FundPortfolioService {
      * 计算持有基金组合的 RSI 并保存到数据库
      * @return 是否成功
      */
-    @Transactional
     public boolean refreshPortfolioRsi() {
         logger.info("开始刷新基金组合 RSI 数据");
 
@@ -218,8 +224,10 @@ public class FundPortfolioService {
         portfolioRsi.setDataTime(new Date());
         portfolioRsi.setCreateTime(new Date());
 
-        fundPortfolioRsiMapper.insert(portfolioRsi);
-        fundPortfolioRsiMapper.deleteOldData(10);
+        transactionTemplate.executeWithoutResult(status -> {
+            fundPortfolioRsiMapper.insert(portfolioRsi);
+            fundPortfolioRsiMapper.deleteOldData(10);
+        });
 
         logger.info("基金组合 RSI 数据刷新完成 - RSI14: {}, RSI90: {}, WeeklyRSI14: {}, 基金数量: {}",
                 rsi14, rsi90, weeklyRsi14, holdingFunds.size());
@@ -302,7 +310,6 @@ public class FundPortfolioService {
      * @param days 交易日数量，默认100天
      * @return 是否成功
      */
-    @Transactional
     public boolean refreshPortfolioRsiHistory(int days) {
         logger.info("开始刷新基金组合 RSI 历史数据，计算最近 {} 个交易日", days);
 
@@ -325,9 +332,6 @@ public class FundPortfolioService {
         String fundCodes = holdingFunds.stream()
                 .map(FundInfo::getFundCode)
                 .collect(Collectors.joining(","));
-
-        fundPortfolioRsiHistoryMapper.deleteAll();
-        logger.info("已清空旧的 RSI 历史数据，准备重新计算");
 
         List<FundPortfolioRsiHistory> historyList = new ArrayList<>();
         Date now = new Date();
@@ -355,12 +359,16 @@ public class FundPortfolioService {
             historyList.add(history);
         }
 
-        if (!historyList.isEmpty()) {
-            fundPortfolioRsiHistoryMapper.batchInsert(historyList);
-            logger.info("成功插入 {} 条基金组合 RSI 历史数据", historyList.size());
-        } else {
-            logger.info("无历史数据可插入");
-        }
+        transactionTemplate.executeWithoutResult(status -> {
+            fundPortfolioRsiHistoryMapper.deleteAll();
+            logger.info("已清空旧的 RSI 历史数据，准备重新计算");
+            if (!historyList.isEmpty()) {
+                fundPortfolioRsiHistoryMapper.batchInsert(historyList);
+                logger.info("成功插入 {} 条基金组合 RSI 历史数据", historyList.size());
+            } else {
+                logger.info("无历史数据可插入");
+            }
+        });
 
         logger.info("基金组合 RSI 历史数据刷新完成");
         return true;

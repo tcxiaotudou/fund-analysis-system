@@ -17,7 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -49,6 +49,12 @@ public class MaStrategyService {
 
     @Autowired
     private ExternalApiClient externalApiClient;
+
+    /**
+     * 短事务执行器
+     */
+    @Autowired
+    private TransactionTemplate transactionTemplate;
     
     /**
      * 获取指定ETF的最新MA策略数据（从数据库读取）
@@ -69,7 +75,6 @@ public class MaStrategyService {
      * @param code ETF代码
      * @return MA策略数据
      */
-    @Transactional
     public MaStrategyDTO refreshMaStrategy(String code) {
         // 获取足够的历史数据用于计算均线和判断金叉死叉
         List<BigDecimal> prices = getPricesForMA(code, 240, 60);
@@ -126,7 +131,7 @@ public class MaStrategyService {
         dto.setSignalDescription(signalDesc.toString());
         dto.setDataTime(dateFormat.format(new Date()));
 
-        saveMaStrategy(dto);
+        transactionTemplate.executeWithoutResult(status -> saveMaStrategy(dto));
         return dto;
     }
     
@@ -235,7 +240,6 @@ public class MaStrategyService {
      * 刷新所有ETF的MA策略数据（定时任务使用）
      * @return 刷新的记录数
      */
-    @Transactional
     public int refreshAllEtfMa() {
         List<EtfInfo> etfList = etfInfoMapper.selectEnabledEtfs();
         int count = 0;
