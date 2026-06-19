@@ -2,8 +2,8 @@
  * 主布局组件
  * 提供应用的整体布局结构，包括头部、侧边栏和内容区域
  */
-import React, { useState } from 'react'
-import { Layout, Menu, Grid } from 'antd'
+import React, { useEffect, useState } from 'react'
+import { Button, Layout, Menu, Grid } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   DashboardOutlined,
@@ -15,6 +15,7 @@ import {
   AppstoreOutlined,
   SettingOutlined,
   ExperimentOutlined,
+  MenuOutlined,
 } from '@ant-design/icons'
 
 const { Header, Sider, Content } = Layout
@@ -65,7 +66,7 @@ function MainLayout({ children }) {
 
   // 根据屏幕断点调整侧边栏和内容间距
   const screens = useBreakpoint()
-  const isMobile = !screens.md
+  const isMobile = screens.md === false
   const siderWidth = collapsed ? 80 : 200
   
   // 路由导航钩子
@@ -74,12 +75,20 @@ function MainLayout({ children }) {
   // 获取当前路由位置
   const location = useLocation()
 
+  // 移动端默认收起侧栏，桌面端恢复展开。
+  useEffect(() => {
+    setCollapsed(isMobile)
+  }, [isMobile])
+
   /**
    * 处理菜单点击事件
    * @param {Object} item - 被点击的菜单项
    */
   const handleMenuClick = ({ key }) => {
     navigate(key)
+    if (isMobile) {
+      setCollapsed(true)
+    }
   }
 
   return (
@@ -93,6 +102,7 @@ function MainLayout({ children }) {
         onCollapse={setCollapsed}
         breakpoint="md"
         collapsedWidth={isMobile ? 0 : 80}
+        trigger={isMobile ? null : undefined}
         style={{
           overflow: 'auto',
           height: '100vh',
@@ -118,6 +128,15 @@ function MainLayout({ children }) {
         />
       </Sider>
 
+      {isMobile && !collapsed && (
+        <button
+          className="mobile-sider-mask"
+          type="button"
+          aria-label="关闭导航"
+          onClick={() => setCollapsed(true)}
+        />
+      )}
+
       {/* 右侧内容区域 */}
       <Layout style={{ marginLeft: isMobile ? 0 : siderWidth, transition: 'all 0.2s' }}>
         {/* 顶部导航栏 */}
@@ -129,7 +148,15 @@ function MainLayout({ children }) {
           justifyContent: 'space-between',
           boxShadow: '0 1px 4px rgba(0,21,41,.08)',
         }}>
-          <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '500' }}>
+          {isMobile && collapsed && (
+            <Button
+              type="text"
+              icon={<MenuOutlined />}
+              aria-label="打开导航"
+              onClick={() => setCollapsed(false)}
+            />
+          )}
+          <h1 style={{ margin: 0, fontSize: isMobile ? '18px' : '20px', fontWeight: '500' }}>
             基金和ETF投资策略分析系统
           </h1>
         </Header>

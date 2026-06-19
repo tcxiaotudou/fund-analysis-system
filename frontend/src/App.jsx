@@ -23,12 +23,14 @@ function App() {
     // 使用Ant Design的ConfigProvider组件设置中文语言
     <ConfigProvider locale={zhCN}>
       {/* 使用React Router进行路由管理 */}
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         {/* 主布局组件，包含导航栏和侧边栏 */}
         <MainLayout>
           <Suspense fallback={
             <div className="loading-container">
-              <Spin size="large" tip="页面加载中..." />
+              <Spin size="large" tip="页面加载中...">
+                <div className="loading-spin-content" />
+              </Spin>
             </div>
           }>
             {/* 定义路由规则 */}
