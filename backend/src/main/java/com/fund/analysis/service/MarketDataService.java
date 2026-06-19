@@ -42,9 +42,6 @@ public class MarketDataService {
     private RsiAnalysisService rsiAnalysisService;
     
     @Autowired
-    private MaStrategyService maStrategyService;
-    
-    @Autowired
     private StockBondBalanceMapper stockBondBalanceMapper;
     
     @Autowired
@@ -64,26 +61,32 @@ public class MarketDataService {
      * @return 市场概览DTO
      */
     public MarketOverviewDTO getMarketOverview() {
+        return getCoreMarketOverview();
+    }
+
+    /**
+     * 获取核心市场概览数据（从数据库读取）
+     *
+     * @return 核心市场概览DTO
+     */
+    public MarketOverviewDTO getCoreMarketOverview() {
         MarketOverviewDTO overview = new MarketOverviewDTO();
         
         // 从数据库获取国证指数的RSI
         RsiDataDTO rsi14 = rsiAnalysisService.getLatestRsi(GUO_ZHENG, 14);
         RsiDataDTO rsi90 = rsiAnalysisService.getLatestRsi(GUO_ZHENG, 90);
-        
-        if (rsi14 != null) {
-            overview.setRsi14(String.format("%.2f", rsi14.getCurrentRsi()));
-        }
-        if (rsi90 != null) {
-            overview.setRsi90(String.format("%.2f", rsi90.getCurrentRsi()));
-            
-            // 计算股债平衡建议
-            String balanceSuggestion = calculateStockBondBalance(rsi90.getCurrentRsi());
-            overview.setBalanceSuggestion(balanceSuggestion);
-        }
+        BigDecimal rsi14Value = requireCurrentRsi(rsi14, "国证指数14日RSI");
+        BigDecimal rsi90Value = requireCurrentRsi(rsi90, "国证指数90日RSI");
+        overview.setRsi14(String.format("%.2f", rsi14Value));
+        overview.setRsi90(String.format("%.2f", rsi90Value));
+
+        // 计算股债平衡建议
+        String balanceSuggestion = calculateStockBondBalance(rsi90Value);
+        overview.setBalanceSuggestion(balanceSuggestion);
         
         // 从数据库获取国债RSI
         RsiDataDTO bondRsi14 = rsiAnalysisService.getLatestRsi(GUO_ZHAI, 14);
-        if (bondRsi14 != null) {
+        if (bondRsi14 != null && bondRsi14.getCurrentRsi() != null) {
             overview.setBondRsi14(String.format("%.2f", bondRsi14.getCurrentRsi()));
         }
         
@@ -93,16 +96,6 @@ public class MarketDataService {
             overview.setRiskPremium(balance.getRiskPremium());
             overview.setMa5yDeviation(balance.getMa5yDeviation());
         }
-        
-        // 获取养老基金组合RSI
-        FundPortfolioRsiDTO portfolioRsi = getFundPortfolioRsi();
-        overview.setFundPortfolioRsi(portfolioRsi);
-        
-        // 获取ETF买入机会
-        overview.setEtfOpportunities(rsiAnalysisService.getEtfBuySignals());
-        
-        // 获取MA策略买入信号
-        overview.setMaSignals(maStrategyService.getMaBuySignals());
         
         // 设置更新时间（使用最新的股债平衡数据时间或当前时间）
         if (balance != null && balance.getDataTime() != null) {
@@ -187,6 +180,24 @@ public class MarketDataService {
             return "2股8债";
         }
     }
+
+    /**
+     * 将股债建议转换成首页展示格式
+     *
+     * @param suggestion 股债建议文本
+     * @return 首页展示格式
+     */
+    public String formatStockBondRatio(String suggestion) {
+        if (suggestion == null || suggestion.trim().isEmpty()) {
+            return "-";
+        }
+        String normalized = suggestion.replace("股", " ").replace("债", "").trim();
+        String[] parts = normalized.split("\\s+");
+        if (parts.length != 2) {
+            return suggestion;
+        }
+        return parts[0] + " / " + parts[1];
+    }
     
     /**
      * 刷新沪深300风险溢价（从第三方API获取）
@@ -270,7 +281,7 @@ public class MarketDataService {
      * 通过读取系统配置中的代表性ETF代码，查询其RSI数据作为基金组合的RSI
      * @return 基金组合RSI
      */
-    private FundPortfolioRsiDTO getFundPortfolioRsi() {
+    public FundPortfolioRsiDTO getFundPortfolioRsi() {
         FundPortfolioRsiDTO dto = new FundPortfolioRsiDTO();
 
         // 从系统配置中读取养老基金组合对应的ETF代码
@@ -293,6 +304,20 @@ public class MarketDataService {
                 etfCode, dto.getRsi14(), dto.getRsi90());
 
         return dto;
+    }
+
+    /**
+     * 校验并获取当前RSI
+     *
+     * @param rsiData RSI数据
+     * @param label 数据标签
+     * @return 当前RSI
+     */
+    private BigDecimal requireCurrentRsi(RsiDataDTO rsiData, String label) {
+        if (rsiData == null || rsiData.getCurrentRsi() == null) {
+            throw new DataUnavailableException(label + "缺失，无法生成市场概览");
+        }
+        return rsiData.getCurrentRsi();
     }
     
 }

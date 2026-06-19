@@ -222,6 +222,18 @@ public class MaStrategyService {
     }
 
     /**
+     * 获取买入和卖出MA信号
+     *
+     * @return 买入和卖出MA信号列表
+     */
+    public List<MaStrategyDTO> getMaActionSignals() {
+        List<MaStrategyDTO> signals = new ArrayList<>();
+        signals.addAll(getMaBuySignals());
+        signals.addAll(getMaSellSignals());
+        return signals;
+    }
+
+    /**
      * 获取所有ETF最新MA策略记录
      * @return MA策略结果列表
      */

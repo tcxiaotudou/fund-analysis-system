@@ -43,6 +43,11 @@ public class DashboardDecisionDTO {
     private List<RsiDataDTO> etfOpportunities = new ArrayList<>();
 
     /**
+     * MA买卖信号列表
+     */
+    private List<MaStrategyDTO> maSignals = new ArrayList<>();
+
+    /**
      * 基金推荐列表
      */
     private List<FundRecommendationDTO> fundRecommendations = new ArrayList<>();

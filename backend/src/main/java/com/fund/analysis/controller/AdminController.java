@@ -1,5 +1,6 @@
 package com.fund.analysis.controller;
 
+import com.fund.analysis.dto.MarketOverviewDTO;
 import com.fund.analysis.dto.Result;
 import com.fund.analysis.exception.BusinessException;
 import com.fund.analysis.exception.DataUnavailableException;
@@ -14,6 +15,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,6 +42,12 @@ public class AdminController {
 
     @Autowired
     private FundPortfolioService fundPortfolioService;
+
+    /**
+     * 数据源
+     */
+    @Autowired
+    private DataSource dataSource;
 
     @PostMapping("/refresh-all")
     public Result<Map<String, Object>> refreshAll() {
@@ -107,14 +117,71 @@ public class AdminController {
         return Result.success("基金组合RSI历史数据刷新成功", null);
     }
 
+    /**
+     * 获取系统状态
+     *
+     * @return 系统状态
+     */
     @GetMapping("/status")
     public Result<Map<String, Object>> getStatus() {
         Map<String, Object> statusData = new HashMap<>();
-        statusData.put("status", "running");
+        statusData.put("apiStatus", "running");
         statusData.put("version", "1.0.0");
-        return Result.success("系统运行正常", statusData);
+        putDatabaseStatus(statusData);
+        putMarketDataStatus(statusData);
+        statusData.put("status", resolveSystemStatus(statusData));
+        String message = "degraded".equals(statusData.get("status")) ? "系统部分异常" : "系统运行正常";
+        return Result.success(message, statusData);
     }
 
+    /**
+     * 写入数据库状态
+     *
+     * @param statusData 状态数据
+     */
+    private void putDatabaseStatus(Map<String, Object> statusData) {
+        try (Connection connection = dataSource.getConnection()) {
+            statusData.put("databaseStatus", connection.isValid(2) ? "running" : "error");
+        } catch (SQLException e) {
+            statusData.put("databaseStatus", "error");
+            statusData.put("databaseMessage", e.getMessage());
+        }
+    }
+
+    /**
+     * 写入市场数据状态
+     *
+     * @param statusData 状态数据
+     */
+    private void putMarketDataStatus(Map<String, Object> statusData) {
+        try {
+            MarketOverviewDTO overview = marketDataService.getCoreMarketOverview();
+            statusData.put("marketDataStatus", "running");
+            statusData.put("marketDataUpdateTime", overview.getUpdateTime());
+        } catch (RuntimeException e) {
+            statusData.put("marketDataStatus", "error");
+            statusData.put("marketDataMessage", e.getMessage());
+        }
+    }
+
+    /**
+     * 解析系统总体状态
+     *
+     * @param statusData 状态数据
+     * @return 系统总体状态
+     */
+    private String resolveSystemStatus(Map<String, Object> statusData) {
+        if ("error".equals(statusData.get("databaseStatus")) || "error".equals(statusData.get("marketDataStatus"))) {
+            return "degraded";
+        }
+        return "running";
+    }
+
+    /**
+     * 等待外部接口调用间隔
+     *
+     * @param millis 等待毫秒数
+     */
     private void pauseForExternalApiInterval(long millis) {
         try {
             Thread.sleep(millis);
