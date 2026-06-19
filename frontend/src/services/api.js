@@ -36,6 +36,25 @@ api.interceptors.response.use(
 )
 
 /**
+ * 决策驾驶舱相关API
+ */
+export const dashboardApi = {
+  // 获取首页决策聚合数据
+  getDecision: () => api.get('/dashboard/decision'),
+}
+
+/**
+ * 管理动作相关API
+ */
+export const adminApi = {
+  // 刷新全部分析数据
+  refreshAll: () => api.post('/admin/refresh-all', null, { timeout: 180000 }),
+
+  // 获取系统状态
+  getStatus: () => api.get('/admin/status'),
+}
+
+/**
  * 市场数据相关API
  */
 export const marketApi = {
