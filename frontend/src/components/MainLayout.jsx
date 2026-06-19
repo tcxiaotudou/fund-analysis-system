@@ -25,49 +25,37 @@ const { useBreakpoint } = Grid
  */
 const menuItems = [
   {
-    key: '/',
-    icon: <DashboardOutlined />,
-    label: '市场概览',
+    type: 'group',
+    label: '决策中心',
+    children: [
+      { key: '/', icon: <DashboardOutlined />, label: '市场概览' },
+      { key: '/rsi-analysis', icon: <LineChartOutlined />, label: 'RSI分析' },
+      { key: '/rsi-backtest', icon: <ExperimentOutlined />, label: 'RSI回测' },
+    ],
   },
   {
-    key: '/rsi-analysis',
-    icon: <LineChartOutlined />,
-    label: 'RSI分析',
+    type: 'group',
+    label: '策略分析',
+    children: [
+      { key: '/ma-strategy', icon: <RiseOutlined />, label: 'MA策略' },
+      { key: '/momentum-strategy', icon: <ThunderboltOutlined />, label: '动量策略' },
+    ],
   },
   {
-    key: '/rsi-backtest',
-    icon: <ExperimentOutlined />,
-    label: 'RSI回测',
+    type: 'group',
+    label: '组合与推荐',
+    children: [
+      { key: '/fund-recommendation', icon: <FundOutlined />, label: '基金推荐' },
+      { key: '/fund-portfolio', icon: <WalletOutlined />, label: '基金组合' },
+    ],
   },
   {
-    key: '/ma-strategy',
-    icon: <RiseOutlined />,
-    label: 'MA策略',
-  },
-  {
-    key: '/momentum-strategy',
-    icon: <ThunderboltOutlined />,
-    label: '动量策略',
-  },
-  {
-    key: '/fund-recommendation',
-    icon: <FundOutlined />,
-    label: '基金推荐',
-  },
-  {
-    key: '/fund-portfolio',
-    icon: <WalletOutlined />,
-    label: '基金组合',
-  },
-  {
-    key: '/etf-management',
-    icon: <AppstoreOutlined />,
-    label: 'ETF管理',
-  },
-  {
-    key: '/system-config',
-    icon: <SettingOutlined />,
-    label: '系统配置',
+    type: 'group',
+    label: '基础配置',
+    children: [
+      { key: '/etf-management', icon: <AppstoreOutlined />, label: 'ETF管理' },
+      { key: '/system-config', icon: <SettingOutlined />, label: '系统配置' },
+    ],
   },
 ]
 
@@ -98,6 +86,8 @@ function MainLayout({ children }) {
     <Layout style={{ minHeight: '100vh' }}>
       {/* 左侧边栏 */}
       <Sider 
+        className="app-sider"
+        theme="light"
         collapsible 
         collapsed={collapsed} 
         onCollapse={setCollapsed}
@@ -114,22 +104,13 @@ function MainLayout({ children }) {
         }}
       >
         {/* Logo区域 */}
-        <div style={{
-          height: '64px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          fontSize: '18px',
-          fontWeight: 'bold',
-          background: 'rgba(255, 255, 255, 0.1)',
-        }}>
+        <div className="app-logo">
           {collapsed ? '基金' : '基金分析系统'}
         </div>
         
         {/* 导航菜单 */}
         <Menu
-          theme="dark"
+          theme="light"
           mode="inline"
           selectedKeys={[location.pathname]}
           items={menuItems}
