@@ -2,6 +2,7 @@ package com.fund.analysis.service;
 
 import com.fund.analysis.client.ExternalApiClient;
 import com.fund.analysis.entity.FundInfo;
+import com.fund.analysis.exception.BadRequestException;
 import com.fund.analysis.exception.ExternalApiException;
 import com.fund.analysis.mapper.FundInfoMapper;
 import com.google.gson.JsonArray;
@@ -86,7 +87,9 @@ public class FundAnalysisService {
             throw new ExternalApiException("基金推荐接口返回失败: " + jsonObject);
         }
 
-        JsonArray fundArray = jsonObject.getAsJsonObject("data").getAsJsonArray("position_table_data");
+        JsonObject dataObject = jsonObject.getAsJsonObject("data");
+        FundRecommendationColumnIndexes columnIndexes = resolveFundRecommendationColumnIndexes(dataObject.getAsJsonArray("position_th"));
+        JsonArray fundArray = dataObject.getAsJsonArray("position_table_data");
         List<FundInfo> fundList = new ArrayList<>();
 
         // 先获取所有基金信息
@@ -101,7 +104,7 @@ public class FundAnalysisService {
                 continue;
             }
 
-            FundInfo fundInfo = getFundDetails(fundCode, fundName, fund.getAsJsonArray("list"));
+            FundInfo fundInfo = getFundDetails(fundCode, fundName, fund.getAsJsonArray("list"), columnIndexes);
             if (fundInfo.getFiveYearReturn().intValue() < 10) {
                 continue;
             }
@@ -140,23 +143,24 @@ public class FundAnalysisService {
      * @param fundCode 基金代码
      * @param fundName 基金名称
      * @param list 基金数据列表
+     * @param columnIndexes 基金推荐列索引
      * @return 基金信息
      */
-    private FundInfo getFundDetails(String fundCode, String fundName, JsonArray list) {
+    private FundInfo getFundDetails(String fundCode, String fundName, JsonArray list, FundRecommendationColumnIndexes columnIndexes) {
         FundInfo fundInfo = new FundInfo();
         fundInfo.setFundCode(fundCode);
         fundInfo.setFundName(fundName);
 
-        String managerName = list.get(10).getAsJsonObject().get("val").getAsString();
-        String managerYears = list.get(2).getAsJsonObject().get("val").getAsString();
-        String scale = list.get(3).getAsJsonObject().get("val").getAsString();
-        String yearToDateReturn = list.get(9).getAsJsonObject().get("val").getAsString();
+        String managerName = getRequiredFundField(fundCode, fundName, list, columnIndexes.managerNameIndex, "基金经理");
+        String managerYears = getRequiredFundField(fundCode, fundName, list, columnIndexes.managerYearsIndex, "任职年限");
+        String scale = getRequiredFundField(fundCode, fundName, list, columnIndexes.scaleIndex, "基金规模");
+        String yearToDateReturn = getRequiredFundField(fundCode, fundName, list, columnIndexes.yearToDateReturnIndex, "收益率（今年以来）");
 
-        String sharpeStr = list.get(5).getAsJsonObject().get("val").getAsString();
-        Integer sharpeRank = Integer.parseInt(sharpeStr.split("/")[0]);
+        String sharpeStr = getRequiredFundField(fundCode, fundName, list, columnIndexes.sharpeRankIndex, "夏普率排序");
+        Integer sharpeRank = parseRankValue(fundCode, fundName, sharpeStr, "夏普率排序");
 
-        String calmarStr = list.get(6).getAsJsonObject().get("val").getAsString();
-        Integer calmarRank = Integer.parseInt(calmarStr.split("/")[0]);
+        String calmarStr = getRequiredFundField(fundCode, fundName, list, columnIndexes.calmarRankIndex, "卡玛比率排序");
+        Integer calmarRank = parseRankValue(fundCode, fundName, calmarStr, "卡玛比率排序");
 
         fundInfo.setManagerName(managerName);
         fundInfo.setManagerYears(managerYears);
@@ -172,6 +176,136 @@ public class FundAnalysisService {
         fundInfo.setIsCustom(0);
 
         return fundInfo;
+    }
+
+    /**
+     * 解析基金推荐表头列索引
+     * @param headerArray 表头数组
+     * @return 基金推荐列索引
+     */
+    private FundRecommendationColumnIndexes resolveFundRecommendationColumnIndexes(JsonArray headerArray) {
+        if (headerArray == null || headerArray.size() == 0) {
+            throw new ExternalApiException("基金推荐接口返回数据缺少表头 position_th");
+        }
+
+        FundRecommendationColumnIndexes indexes = new FundRecommendationColumnIndexes();
+        indexes.managerNameIndex = findFundListIndex(headerArray, "基金经理", null);
+        indexes.managerYearsIndex = findFundListIndex(headerArray, "任职年限", null);
+        indexes.scaleIndex = findFundListIndex(headerArray, "基金规模", null);
+        indexes.yearToDateReturnIndex = findFundListIndex(headerArray, "收益率", "今年以来");
+        indexes.sharpeRankIndex = findFundListIndex(headerArray, "夏普率排序", null);
+        indexes.calmarRankIndex = findFundListIndex(headerArray, "卡玛比率排序", null);
+        return indexes;
+    }
+
+    /**
+     * 按表头名称查找基金行数据索引
+     * @param headerArray 表头数组
+     * @param headerName 表头名称
+     * @param headerDesc 表头描述
+     * @return 基金行数据索引
+     */
+    private int findFundListIndex(JsonArray headerArray, String headerName, String headerDesc) {
+        for (int i = 0; i < headerArray.size(); i++) {
+            JsonObject header = headerArray.get(i).getAsJsonObject();
+            String name = getJsonString(header, "name");
+            String desc = getJsonString(header, "desc");
+            if (headerName.equals(name) && (headerDesc == null || headerDesc.equals(desc))) {
+                // 表头第一列是基金名称，行数据 list 从第二列开始，所以索引需要减一。
+                return i - 1;
+            }
+        }
+        throw new BadRequestException("当前 condition_id 缺少基金推荐必需列: " + headerName + (headerDesc == null ? "" : "（" + headerDesc + "）"));
+    }
+
+    /**
+     * 获取基金推荐字段值
+     * @param fundCode 基金代码
+     * @param fundName 基金名称
+     * @param list 基金数据列表
+     * @param index 字段索引
+     * @param fieldName 字段名称
+     * @return 字段值
+     */
+    private String getRequiredFundField(String fundCode, String fundName, JsonArray list, int index, String fieldName) {
+        if (list == null) {
+            throw new ExternalApiException("基金推荐接口返回数据缺少 list: " + fundCode + " - " + fundName);
+        }
+        if (index < 0 || index >= list.size()) {
+            throw new ExternalApiException("基金推荐接口返回行数据与表头不一致: " + fundCode + " - " + fundName
+                    + ", 缺少字段 " + fieldName + ", index=" + index + ", size=" + list.size());
+        }
+
+        JsonObject field = list.get(index).getAsJsonObject();
+        String value = getJsonString(field, "val");
+        if (value == null || value.trim().isEmpty()) {
+            throw new ExternalApiException("基金推荐接口返回字段为空: " + fundCode + " - " + fundName + ", 字段=" + fieldName);
+        }
+        return value.trim();
+    }
+
+    /**
+     * 解析排名字段
+     * @param fundCode 基金代码
+     * @param fundName 基金名称
+     * @param rankValue 排名字段值
+     * @param fieldName 字段名称
+     * @return 排名数字
+     */
+    private Integer parseRankValue(String fundCode, String fundName, String rankValue, String fieldName) {
+        try {
+            return Integer.parseInt(rankValue.split("/")[0].trim());
+        } catch (NumberFormatException e) {
+            throw new ExternalApiException("基金推荐接口返回排名格式错误: " + fundCode + " - " + fundName
+                    + ", 字段=" + fieldName + ", 值=" + rankValue, e);
+        }
+    }
+
+    /**
+     * 获取 JSON 字符串字段
+     * @param jsonObject JSON对象
+     * @param memberName 字段名称
+     * @return 字符串字段值
+     */
+    private String getJsonString(JsonObject jsonObject, String memberName) {
+        JsonElement value = jsonObject.get(memberName);
+        return value == null || value.isJsonNull() ? null : value.getAsString();
+    }
+
+    /**
+     * 基金推荐列索引
+     */
+    private static class FundRecommendationColumnIndexes {
+
+        /**
+         * 基金经理索引
+         */
+        private int managerNameIndex;
+
+        /**
+         * 任职年限索引
+         */
+        private int managerYearsIndex;
+
+        /**
+         * 基金规模索引
+         */
+        private int scaleIndex;
+
+        /**
+         * 今年以来收益率索引
+         */
+        private int yearToDateReturnIndex;
+
+        /**
+         * 夏普率排名索引
+         */
+        private int sharpeRankIndex;
+
+        /**
+         * 卡玛比率排名索引
+         */
+        private int calmarRankIndex;
     }
     
     /**
