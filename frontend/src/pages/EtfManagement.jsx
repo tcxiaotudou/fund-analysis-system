@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, Table, Button, Space, Modal, Form, Input, Select, InputNumber, message, Tag } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
 import { etfApi } from '../services/api'
+import { getRsiThresholdOrderError } from '../utils/backtestValidation'
 
 const { Option } = Select
 
@@ -58,6 +59,13 @@ function EtfManagement() {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
+      if (values.rsiBuyThreshold != null && values.rsiSellThreshold != null) {
+        const thresholdError = getRsiThresholdOrderError(values.rsiBuyThreshold, values.rsiSellThreshold)
+        if (thresholdError) {
+          message.warning(thresholdError)
+          return
+        }
+      }
 
       const response = editingRecord
         ? await etfApi.update({ ...values, id: editingRecord.id })
@@ -233,6 +241,7 @@ function EtfManagement() {
             pageSize: 10,
             showTotal: (total) => `共 ${total} 个ETF`,
           }}
+          locale={{ emptyText: loading ? '数据加载中...' : '暂无 ETF 配置' }}
         />
       </Card>
 

@@ -219,7 +219,7 @@ public class DashboardDecisionService {
         result.getOperations().add(createOperation("portfolio-weight", "编辑组合权重",
                 "调整基金组合配置比例", "/fund-portfolio", null, false));
         result.getOperations().add(createOperation("send-email", "发送日报",
-                "发送今日投资分析日报", null, "sendEmailNow", false));
+                "发送今日投资分析日报", null, "sendEmailNow", true));
     }
 
     /**

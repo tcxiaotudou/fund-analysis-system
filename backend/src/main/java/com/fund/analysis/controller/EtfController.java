@@ -115,6 +115,10 @@ public class EtfController {
         }
         validateThreshold(etfInfo.getRsiBuyThreshold(), "RSI买入阈值");
         validateThreshold(etfInfo.getRsiSellThreshold(), "RSI卖出阈值");
+        if (etfInfo.getRsiBuyThreshold() != null && etfInfo.getRsiSellThreshold() != null
+                && etfInfo.getRsiBuyThreshold() >= etfInfo.getRsiSellThreshold()) {
+            throw new BadRequestException("RSI买入阈值必须小于卖出阈值");
+        }
     }
 
     /**

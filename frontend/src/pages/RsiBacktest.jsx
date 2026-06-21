@@ -9,6 +9,11 @@ import {
   ResponsiveContainer, ReferenceLine, Scatter, Area, Legend
 } from 'recharts'
 import { rsiBacktestApi } from '../services/api'
+import {
+  getDateRangeError,
+  getPositiveNumberError,
+  getRsiThresholdOrderError,
+} from '../utils/backtestValidation'
 import dayjs from 'dayjs'
 
 const DEFAULT_ETF = 'sh512170'
@@ -38,6 +43,26 @@ function RsiBacktest() {
     }
     if (!startDate || !endDate) {
       message.warning('请选择开始时间和结束时间')
+      return
+    }
+    const dateRangeError = getDateRangeError(startDate, endDate)
+    if (dateRangeError) {
+      message.warning(dateRangeError)
+      return
+    }
+    const initialCapitalError = getPositiveNumberError(initialCapital, '初始资金')
+    if (initialCapitalError) {
+      message.warning(initialCapitalError)
+      return
+    }
+    const fixedAmountError = getPositiveNumberError(fixedAmount, '每笔交易金额')
+    if (fixedAmountError) {
+      message.warning(fixedAmountError)
+      return
+    }
+    const thresholdError = getRsiThresholdOrderError(buyThreshold, sellThreshold)
+    if (thresholdError) {
+      message.warning(thresholdError)
       return
     }
 

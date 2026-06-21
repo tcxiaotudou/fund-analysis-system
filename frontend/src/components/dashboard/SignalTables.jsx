@@ -87,21 +87,21 @@ function SignalTables({ etfOpportunities, maSignals, fundRecommendations }) {
           <h2>ETF机会</h2>
           <Space><Link to="/rsi-analysis">更多</Link></Space>
         </div>
-        <Table columns={etfColumns} dataSource={etfOpportunities} rowKey="code" pagination={false} size="small" scroll={{ x: 1000 }} />
+        <Table columns={etfColumns} dataSource={etfOpportunities} rowKey="code" pagination={false} size="small" scroll={{ x: 1000 }} locale={{ emptyText: '当前没有 ETF 机会' }} />
       </div>
       <div className="dashboard-panel">
         <div className="dashboard-panel-header">
           <h2>MA买卖信号</h2>
           <Space><Link to="/ma-strategy">更多</Link></Space>
         </div>
-        <Table columns={maColumns} dataSource={maSignals} rowKey="etfCode" pagination={false} size="small" scroll={{ x: 1140 }} />
+        <Table columns={maColumns} dataSource={maSignals} rowKey="etfCode" pagination={false} size="small" scroll={{ x: 1140 }} locale={{ emptyText: '当前没有 MA 信号' }} />
       </div>
       <div className="dashboard-panel">
         <div className="dashboard-panel-header">
           <h2>基金推荐</h2>
           <Space><Link to="/fund-recommendation">更多</Link></Space>
         </div>
-        <Table columns={fundColumns} dataSource={fundRecommendations} rowKey="fundCode" pagination={false} size="small" scroll={{ x: 680 }} />
+        <Table columns={fundColumns} dataSource={fundRecommendations} rowKey="fundCode" pagination={false} size="small" scroll={{ x: 680 }} locale={{ emptyText: '当前没有基金推荐摘要' }} />
       </div>
     </section>
   )

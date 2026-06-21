@@ -699,6 +699,7 @@ function FundPortfolio() {
             showTotal: (total) => `共 ${total} 只基金`,
           }}
           scroll={{ x: 1600 }}
+          locale={{ emptyText: loading ? '数据加载中...' : '暂无持有基金，请先添加基金或从基金推荐中标记持有' }}
         />
       </Card>
 
@@ -724,8 +725,8 @@ function FundPortfolio() {
           <ul>
             <li><strong>添加基金：</strong>在"基金推荐"页面标记为持有，或手动添加基金代码和名称</li>
             <li><strong>编辑权重：</strong>点击"编辑权重"按钮，修改每只基金在组合中的权重</li>
-            <li><strong>权重规则：</strong>所有基金的权重总和必须等于 100%，最多保留小数点后 2 位</li>
-            <li><strong>权重计算：</strong>如果未设置权重或权重总和不为 100%，系统将使用等权重计算</li>
+            <li><strong>权重规则：</strong>保存权重时，所有基金的权重总和必须等于 100%，最多保留小数点后 2 位</li>
+            <li><strong>权重计算：</strong>组合 RSI 按已保存的基金权重计算；未保存前不会覆盖原权重</li>
             <li><strong>取消持有：</strong>从组合中移除基金（不会删除基金数据）</li>
             <li><strong>刷新数据：</strong>重新加载基金列表和计算组合 RSI</li>
           </ul>

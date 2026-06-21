@@ -20,8 +20,11 @@ frontend/
 │   ├── pages/               # 页面组件
 │   │   ├── Dashboard.jsx          # 市场概览仪表板
 │   │   ├── RsiAnalysis.jsx        # RSI分析页面
+│   │   ├── RsiBacktest.jsx        # RSI策略回测页面
 │   │   ├── MaStrategy.jsx         # MA策略页面
+│   │   ├── MomentumStrategy.jsx   # 21日动量策略页面
 │   │   ├── FundRecommendation.jsx # 基金推荐页面
+│   │   ├── FundPortfolio.jsx      # 基金组合页面
 │   │   ├── EtfManagement.jsx      # ETF管理页面
 │   │   └── SystemConfig.jsx       # 系统配置页面
 │   │
@@ -80,7 +83,7 @@ npm run preview
 - 显示核心市场指标（14日RSI、90日RSI等）
 - 展示ETF买入机会列表
 - 展示MA策略买入信号
-- 实时数据，每分钟自动刷新
+- 支持手动刷新市场、RSI、MA、基金推荐和组合 RSI 数据
 
 **组件**: `src/pages/Dashboard.jsx`
 
@@ -96,31 +99,65 @@ npm run preview
 
 **组件**: `src/pages/RsiAnalysis.jsx`
 
-### 3. MA策略 (MaStrategy)
+### 3. RSI策略回测 (RsiBacktest)
+
+**路径**: `/rsi-backtest`
+
+**功能**:
+- 配置 ETF 编码、日期区间、初始资金、RSI 周期、买卖阈值和每笔交易金额
+- 展示回测收益、最大回撤、胜率、买卖点图表和交易记录
+- 支持图表时间范围缩放
+
+**组件**: `src/pages/RsiBacktest.jsx`
+
+### 4. MA策略 (MaStrategy)
 
 **路径**: `/ma-strategy`
 
 **功能**:
-- 显示移动平均线策略分析结果
-- 展示60周均线、60日均线数据
-- 标识买入信号
+- 显示 10 日 / 30 日双均线策略分析结果
+- 标识买入、卖出和观望信号
+- 支持指定 ETF 和日期区间执行回测
 - 提供策略说明
 
 **组件**: `src/pages/MaStrategy.jsx`
 
-### 4. 基金推荐 (FundRecommendation)
+### 5. 21日动量策略 (MomentumStrategy)
+
+**路径**: `/momentum-strategy`
+
+**功能**:
+- 展示 21 日动量轮动交易记录
+- 展示资金曲线、买卖点和收益率
+- 支持日期区间回测和 URL 区间参数
+
+**组件**: `src/pages/MomentumStrategy.jsx`
+
+### 6. 基金推荐 (FundRecommendation)
 
 **路径**: `/fund-recommendation`
 
 **功能**:
 - 展示优质基金推荐列表
 - 显示基金经理、规模、收益率等信息
-- 支持按收益率排序
-- 显示赎回费率
+- 支持配置第三方 `condition_id` 并重新获取推荐数据
+- 支持基金黑名单和持有标记
+- 显示赎回费率和筛选标准说明
 
 **组件**: `src/pages/FundRecommendation.jsx`
 
-### 5. ETF管理 (EtfManagement)
+### 7. 基金组合 (FundPortfolio)
+
+**路径**: `/fund-portfolio`
+
+**功能**:
+- 展示持有基金列表
+- 支持手动添加基金、取消持有和编辑组合权重
+- 展示组合 RSI 和最近 60 个交易日历史曲线
+
+**组件**: `src/pages/FundPortfolio.jsx`
+
+### 8. ETF管理 (EtfManagement)
 
 **路径**: `/etf-management`
 
@@ -132,15 +169,14 @@ npm run preview
 
 **组件**: `src/pages/EtfManagement.jsx`
 
-### 6. 系统配置 (SystemConfig)
+### 9. 系统配置 (SystemConfig)
 
 **路径**: `/system-config`
 
 **功能**:
 - 配置邮件发送参数
-- 配置分析阈值
-- 配置缓存刷新间隔
 - 保存系统配置
+- 手动触发一次真实日报发送
 
 **组件**: `src/pages/SystemConfig.jsx`
 
@@ -154,8 +190,10 @@ npm run preview
 
 ```javascript
 marketApi.getOverview()       // 获取市场概览
-marketApi.getRiskPremium()    // 获取风险溢价
-marketApi.getMa5yDeviation()  // 获取5年均线偏离度
+dashboardApi.getDecision()    // 获取驾驶舱聚合数据
+adminApi.refreshMarket()      // 刷新市场概览
+adminApi.refreshRsi()         // 刷新ETF RSI
+adminApi.refreshMa()          // 刷新MA策略
 ```
 
 #### RSI分析API
@@ -170,12 +208,19 @@ rsiApi.getEtfSignals()             // 获取ETF买入信号
 ```javascript
 maStrategyApi.calculateMa(code)   // 计算MA策略
 maStrategyApi.getBuySignals()     // 获取买入信号
+maStrategyApi.getLatest()         // 获取最新MA策略
+maStrategyApi.runBacktest(...)    // 执行MA策略回测
 ```
 
 #### 基金API
 
 ```javascript
-fundApi.getRecommendations()  // 获取基金推荐
+fundApi.getRecommendations()          // 获取基金推荐
+fundApi.refreshRecommendations()      // 重新获取基金推荐
+fundApi.getBlacklist()                // 获取基金黑名单
+fundApi.updateHoldingStatus(...)      // 更新持有状态
+portfolioApi.getHoldingFunds()        // 获取持有基金
+portfolioApi.updateWeights(...)       // 批量更新组合权重
 ```
 
 #### ETF管理API
@@ -369,4 +414,3 @@ A: 确保正确导入了Ant Design的CSS。
 - Edge (最新版)
 
 不支持IE浏览器。
-

@@ -3,7 +3,7 @@
  * 展示ETF的RSI技术指标分析
  */
 import React, { useState, useEffect } from 'react'
-import { Card, Table, Tag, Input, Button, Space, Spin } from 'antd'
+import { Card, Table, Tag, Input, Button, Space, Spin, message } from 'antd'
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import { rsiApi } from '../services/api'
 
@@ -26,6 +26,7 @@ function RsiAnalysis() {
       }
     } catch (error) {
       console.error('加载RSI数据失败:', error)
+      message.error(error.normalizedMessage || '加载RSI数据失败')
     } finally {
       setLoading(false)
     }
@@ -153,6 +154,7 @@ function RsiAnalysis() {
             showSizeChanger: true,
             showTotal: (total) => `共 ${total} 条记录`,
           }}
+          locale={{ emptyText: loading ? '数据加载中...' : '当前没有 RSI 信号数据' }}
           scroll={{ x: 1200 }}
         />
       </Card>
@@ -179,4 +181,3 @@ function RsiAnalysis() {
 }
 
 export default RsiAnalysis
-

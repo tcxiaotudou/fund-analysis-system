@@ -6,6 +6,10 @@ import React, { useState, useEffect } from 'react'
 import { Card, Table, Tag, Button, Space, Tooltip, Input, DatePicker, InputNumber, message, Row, Col, Statistic, Divider } from 'antd'
 import { ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { maStrategyApi } from '../services/api'
+import {
+  getDateRangeError,
+  getPositiveNumberError,
+} from '../utils/backtestValidation'
 import dayjs from 'dayjs'
 
 function MaStrategy() {
@@ -54,13 +58,14 @@ function MaStrategy() {
       return
     }
     
-    if (!startDate || !endDate) {
-      message.warning('请选择开始时间和结束时间')
+    const dateRangeError = getDateRangeError(startDate, endDate)
+    if (dateRangeError) {
+      message.warning(dateRangeError)
       return
     }
-    
-    if (startDate.isAfter(endDate)) {
-      message.warning('开始时间不能晚于结束时间')
+    const initialCapitalError = getPositiveNumberError(initialCapital, '初始资金')
+    if (initialCapitalError) {
+      message.warning(initialCapitalError)
       return
     }
     
@@ -447,6 +452,7 @@ function MaStrategy() {
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100'],
           }}
+          locale={{ emptyText: loading ? '数据加载中...' : '当前没有 MA 策略数据' }}
         />
       </Card>
 

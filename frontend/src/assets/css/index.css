@@ -344,6 +344,16 @@ body {
   border-color: #fecaca;
 }
 
+.operation-row-danger .operation-icon {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.operation-row-danger:hover {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
 .operation-icon {
   width: 32px;
   height: 32px;
@@ -375,6 +385,20 @@ body {
 
 .operation-all-button {
   margin-top: 10px;
+}
+
+.refresh-step-row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.refresh-step-message {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .dashboard-table-grid {

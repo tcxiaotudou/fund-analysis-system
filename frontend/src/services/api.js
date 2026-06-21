@@ -50,6 +50,21 @@ export const adminApi = {
   // 刷新全部分析数据
   refreshAll: () => api.post('/admin/refresh-all', null, { timeout: 180000 }),
 
+  // 刷新市场概览数据
+  refreshMarket: () => api.post('/admin/refresh-market', null, { timeout: 60000 }),
+
+  // 刷新全部 ETF RSI 数据
+  refreshRsi: () => api.post('/admin/refresh-rsi', null, { timeout: 120000 }),
+
+  // 刷新全部 ETF MA 策略数据
+  refreshMa: () => api.post('/admin/refresh-ma', null, { timeout: 120000 }),
+
+  // 刷新基金推荐数据
+  refreshFund: () => api.post('/admin/refresh-fund', null, { timeout: 120000 }),
+
+  // 刷新组合 RSI 数据
+  refreshPortfolioRsi: () => api.post('/admin/refresh-portfolio-rsi', null, { timeout: 120000 }),
+
   // 获取系统状态
   getStatus: () => api.get('/admin/status'),
 }

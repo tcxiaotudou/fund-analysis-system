@@ -18,6 +18,11 @@ export function getMomentumBacktestRangeFromSearchParams(searchParams) {
     return { range: null, error: '动量策略回测区间 URL 参数格式错误' }
   }
 
+  // URL 日期固定为 YYYY-MM-DD，格式校验后可直接按字符串比较先后。
+  if (startDate > endDate) {
+    return { range: null, error: '动量策略回测区间开始日期不能晚于结束日期' }
+  }
+
   return { range: { startDate, endDate }, error: null }
 }
 

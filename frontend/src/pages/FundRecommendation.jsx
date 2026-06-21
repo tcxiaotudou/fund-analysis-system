@@ -32,6 +32,8 @@ function FundRecommendation() {
   const [savingConfig, setSavingConfig] = useState(false)
   // 第三方推荐数据刷新状态
   const [refreshingRemote, setRefreshingRemote] = useState(false)
+  // 第三方推荐数据刷新阶段
+  const [refreshStage, setRefreshStage] = useState('')
 
   /**
    * 应用基金推荐数据
@@ -238,14 +240,17 @@ function FundRecommendation() {
   /**
    * 保存条件ID并重新获取最新基金推荐
    */
-  const handleRefreshRecommendations = async () => {
+  const runRefreshRecommendations = async () => {
+    setRefreshStage('保存推荐配置中...')
     const saved = await handleSaveConditionId()
     if (!saved) {
+      setRefreshStage('')
       return
     }
 
     try {
       setRefreshingRemote(true)
+      setRefreshStage('正在从第三方数据源获取最新推荐...')
       setData([])
       const response = await fundApi.refreshRecommendations()
 
@@ -253,6 +258,7 @@ function FundRecommendation() {
         const newData = [...(response.data || [])]
         applyRecommendationData(newData)
         await loadBlacklist()
+        setRefreshStage(`已获取 ${newData.length} 条推荐数据`)
         message.success('基金推荐数据已重新获取')
       } else {
         message.error(response.message || '重新获取基金推荐数据失败')
@@ -262,7 +268,26 @@ function FundRecommendation() {
       message.error('重新获取基金推荐数据失败: ' + (error.normalizedMessage || error.message || '网络错误'))
     } finally {
       setRefreshingRemote(false)
+      setTimeout(() => setRefreshStage(''), 3000)
     }
+  }
+
+  /**
+   * 确认后保存配置并重新获取最新基金推荐
+   */
+  const handleRefreshRecommendations = () => {
+    const nextConditionId = conditionId.trim()
+    if (!nextConditionId) {
+      message.warning('请输入 condition_id')
+      return
+    }
+    Modal.confirm({
+      title: '确认重新获取基金推荐？',
+      content: '系统会先保存当前 condition_id，然后调用第三方基金数据源重新生成推荐列表。',
+      okText: '重新获取',
+      cancelText: '取消',
+      onOk: runRefreshRecommendations,
+    })
   }
 
   useEffect(() => {
@@ -493,6 +518,7 @@ function FundRecommendation() {
               style={{ width: 220, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
             />
           </div>
+          {refreshStage && <Tag color={refreshingRemote ? 'processing' : 'success'}>{refreshStage}</Tag>}
           <Button
             icon={<SaveOutlined />}
             onClick={handleSaveConditionId}
@@ -528,6 +554,7 @@ function FundRecommendation() {
           loading={loading || refreshingRemote}
           pagination={false}
           scroll={{ x: 1600 }}
+          locale={{ emptyText: (loading || refreshingRemote) ? '数据加载中...' : '当前没有基金推荐数据' }}
           rowClassName={(record) => {
             if (isBlacklisted(record.fundCode)) {
               return 'blacklisted-row'
@@ -546,6 +573,7 @@ function FundRecommendation() {
           <h3>本推荐列表的筛选标准：</h3>
           <ul>
             <li><strong>数据来源：</strong>第三方基金数据API</li>
+            <li><strong>condition_id：</strong>第三方基金筛选条件 ID，用于指定本次推荐采用哪组筛选条件</li>
             <li><strong>基金经理去重：</strong>同一基金经理只保留一只基金</li>
             <li><strong>排序依据：</strong>按<span style={{ color: '#cf1322', fontWeight: 'bold' }}>卡玛比率排名</span>从优到劣排序（排名越小越好）</li>
             <li><strong>数量限制：</strong>展示前12只基金</li>

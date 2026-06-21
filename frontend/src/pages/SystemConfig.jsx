@@ -3,7 +3,7 @@
  * 管理系统运行参数
  */
 import React, { useState, useEffect } from 'react'
-import { Card, Form, Input, Switch, Button, Space, Divider, message } from 'antd'
+import { Card, Form, Input, Switch, Button, Space, Divider, Modal, message } from 'antd'
 import { SaveOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
 import { systemConfigApi } from '../services/api'
 
@@ -56,11 +56,10 @@ function SystemConfig() {
   }, [])
 
   /**
-   * 保存配置
+   * 提交邮件配置
    */
-  const handleSave = async () => {
+  const submitEmailConfig = async (values) => {
     try {
-      const values = await form.validateFields()
       setLoading(true)
       
       // 转换emailEnabled为字符串
@@ -86,9 +85,29 @@ function SystemConfig() {
   }
 
   /**
+   * 保存配置
+   */
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields()
+      Modal.confirm({
+        title: '确认保存邮件配置？',
+        content: '保存后会立即更新邮件定时任务；邮箱授权码留空时不会修改原授权码。',
+        okText: '保存配置',
+        cancelText: '取消',
+        onOk: () => submitEmailConfig(values),
+      })
+    } catch (error) {
+      if (!error?.errorFields) {
+        message.error('保存失败: ' + (error.normalizedMessage || error.message))
+      }
+    }
+  }
+
+  /**
    * 立即发送邮件
    */
-  const handleSendNow = async () => {
+  const submitSendNow = async () => {
     try {
       setSendingEmail(true)
       message.loading({ content: '正在发送邮件...', key: 'sendEmail', duration: 0 })
@@ -109,6 +128,19 @@ function SystemConfig() {
     } finally {
       setSendingEmail(false)
     }
+  }
+
+  /**
+   * 确认后立即发送邮件
+   */
+  const handleSendNow = () => {
+    Modal.confirm({
+      title: '确认立即发送邮件？',
+      content: '该操作会立即向当前配置的收件人发送真实日报。',
+      okText: '立即发送',
+      cancelText: '取消',
+      onOk: submitSendNow,
+    })
   }
 
   return (
@@ -167,8 +199,7 @@ function SystemConfig() {
           <Form.Item
             name="emailPassword"
             label="邮箱授权码"
-            rules={[{ required: true }]}
-            extra="QQ邮箱需要使用授权码，而非登录密码"
+            extra="首次配置需要填写；已有授权码时留空表示不修改。QQ邮箱需要使用授权码，而非登录密码"
           >
             <Input.Password placeholder="请输入邮箱授权码" />
           </Form.Item>

@@ -15,6 +15,10 @@ import {
   buildMomentumChartData,
   shouldRenderMomentumMarker,
 } from '../utils/momentumChartData'
+import {
+  getDateRangeError,
+  getPositiveNumberError,
+} from '../utils/backtestValidation'
 import dayjs from 'dayjs'
 import {
   ComposedChart,
@@ -135,6 +139,16 @@ function MomentumStrategy() {
   const handleRunBacktest = async () => {
     if (!backtestStartDate || !backtestEndDate) {
       message.warning('请选择回测日期范围')
+      return
+    }
+    const dateRangeError = getDateRangeError(backtestStartDate, backtestEndDate, '请选择回测日期范围')
+    if (dateRangeError) {
+      message.warning(dateRangeError)
+      return
+    }
+    const initialCapitalError = getPositiveNumberError(initialCapital, '初始资金')
+    if (initialCapitalError) {
+      message.warning(initialCapitalError)
       return
     }
 
@@ -620,6 +634,7 @@ function MomentumStrategy() {
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100'],
           }}
+          locale={{ emptyText: loading ? '数据加载中...' : '当前没有动量交易记录' }}
         />
       </Card>
 
@@ -687,7 +702,7 @@ function MomentumStrategy() {
             <li><strong>动量计算：</strong>21日动量 = (当前价格 - 21天前价格) / 21天前价格</li>
             <li><strong>选股逻辑：</strong>每日选择21日动量最强的ETF进行投资</li>
             <li><strong>调仓规则：</strong>当动量最强的ETF发生变化时，卖出当前持有，买入新的最强ETF</li>
-            <li><strong>投资范围：</strong>黄金ETF(518880)、纳指ETF(513100)、创业板ETF(159915)</li>
+            <li><strong>当前固定投资范围：</strong>黄金ETF(518880)、纳指ETF(513100)、创业板ETF(159915)，与 ETF 管理页的监控列表不是同一组配置</li>
           </ul>
 
           <h3>策略优势：</h3>
