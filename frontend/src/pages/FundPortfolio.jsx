@@ -98,10 +98,41 @@ function FundPortfolio() {
   }
 
   /**
-   * 刷新所有数据
+   * 加载所有已保存数据
    */
-  const refreshAll = async () => {
+  const loadAllData = async () => {
     await Promise.all([loadHoldingFunds(), loadPortfolioRsi(), loadPortfolioRsiHistory()])
+  }
+
+  /**
+   * 重新计算组合 RSI 并加载最新持仓数据
+   */
+  const refreshPortfolioData = async () => {
+    await refreshPortfolioRsi()
+    await loadHoldingFunds()
+  }
+
+  /**
+   * 重新计算组合 RSI 数据
+   */
+  const refreshPortfolioRsi = async () => {
+    try {
+      setRsiLoading(true)
+      const response = await portfolioApi.refreshPortfolioRsi()
+
+      if (response.code === 0) {
+        setRsiData(response.data)
+        await loadPortfolioRsiHistory()
+        message.success('组合 RSI 已刷新')
+      } else {
+        message.error(response.message || '刷新组合 RSI 失败')
+      }
+    } catch (error) {
+      console.error('刷新组合 RSI 失败:', error)
+      message.error('刷新组合 RSI 失败: ' + (error.normalizedMessage || error.message || '网络错误'))
+    } finally {
+      setRsiLoading(false)
+    }
   }
 
   /**
@@ -113,7 +144,7 @@ function FundPortfolio() {
       
       if (response.code === 0) {
         message.success('已取消持有')
-        await refreshAll()
+        await refreshPortfolioData()
       } else {
         message.error(response.message || '操作失败')
       }
@@ -151,7 +182,7 @@ function FundPortfolio() {
       if (response.code === 0) {
         message.success('基金已添加')
         setAddModalVisible(false)
-        await refreshAll()
+        await refreshPortfolioData()
       } else {
         message.error(response.message || '添加失败')
       }
@@ -228,7 +259,7 @@ function FundPortfolio() {
       if (response.code === 0) {
         message.success('权重保存成功')
         setEditingWeights(false)
-        await refreshAll()
+        await refreshPortfolioData()
       } else {
         message.error(response.message || '权重保存失败')
       }
@@ -241,7 +272,7 @@ function FundPortfolio() {
   }
 
   useEffect(() => {
-    refreshAll()
+    loadAllData()
   }, [])
 
   /**
@@ -483,7 +514,7 @@ function FundPortfolio() {
           <Button 
             type="link" 
             icon={<ReloadOutlined spin={rsiLoading} />}
-            onClick={loadPortfolioRsi}
+            onClick={refreshPortfolioRsi}
             loading={rsiLoading}
           >
             刷新 RSI
@@ -645,8 +676,8 @@ function FundPortfolio() {
           <Button 
             type="primary" 
             icon={<ReloadOutlined />}
-            onClick={refreshAll}
-            loading={loading}
+            onClick={refreshPortfolioData}
+            loading={loading || rsiLoading || rsiHistoryLoading}
             disabled={editingWeights}
           >
             刷新数据

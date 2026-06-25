@@ -71,6 +71,10 @@ public class AdminController {
             throw new DataUnavailableException("基金组合RSI数据刷新失败（可能没有持有基金）");
         }
         data.put("portfolioRsiRefreshed", true);
+        if (!fundPortfolioService.refreshPortfolioRsiHistory(100)) {
+            throw new DataUnavailableException("基金组合RSI历史数据刷新失败（可能没有持有基金）");
+        }
+        data.put("portfolioRsiHistoryRefreshed", true);
 
         return Result.success("数据刷新成功", data);
     }
@@ -102,11 +106,17 @@ public class AdminController {
     }
 
     @PostMapping("/refresh-portfolio-rsi")
-    public Result<Void> refreshPortfolioRsi() {
+    public Result<Map<String, Object>> refreshPortfolioRsi() {
         if (!fundPortfolioService.refreshPortfolioRsi()) {
             throw new DataUnavailableException("基金组合RSI数据刷新失败（可能没有持有基金）");
         }
-        return Result.success("基金组合RSI数据刷新成功", null);
+        if (!fundPortfolioService.refreshPortfolioRsiHistory(100)) {
+            throw new DataUnavailableException("基金组合RSI历史数据刷新失败（可能没有持有基金）");
+        }
+        Map<String, Object> data = new HashMap<>();
+        data.put("portfolioRsiRefreshed", true);
+        data.put("portfolioRsiHistoryRefreshed", true);
+        return Result.success("基金组合RSI数据刷新成功", data);
     }
 
     @PostMapping("/refresh-portfolio-rsi-history")

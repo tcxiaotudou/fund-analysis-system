@@ -24,6 +24,9 @@ import java.util.Map;
 @RequestMapping("/fund/portfolio")
 public class FundPortfolioController {
 
+    /**
+     * 基金组合服务
+     */
     @Autowired
     private FundPortfolioService fundPortfolioService;
 
@@ -39,6 +42,22 @@ public class FundPortfolioController {
             throw new DataUnavailableException("计算组合 RSI 失败: " + rsiData.get("error"));
         }
         return Result.success("计算成功", rsiData);
+    }
+
+    /**
+     * 刷新基金组合 RSI 和历史数据
+     *
+     * @return 刷新后的组合 RSI 汇总
+     */
+    @PostMapping("/rsi/refresh")
+    public Result<Map<String, Object>> refreshPortfolioRsi() {
+        if (!fundPortfolioService.refreshPortfolioRsi()) {
+            throw new DataUnavailableException("基金组合RSI数据刷新失败（可能没有持有基金）");
+        }
+        if (!fundPortfolioService.refreshPortfolioRsiHistory(100)) {
+            throw new DataUnavailableException("基金组合RSI历史数据刷新失败（可能没有持有基金）");
+        }
+        return Result.success("组合 RSI 刷新成功", fundPortfolioService.getPortfolioRsiSummary());
     }
 
     @PostMapping("/weight")

@@ -147,6 +147,9 @@ export const portfolioApi = {
   
   // 获取基金组合 RSI 数据
   getPortfolioRsi: () => api.get('/fund/portfolio/rsi'),
+
+  // 刷新基金组合 RSI 数据
+  refreshPortfolioRsi: () => api.post('/fund/portfolio/rsi/refresh', null, { timeout: 120000 }),
   
   // 批量更新基金权重
   updateWeights: (weights) => api.post('/fund/portfolio/weights/batch', weights),

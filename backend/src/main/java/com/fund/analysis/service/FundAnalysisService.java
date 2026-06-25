@@ -113,8 +113,6 @@ public class FundAnalysisService {
 
         fundList.sort(Comparator.comparing(FundInfo::getCalmarRank));
 
-
-
         // 按基金经理去重，保留每个基金经理收益率最高的基金
         Set<String> managerSet = new HashSet<>();
         List<FundInfo> uniqueFunds = new ArrayList<>();
@@ -126,6 +124,12 @@ public class FundAnalysisService {
         }
 
         List<FundInfo> topFunds = uniqueFunds.size() > 12 ? uniqueFunds.subList(0, 12) : uniqueFunds;
+        // 同一轮刷新使用同一个数据时间，查询推荐列表时以它作为批次边界。
+        Date refreshTime = new Date();
+        for (FundInfo fund : topFunds) {
+            fund.setDataTime(refreshTime);
+            fund.setUpdateTime(refreshTime);
+        }
 
         transactionTemplate.executeWithoutResult(status -> {
             fundInfoMapper.deleteOldData(30);
