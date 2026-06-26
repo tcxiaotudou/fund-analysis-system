@@ -10,8 +10,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 决策驾驶舱聚合服务
@@ -48,6 +50,12 @@ public class DashboardDecisionService {
      */
     @Autowired
     private FundBlacklistService fundBlacklistService;
+
+    /**
+     * 基金组合服务
+     */
+    @Autowired
+    private FundPortfolioService fundPortfolioService;
 
     /**
      * 获取决策驾驶舱数据
@@ -95,7 +103,11 @@ public class DashboardDecisionService {
      */
     private void loadPortfolioRsi(DashboardDecisionDTO result, MarketOverviewDTO overview) {
         try {
-            FundPortfolioRsiDTO portfolioRsi = marketDataService.getFundPortfolioRsi();
+            Map<String, Object> portfolioSummary = fundPortfolioService.getPortfolioRsiSummary();
+            FundPortfolioRsiDTO portfolioRsi = new FundPortfolioRsiDTO();
+            portfolioRsi.setRsi14(formatPortfolioRsiValue(portfolioSummary.get("rsi14"), "rsi14"));
+            portfolioRsi.setRsi90(formatPortfolioRsiValue(portfolioSummary.get("rsi90"), "rsi90"));
+            portfolioRsi.setWeeklyRsi14(formatPortfolioRsiValue(portfolioSummary.get("weeklyRsi14"), "weeklyRsi14"));
             overview.setFundPortfolioRsi(portfolioRsi);
         } catch (RuntimeException e) {
             addModuleError(result, "组合RSI", e.getMessage());
@@ -393,6 +405,33 @@ public class DashboardDecisionService {
             return "";
         }
         return updateTime.trim().split("\\s+")[0];
+    }
+
+    /**
+     * 格式化组合 RSI 数值
+     *
+     * @param value RSI原始值
+     * @param fieldName 字段名
+     * @return 两位小数字符串
+     */
+    private String formatPortfolioRsiValue(Object value, String fieldName) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof BigDecimal) {
+            return ((BigDecimal) value).setScale(2, RoundingMode.HALF_UP).toPlainString();
+        }
+        if (value instanceof Number) {
+            return BigDecimal.valueOf(((Number) value).doubleValue())
+                    .setScale(2, RoundingMode.HALF_UP)
+                    .toPlainString();
+        }
+        if (value instanceof String) {
+            return new BigDecimal(((String) value).trim())
+                    .setScale(2, RoundingMode.HALF_UP)
+                    .toPlainString();
+        }
+        throw new IllegalArgumentException("组合RSI字段类型不支持: " + fieldName);
     }
 
     /**

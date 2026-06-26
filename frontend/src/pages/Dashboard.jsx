@@ -1,11 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Button, Modal, Space, Spin, Tag, message } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import DecisionSummary from '../components/dashboard/DecisionSummary'
-import MarketTemperatureChart from '../components/dashboard/MarketTemperatureChart'
+import MarketOverviewWorkbench from '../components/dashboard/MarketOverviewWorkbench'
 import MetricStrip from '../components/dashboard/MetricStrip'
-import OperationQueue from '../components/dashboard/OperationQueue'
 import SignalTables from '../components/dashboard/SignalTables'
 import { adminApi, dashboardApi, systemConfigApi } from '../services/api'
 import {
@@ -15,44 +14,49 @@ import {
   normalizeDashboardDecision,
 } from '../utils/dashboardDecision'
 
-// 驾驶舱全量刷新拆分为可见的模块步骤。
-const REFRESH_TASKS = [
-  { key: 'market', title: '市场概览', run: () => adminApi.refreshMarket() },
-  { key: 'rsi', title: 'ETF RSI', run: () => adminApi.refreshRsi() },
-  { key: 'ma', title: 'MA 策略', run: () => adminApi.refreshMa() },
-  { key: 'fund', title: '基金推荐', run: () => adminApi.refreshFund() },
-  { key: 'portfolio', title: '组合 RSI', run: () => adminApi.refreshPortfolioRsi() },
-]
+// 后台刷新状态轮询间隔。
+const REFRESH_STATUS_POLL_INTERVAL = 3000
 
-// 构建刷新步骤的初始展示状态。
-const createRefreshSteps = () => REFRESH_TASKS.map(task => ({
-  key: task.key,
-  title: task.title,
-  status: 'pending',
-  message: '等待刷新',
-}))
+// 后台刷新标签颜色映射。
+const REFRESH_STATUS_COLORS = {
+  running: 'processing',
+  success: 'success',
+  error: 'error',
+  idle: 'default',
+}
 
-// 解析刷新接口返回的可读摘要。
-const getRefreshSummary = (response) => {
-  if (!response?.data || typeof response.data !== 'object') {
-    return response?.message || '刷新完成'
+// 判断后台刷新是否仍在运行。
+const isRefreshRunning = (status) => status?.status === 'running'
+
+// 获取后台刷新提示类型。
+const getRefreshAlertType = (status) => {
+  if (status?.status === 'error') return 'error'
+  if (status?.status === 'success') return 'success'
+  return 'info'
+}
+
+// 获取后台刷新时间说明。
+const getRefreshStatusDescription = (status) => {
+  if (!status) return ''
+  const parts = []
+  if (status.startedAt) {
+    parts.push(`开始：${status.startedAt}`)
   }
-  const entries = Object.entries(response.data)
-  if (entries.length === 0) {
-    return response.message || '刷新完成'
+  if (status.finishedAt) {
+    parts.push(`结束：${status.finishedAt}`)
   }
-  return entries.map(([key, value]) => `${key}: ${value}`).join('，')
+  return parts.join('；')
 }
 
 // 决策驾驶舱页面。
 function Dashboard() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [refreshModalOpen, setRefreshModalOpen] = useState(false)
-  const [refreshSteps, setRefreshSteps] = useState(createRefreshSteps)
+  const [startingRefresh, setStartingRefresh] = useState(false)
+  const [refreshStatus, setRefreshStatus] = useState(null)
   const [dashboard, setDashboard] = useState(EMPTY_DASHBOARD_DECISION)
   const [pageError, setPageError] = useState(null)
+  const refreshStatusRef = useRef(null)
 
   // 加载首页聚合数据。
   const loadDashboard = useCallback(async (showGlobalLoading = true) => {
@@ -75,52 +79,60 @@ function Dashboard() {
     }
   }, [])
 
-  // 更新单个刷新步骤的状态。
-  const updateRefreshStep = useCallback((key, patch) => {
-    setRefreshSteps(prevSteps => prevSteps.map(step => (
-      step.key === key ? { ...step, ...patch } : step
-    )))
-  }, [])
+  // 应用后台刷新状态，刷新结束后重新读取首页数据。
+  const applyRefreshStatus = useCallback(async (nextStatus, notifyFinish = false) => {
+    const previousStatus = refreshStatusRef.current?.status
+    refreshStatusRef.current = nextStatus
+    setRefreshStatus(nextStatus)
 
-  // 逐模块刷新数据并重新加载首页。
-  const runRefreshAll = useCallback(async () => {
-    let activeTaskKey = null
-    try {
-      setRefreshing(true)
-      setRefreshModalOpen(true)
-      setRefreshSteps(createRefreshSteps())
-
-      for (const task of REFRESH_TASKS) {
-        activeTaskKey = task.key
-        updateRefreshStep(task.key, { status: 'processing', message: '刷新中...' })
-        const response = await task.run()
-        if (response.code !== 0) {
-          throw new Error(response.message || `${task.title}刷新失败`)
-        }
-        updateRefreshStep(task.key, { status: 'success', message: getRefreshSummary(response) })
-      }
-
-      message.success('数据刷新完成')
-      await loadDashboard(false)
-    } catch (error) {
-      if (activeTaskKey) {
-        updateRefreshStep(activeTaskKey, {
-          status: 'error',
-          message: error.normalizedMessage || error.message || '刷新失败',
-        })
-      }
-      message.error(error.normalizedMessage || error.message || '刷新数据失败')
-    } finally {
-      setRefreshing(false)
+    if (!notifyFinish || previousStatus !== 'running' || !nextStatus) {
+      return
     }
-  }, [loadDashboard, updateRefreshStep])
+    if (nextStatus.status === 'success') {
+      message.success(nextStatus.message || '后台刷新完成')
+      await loadDashboard(false)
+    }
+    if (nextStatus.status === 'error') {
+      message.error(nextStatus.message || '后台刷新失败')
+    }
+  }, [loadDashboard])
 
-  // 确认后触发分项数据刷新。
+  // 加载后台刷新状态。
+  const loadBackgroundRefreshStatus = useCallback(async (notifyFinish = false) => {
+    try {
+      const response = await adminApi.getBackgroundRefreshStatus()
+      if (response.code !== 0) {
+        throw new Error(response.message || '后台刷新状态获取失败')
+      }
+      await applyRefreshStatus(response.data, notifyFinish)
+    } catch (error) {
+      message.error(error.normalizedMessage || error.message || '后台刷新状态获取失败')
+    }
+  }, [applyRefreshStatus])
+
+  // 启动后台刷新任务。
+  const runRefreshAll = useCallback(async () => {
+    try {
+      setStartingRefresh(true)
+      const response = await adminApi.startBackgroundRefresh()
+      if (response.code !== 0) {
+        throw new Error(response.message || '后台刷新启动失败')
+      }
+      await applyRefreshStatus(response.data, false)
+      message.success(response.data?.message || '后台刷新已启动')
+    } catch (error) {
+      message.error(error.normalizedMessage || error.message || '后台刷新启动失败')
+    } finally {
+      setStartingRefresh(false)
+    }
+  }, [applyRefreshStatus])
+
+  // 确认后触发后台数据刷新。
   const handleRefreshAll = useCallback(() => {
     Modal.confirm({
-      title: '确认刷新全部数据？',
-      content: '系统将依次刷新市场概览、ETF RSI、MA 策略、基金推荐和组合 RSI，过程可能需要 1-3 分钟。',
-      okText: '开始刷新',
+      title: '确认后台刷新全部数据？',
+      content: '系统将刷新市场概览、ETF RSI、MA 策略、基金推荐和组合 RSI。',
+      okText: '后台刷新',
       cancelText: '取消',
       onOk: runRefreshAll,
     })
@@ -158,7 +170,19 @@ function Dashboard() {
 
   useEffect(() => {
     loadDashboard()
-  }, [loadDashboard])
+    loadBackgroundRefreshStatus()
+  }, [loadDashboard, loadBackgroundRefreshStatus])
+
+  // 后台刷新运行期间轮询状态。
+  useEffect(() => {
+    if (!isRefreshRunning(refreshStatus)) {
+      return undefined
+    }
+    const timer = window.setInterval(() => {
+      loadBackgroundRefreshStatus(true)
+    }, REFRESH_STATUS_POLL_INTERVAL)
+    return () => window.clearInterval(timer)
+  }, [refreshStatus?.status, loadBackgroundRefreshStatus])
 
   if (loading) {
     return <div className="loading-container"><Spin size="large" /></div>
@@ -186,8 +210,30 @@ function Dashboard() {
             {dashboard.updateTime && <span className="dashboard-update-time">最后更新：{dashboard.updateTime}</span>}
           </Space>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={handleRefreshAll} loading={refreshing}>刷新数据</Button>
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={handleRefreshAll}
+          loading={startingRefresh}
+          disabled={isRefreshRunning(refreshStatus)}
+        >
+          {isRefreshRunning(refreshStatus) ? '后台刷新中' : '刷新数据'}
+        </Button>
       </header>
+
+      {refreshStatus && refreshStatus.status !== 'idle' && (
+        <Alert
+          type={getRefreshAlertType(refreshStatus)}
+          showIcon
+          className="dashboard-alert refresh-status-alert"
+          message={
+            <Space size={8} wrap>
+              <span>{refreshStatus.message}</span>
+              <Tag color={REFRESH_STATUS_COLORS[refreshStatus.status] || 'default'}>{refreshStatus.status}</Tag>
+            </Space>
+          }
+          description={getRefreshStatusDescription(refreshStatus)}
+        />
+      )}
 
       {dashboard.dataStatus.moduleErrors.length > 0 && (
         <Alert
@@ -201,48 +247,17 @@ function Dashboard() {
 
       <DecisionSummary decisions={dashboard.decisions} />
       <MetricStrip metrics={dashboard.metrics} />
-      <div className="dashboard-main-grid">
-        <MarketTemperatureChart data={dashboard.trendPoints} />
-        <OperationQueue operations={dashboard.operations} onRunOperation={handleRunOperation} />
-      </div>
+      <MarketOverviewWorkbench
+        metrics={dashboard.metrics}
+        operations={dashboard.operations}
+        onRunOperation={handleRunOperation}
+      />
       <SignalTables
         etfOpportunities={dashboard.etfOpportunities}
         maSignals={dashboard.maSignals}
         fundRecommendations={dashboard.fundRecommendations}
       />
 
-      <Modal
-        title="数据刷新进度"
-        open={refreshModalOpen}
-        closable={!refreshing}
-        maskClosable={!refreshing}
-        onCancel={() => setRefreshModalOpen(false)}
-        footer={refreshing ? null : (
-          <Button type="primary" onClick={() => setRefreshModalOpen(false)}>关闭</Button>
-        )}
-      >
-        <Space direction="vertical" size={10} style={{ width: '100%' }}>
-          {refreshSteps.map(step => (
-            <div className="refresh-step-row" key={step.key}>
-              <Tag color={
-                step.status === 'success' ? 'success'
-                  : step.status === 'error' ? 'error'
-                    : step.status === 'processing' ? 'processing'
-                      : 'default'
-              }>
-                {step.status === 'success' ? '完成'
-                  : step.status === 'error' ? '失败'
-                    : step.status === 'processing' ? '进行中'
-                      : '等待'}
-              </Tag>
-              <div>
-                <strong>{step.title}</strong>
-                <div className="refresh-step-message">{step.message}</div>
-              </div>
-            </div>
-          ))}
-        </Space>
-      </Modal>
     </div>
   )
 }

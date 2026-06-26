@@ -1,14 +1,12 @@
 package com.fund.analysis.service;
 
 import com.fund.analysis.client.ExternalApiClient;
-import com.fund.analysis.dto.FundPortfolioRsiDTO;
 import com.fund.analysis.dto.MarketOverviewDTO;
 import com.fund.analysis.dto.RsiDataDTO;
 import com.fund.analysis.entity.StockBondBalance;
 import com.fund.analysis.exception.DataUnavailableException;
 import com.fund.analysis.exception.ExternalApiException;
 import com.fund.analysis.mapper.StockBondBalanceMapper;
-import com.fund.analysis.mapper.SystemConfigMapper;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.slf4j.Logger;
@@ -43,9 +41,6 @@ public class MarketDataService {
     
     @Autowired
     private StockBondBalanceMapper stockBondBalanceMapper;
-    
-    @Autowired
-    private SystemConfigMapper systemConfigMapper;
 
     @Autowired
     private ExternalApiClient externalApiClient;
@@ -276,36 +271,6 @@ public class MarketDataService {
         }
     }
     
-    /**
-     * 获取养老基金组合RSI
-     * 通过读取系统配置中的代表性ETF代码，查询其RSI数据作为基金组合的RSI
-     * @return 基金组合RSI
-     */
-    public FundPortfolioRsiDTO getFundPortfolioRsi() {
-        FundPortfolioRsiDTO dto = new FundPortfolioRsiDTO();
-
-        // 从系统配置中读取养老基金组合对应的ETF代码
-        String etfCode = systemConfigMapper.selectValueByKey("portfolio.fund.etf_code");
-        if (etfCode == null || etfCode.isEmpty()) {
-            etfCode = GUO_ZHENG;
-        }
-
-        RsiDataDTO rsi14 = rsiAnalysisService.getLatestRsi(etfCode, 14);
-        if (rsi14 != null && rsi14.getCurrentRsi() != null) {
-            dto.setRsi14(String.format("%.2f", rsi14.getCurrentRsi()));
-        }
-
-        RsiDataDTO rsi90 = rsiAnalysisService.getLatestRsi(etfCode, 90);
-        if (rsi90 != null && rsi90.getCurrentRsi() != null) {
-            dto.setRsi90(String.format("%.2f", rsi90.getCurrentRsi()));
-        }
-
-        logger.debug("Fund portfolio RSI - Code: {}, RSI14: {}, RSI90: {}",
-                etfCode, dto.getRsi14(), dto.getRsi90());
-
-        return dto;
-    }
-
     /**
      * 校验并获取当前RSI
      *

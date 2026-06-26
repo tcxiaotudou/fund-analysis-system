@@ -84,24 +84,35 @@ function SignalTables({ etfOpportunities, maSignals, fundRecommendations }) {
     <section className="dashboard-table-grid">
       <div className="dashboard-panel">
         <div className="dashboard-panel-header">
-          <h2>ETF机会</h2>
+          <h2 className="panel-title-with-count">
+            ETF机会
+            <Tag className="panel-count-tag" color="blue">{etfOpportunities.length}</Tag>
+          </h2>
           <Space><Link to="/rsi-analysis">更多</Link></Space>
         </div>
         <Table columns={etfColumns} dataSource={etfOpportunities} rowKey="code" pagination={false} size="small" scroll={{ x: 1000 }} locale={{ emptyText: '当前没有 ETF 机会' }} />
       </div>
-      <div className="dashboard-panel">
-        <div className="dashboard-panel-header">
-          <h2>MA买卖信号</h2>
-          <Space><Link to="/ma-strategy">更多</Link></Space>
+      <div className="dashboard-table-stack">
+        <div className="dashboard-panel">
+          <div className="dashboard-panel-header">
+            <h2 className="panel-title-with-count">
+              MA买卖信号
+              <Tag className="panel-count-tag" color="purple">{maSignals.length}</Tag>
+            </h2>
+            <Space><Link to="/ma-strategy">更多</Link></Space>
+          </div>
+          <Table columns={maColumns} dataSource={maSignals} rowKey="etfCode" pagination={false} size="small" scroll={{ x: 1140 }} locale={{ emptyText: '当前没有 MA 信号' }} />
         </div>
-        <Table columns={maColumns} dataSource={maSignals} rowKey="etfCode" pagination={false} size="small" scroll={{ x: 1140 }} locale={{ emptyText: '当前没有 MA 信号' }} />
-      </div>
-      <div className="dashboard-panel">
-        <div className="dashboard-panel-header">
-          <h2>基金推荐</h2>
-          <Space><Link to="/fund-recommendation">更多</Link></Space>
+        <div className="dashboard-panel">
+          <div className="dashboard-panel-header">
+            <h2 className="panel-title-with-count">
+              基金推荐
+              <Tag className="panel-count-tag" color="green">{fundRecommendations.length}</Tag>
+            </h2>
+            <Space><Link to="/fund-recommendation">更多</Link></Space>
+          </div>
+          <Table columns={fundColumns} dataSource={fundRecommendations} rowKey="fundCode" pagination={false} size="small" scroll={{ x: 680 }} locale={{ emptyText: '当前没有基金推荐摘要' }} />
         </div>
-        <Table columns={fundColumns} dataSource={fundRecommendations} rowKey="fundCode" pagination={false} size="small" scroll={{ x: 680 }} locale={{ emptyText: '当前没有基金推荐摘要' }} />
       </div>
     </section>
   )

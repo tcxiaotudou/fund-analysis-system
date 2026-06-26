@@ -50,6 +50,12 @@ export const adminApi = {
   // 刷新全部分析数据
   refreshAll: () => api.post('/admin/refresh-all', null, { timeout: 180000 }),
 
+  // 启动后台刷新全部分析数据
+  startBackgroundRefresh: () => api.post('/admin/refresh-all/background'),
+
+  // 获取后台刷新状态
+  getBackgroundRefreshStatus: () => api.get('/admin/refresh-all/status'),
+
   // 刷新市场概览数据
   refreshMarket: () => api.post('/admin/refresh-market', null, { timeout: 60000 }),
 
