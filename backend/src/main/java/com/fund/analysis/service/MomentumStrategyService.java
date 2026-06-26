@@ -538,6 +538,8 @@ public class MomentumStrategyService {
             
             // 按日期排序
             prices.sort(Comparator.comparing(PriceData::getDate));
+
+            mergeRealtimePriceIfTodayInRange(code, extendedStartDate, endDate, prices);
             
             logger.info("获取{}历史数据成功: {}条记录", code, prices.size());
             return prices;
@@ -551,6 +553,110 @@ public class MomentumStrategyService {
             }
             throw new ExternalApiException("获取" + code + "历史数据失败", e);
         }
+    }
+
+    /**
+     * 当刷新区间包含当天时，用实时行情价覆盖当天日K价格
+     */
+    private void mergeRealtimePriceIfTodayInRange(String code, Date extendedStartDate,
+                                                  Date endDate, List<PriceData> prices) {
+        Date today = parseDateOnly(dateFormat.format(new Date()), "当天日期");
+        if (today.before(extendedStartDate) || today.after(endDate)) {
+            return;
+        }
+
+        PriceData realtimePrice = getRealtimePrice(code);
+        upsertPriceData(prices, realtimePrice);
+        prices.sort(Comparator.comparing(PriceData::getDate));
+        logger.info("使用实时行情覆盖{}当天价格: 日期={}, 价格={}",
+                code, dateFormat.format(realtimePrice.getDate()), realtimePrice.getPrice());
+    }
+
+    /**
+     * 获取新浪实时行情当前价
+     */
+    private PriceData getRealtimePrice(String code) {
+        String url = String.format("https://hq.sinajs.cn/list=%s", code);
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Referer", "https://finance.sina.com.cn/");
+
+        String response = externalApiClient.get(url, headers);
+        String quoteData = extractSinaQuoteData(code, response);
+        String[] fields = quoteData.split(",", -1);
+        if (fields.length <= 31) {
+            throw new DataUnavailableException("实时行情字段不足: " + code);
+        }
+
+        BigDecimal currentPrice = parsePositivePrice(fields[3], code);
+        Date quoteDate = parseDateOnly(fields[30], "实时行情日期: " + code);
+        Date today = parseDateOnly(dateFormat.format(new Date()), "当天日期");
+        if (quoteDate.compareTo(today) != 0) {
+            throw new DataUnavailableException("实时行情日期不是当天: " + code
+                    + ", 行情日期=" + dateFormat.format(quoteDate)
+                    + ", 当天=" + dateFormat.format(today));
+        }
+
+        return new PriceData(quoteDate, currentPrice);
+    }
+
+    /**
+     * 提取新浪实时行情引号内的数据
+     */
+    private String extractSinaQuoteData(String code, String response) {
+        if (response == null || response.trim().isEmpty()) {
+            throw new DataUnavailableException("实时行情返回空响应: " + code);
+        }
+
+        int start = response.indexOf('"');
+        int end = response.lastIndexOf('"');
+        if (start < 0 || end <= start) {
+            throw new DataUnavailableException("实时行情格式错误: " + code);
+        }
+
+        String quoteData = response.substring(start + 1, end);
+        if (quoteData.trim().isEmpty()) {
+            throw new DataUnavailableException("实时行情内容为空: " + code);
+        }
+        return quoteData;
+    }
+
+    /**
+     * 解析实时行情正数价格
+     */
+    private BigDecimal parsePositivePrice(String priceText, String code) {
+        try {
+            BigDecimal price = new BigDecimal(priceText);
+            if (price.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new DataUnavailableException("实时行情价格无效: " + code + ", 价格=" + priceText);
+            }
+            return price;
+        } catch (NumberFormatException e) {
+            throw new DataUnavailableException("实时行情价格格式错误: " + code + ", 价格=" + priceText);
+        }
+    }
+
+    /**
+     * 解析日期文本
+     */
+    private Date parseDateOnly(String dateText, String fieldName) {
+        try {
+            return dateFormat.parse(dateText);
+        } catch (ParseException e) {
+            throw new DataUnavailableException(fieldName + "格式错误: " + dateText);
+        }
+    }
+
+    /**
+     * 按日期新增或替换价格数据
+     */
+    private void upsertPriceData(List<PriceData> prices, PriceData realtimePrice) {
+        for (int i = 0; i < prices.size(); i++) {
+            if (dateFormat.format(prices.get(i).getDate()).equals(dateFormat.format(realtimePrice.getDate()))) {
+                prices.set(i, realtimePrice);
+                return;
+            }
+        }
+        prices.add(realtimePrice);
     }
     
     /**

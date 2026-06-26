@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @Component
 public class ExternalApiClient {
@@ -78,8 +79,25 @@ public class ExternalApiClient {
      * @return 响应正文
      */
     public String get(String url) {
+        return get(url, null);
+    }
+
+    /**
+     * 执行带请求头的第三方 GET 请求
+     *
+     * @param url 请求地址
+     * @param headers 请求头
+     * @return 响应正文
+     */
+    public String get(String url, Map<String, String> headers) {
         HttpGet request = new HttpGet(url);
         request.setConfig(requestConfig);
+        if (headers != null) {
+            for (Map.Entry<String, String> header : headers.entrySet()) {
+                request.setHeader(header.getKey(), header.getValue());
+            }
+        }
+
         try (CloseableHttpClient client = HttpClients.custom()
                 .setDefaultRequestConfig(requestConfig)
                 .build();
