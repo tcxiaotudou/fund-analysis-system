@@ -436,7 +436,7 @@ function FundRecommendation() {
         
         if (blacklistItem) {
           return (
-            <Space size="small" direction="vertical" style={{ width: '100%' }}>
+            <Space size="small" direction="vertical" className="terminal-full-width">
               <Tooltip title={`排除原因: ${blacklistItem.excludeReason}`}>
                 <Tag color="red" icon={<StopOutlined />} style={{ margin: 0 }}>已排除</Tag>
               </Tooltip>
@@ -564,7 +564,7 @@ function FundRecommendation() {
 
       {/* 筛选标准说明 */}
       <Card title="筛选标准说明">
-        <div style={{ lineHeight: '2' }}>
+        <div className="terminal-copy-block">
           <h3>本推荐列表的筛选标准：</h3>
           <ul>
             <li><strong>数据来源：</strong>第三方基金数据API</li>
@@ -574,7 +574,7 @@ function FundRecommendation() {
             <li><strong>数量限制：</strong>展示前12只基金</li>
           </ul>
 
-          <h3 style={{ marginTop: '20px' }}>关键指标说明：</h3>
+          <h3 className="terminal-field-offset-xl">关键指标说明：</h3>
           <ul>
             <li><strong>卡玛比率（Calmar Ratio）：</strong>收益与最大回撤的比值，衡量单位回撤下能获得多少收益，数值越大越好。排名越小表示卡玛比率越高。</li>
             <li><strong>近5年年化收益率：</strong>过去5年的年化收益率，反映基金的长期收益能力</li>
@@ -582,17 +582,17 @@ function FundRecommendation() {
             <li><strong>赎回费率：</strong>不同持有时长对应的赎回费率</li>
           </ul>
 
-          <div className="terminal-info-box terminal-info-box-cyan" style={{ marginTop: 12 }}>
+          <div className="terminal-info-box terminal-info-box-cyan terminal-field-offset-lg">
             <strong>💡 为什么使用卡玛比率排序？</strong>
-            <p style={{ margin: '8px 0 0 0' }}>
+            <p className="terminal-inline-note-space">
               卡玛比率综合考虑了收益和风险（最大回撤），比单纯的收益率排序更能反映基金的长期投资价值。
               卡玛比率高的基金意味着在控制回撤的前提下获得了较好的收益，更适合长期持有。
             </p>
           </div>
 
-          <div className="terminal-info-box terminal-info-box-amber" style={{ marginTop: 12 }}>
+          <div className="terminal-info-box terminal-info-box-amber terminal-field-offset-lg">
             <strong>⚠️ 免责声明：</strong>
-            <p style={{ margin: '8px 0 0 0' }}>
+            <p className="terminal-inline-note-space">
               本推荐仅基于历史数据筛选，不构成投资建议。
               历史业绩不代表未来表现，投资需谨慎。
             </p>
@@ -613,12 +613,12 @@ function FundRecommendation() {
         okText="确认排除"
         cancelText="取消"
       >
-        <div style={{ marginBottom: 16 }}>
+        <div className="terminal-section-gap">
           <p><strong>基金名称：</strong>{currentFund?.fundName}</p>
           <p><strong>基金代码：</strong>{currentFund?.fundCode}</p>
         </div>
         <div>
-          <p style={{ marginBottom: 8 }}>
+          <p className="terminal-field-label">
             <strong style={{ color: 'red' }}>*</strong> 排除原因：
           </p>
           <TextArea
@@ -632,22 +632,6 @@ function FundRecommendation() {
         </div>
       </Modal>
 
-      <style>{`
-        .blacklisted-row {
-          background-color: rgba(51, 65, 85, 0.4) !important;
-          opacity: 0.6;
-        }
-        .blacklisted-row:hover {
-          background-color: rgba(51, 65, 85, 0.62) !important;
-        }
-        .holding-row {
-          background-color: rgba(8, 145, 178, 0.16) !important;
-          border-left: 3px solid #22d3ee;
-        }
-        .holding-row:hover {
-          background-color: rgba(8, 145, 178, 0.28) !important;
-        }
-      `}</style>
     </TerminalPage>
   )
 }

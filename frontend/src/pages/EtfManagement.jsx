@@ -313,14 +313,14 @@ function EtfManagement() {
             name="rsiBuyThreshold"
             label="RSI买入阈值"
           >
-            <InputNumber min={0} max={100} style={{ width: '100%' }} />
+            <InputNumber min={0} max={100} className="terminal-full-width" />
           </Form.Item>
 
           <Form.Item
             name="rsiSellThreshold"
             label="RSI卖出阈值"
           >
-            <InputNumber min={0} max={100} style={{ width: '100%' }} />
+            <InputNumber min={0} max={100} className="terminal-full-width" />
           </Form.Item>
 
           <Form.Item

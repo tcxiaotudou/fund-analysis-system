@@ -254,7 +254,7 @@ function SystemConfig() {
 
       {/* 配置说明 */}
       <Card title="配置说明">
-        <div style={{ lineHeight: '2' }}>
+        <div className="terminal-copy-block">
           <h3>邮件配置：</h3>
           <ul>
             <li><strong>启用邮件发送：</strong>开启后系统会定期发送分析报告到指定邮箱</li>

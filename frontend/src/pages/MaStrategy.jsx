@@ -206,31 +206,31 @@ function MaStrategy() {
       {/* 回测功能区域 */}
       <Card 
         title="双均线策略回测" 
-        style={{ marginBottom: 16 }}
+        className="terminal-section-gap"
         extra={
           <Tooltip title="基于10日均线和30日均线的金叉（买入）和死叉（卖出）信号进行回测">
-            <span className="terminal-muted-text" style={{ fontSize: '12px' }}>仅使用双均线策略</span>
+            <span className="terminal-muted-text terminal-small-text">仅使用双均线策略</span>
           </Tooltip>
         }
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
+        <Space direction="vertical" className="terminal-full-width" size="large">
           <Row gutter={16}>
             <Col xs={24} sm={12} lg={6}>
               <div>
-                <div style={{ marginBottom: 8 }}>ETF编码：</div>
+                <div className="terminal-field-label">ETF编码：</div>
                 <Input
                   placeholder="例如：sh510500"
                   value={etfCode}
                   onChange={(e) => setEtfCode(e.target.value)}
-                  style={{ width: '100%' }}
+                  className="terminal-full-width"
                 />
               </div>
             </Col>
             <Col xs={24} sm={12} lg={6}>
               <div>
-                <div style={{ marginBottom: 8 }}>开始时间：</div>
+                <div className="terminal-field-label">开始时间：</div>
                 <DatePicker
-                  style={{ width: '100%' }}
+                  className="terminal-full-width"
                   value={startDate}
                   onChange={setStartDate}
                   format="YYYY-MM-DD"
@@ -240,9 +240,9 @@ function MaStrategy() {
             </Col>
             <Col xs={24} sm={12} lg={6}>
               <div>
-                <div style={{ marginBottom: 8 }}>结束时间：</div>
+                <div className="terminal-field-label">结束时间：</div>
                 <DatePicker
-                  style={{ width: '100%' }}
+                  className="terminal-full-width"
                   value={endDate}
                   onChange={setEndDate}
                   format="YYYY-MM-DD"
@@ -252,9 +252,9 @@ function MaStrategy() {
             </Col>
             <Col xs={24} sm={12} lg={6}>
               <div>
-                <div style={{ marginBottom: 8 }}>初始资金：</div>
+                <div className="terminal-field-label">初始资金：</div>
                 <InputNumber
-                  style={{ width: '100%' }}
+                  className="terminal-full-width"
                   value={initialCapital}
                   onChange={setInitialCapital}
                   min={1000}
@@ -281,7 +281,7 @@ function MaStrategy() {
       {backtestResult && (
         <>
           {/* 回测统计信息 */}
-          <Card title={`回测结果：${backtestResult.etfName} (${backtestResult.etfCode})`} style={{ marginBottom: 16 }}>
+          <Card title={`回测结果：${backtestResult.etfName} (${backtestResult.etfCode})`} className="terminal-section-gap">
             <Row gutter={16}>
               <Col xs={12} sm={12} lg={6}>
                 <Statistic
@@ -334,7 +334,7 @@ function MaStrategy() {
           </Card>
           
           {/* 交易记录表格 */}
-          <Card title="交易记录" style={{ marginBottom: 16 }}>
+          <Card title="交易记录" className="terminal-section-gap">
             <Table
               columns={[
                 {
@@ -401,7 +401,7 @@ function MaStrategy() {
       )}
 
       {/* 统计信息卡片 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className="terminal-section-gap">
         <Space className="terminal-stat-strip" size="middle" wrap>
           <div className="terminal-stat-chip">
             <span style={{ color: '#999' }}>总计：</span>
@@ -462,7 +462,7 @@ function MaStrategy() {
 
       {/* 策略说明 */}
       <Card title="双均线策略说明">
-        <div style={{ lineHeight: '2' }}>
+        <div className="terminal-copy-block">
           <p>
             <strong>双均线策略</strong>是一种基于趋势跟踪的交易策略，
             通过观察10日均线和30日均线的交叉来判断买卖时机。
@@ -475,20 +475,20 @@ function MaStrategy() {
           </ul>
 
           <h3>买入信号条件：</h3>
-          <div className="terminal-info-box terminal-info-box-cyan" style={{ marginTop: 12 }}>
+          <div className="terminal-info-box terminal-info-box-cyan terminal-field-offset-lg">
             <p style={{ margin: 0 }}>
               <strong>条件：</strong>10日均线上穿30日均线（金叉）
             </p>
           </div>
 
-          <h3 style={{ marginTop: '20px' }}>卖出信号条件：</h3>
-          <div className="terminal-info-box terminal-info-box-red" style={{ marginTop: 12 }}>
+          <h3 className="terminal-field-offset-xl">卖出信号条件：</h3>
+          <div className="terminal-info-box terminal-info-box-red terminal-field-offset-lg">
             <p style={{ margin: 0 }}>
               <strong>条件：</strong>10日均线下穿30日均线（死叉）
             </p>
           </div>
 
-          <h3 style={{ marginTop: '20px' }}>策略优势：</h3>
+          <h3 className="terminal-field-offset-xl">策略优势：</h3>
           <ol>
             <li><strong>趋势确认：</strong>均线交叉能够有效捕捉趋势变化</li>
             <li><strong>简单明了：</strong>策略逻辑清晰，易于理解和执行</li>
@@ -496,7 +496,7 @@ function MaStrategy() {
             <li><strong>适用性强：</strong>适用于不同市场环境和时间周期</li>
           </ol>
 
-          <h3 style={{ marginTop: '20px' }}>使用建议：</h3>
+          <h3 className="terminal-field-offset-xl">使用建议：</h3>
           <ul>
             <li>买入信号出现后，建议观察成交量是否配合</li>
             <li>卖出信号出现后，可以考虑止盈或减仓</li>
@@ -504,9 +504,9 @@ function MaStrategy() {
             <li>可结合其他指标（如RSI、MACD）综合判断，提高策略准确性</li>
           </ul>
 
-          <div className="terminal-info-box terminal-info-box-amber" style={{ marginTop: 12 }}>
+          <div className="terminal-info-box terminal-info-box-amber terminal-field-offset-lg">
             <strong>⚠️ 风险提示：</strong>
-            <p style={{ margin: '8px 0 0 0' }}>
+            <p className="terminal-inline-note-space">
               任何技术分析策略都有局限性，市场走势受多种因素影响。
               本策略仅供参考，不构成投资建议。请结合自身风险承受能力，谨慎决策。
               投资有风险，入市需谨慎。

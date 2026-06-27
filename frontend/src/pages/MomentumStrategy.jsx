@@ -415,12 +415,12 @@ function MomentumStrategy() {
           showIcon
           message="回测区间参数错误"
           description={urlRangeError}
-          style={{ marginBottom: 16 }}
+          className="terminal-section-gap"
         />
       )}
 
       {/* 统计信息卡片 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className="terminal-section-gap">
         <Space className="terminal-stat-strip" size="middle" wrap>
           <div className="terminal-stat-chip">
             <span style={{ color: '#999' }}>总交易次数：</span>
@@ -458,7 +458,7 @@ function MomentumStrategy() {
       {/* 资金曲线图表 */}
       <Card 
         title="资金曲线" 
-        style={{ marginBottom: 16 }}
+        className="terminal-section-gap"
         extra={
           <Button 
             icon={<ReloadOutlined />}
@@ -473,10 +473,10 @@ function MomentumStrategy() {
         {performanceData.length > 0 ? (
           <>
             {/* 时间范围选择器 */}
-            <div style={{ marginBottom: 20 }}>
+            <div className="terminal-section-gap">
               <Row gutter={16} align="middle">
                 <Col xs={24} sm={4} lg={2}>
-                  <span className="terminal-muted-text" style={{ fontSize: '12px' }}>时间范围:</span>
+                  <span className="terminal-muted-text terminal-small-text">时间范围:</span>
                 </Col>
                 <Col xs={24} sm={16} lg={20}>
                   <Slider
@@ -571,7 +571,7 @@ function MomentumStrategy() {
             )}
 
             {/* 买卖点标注说明 */}
-            <div className="terminal-info-box" style={{ marginTop: 16 }}>
+            <div className="terminal-info-box terminal-field-offset-lg">
               <Space>
                 <span>
                   <span style={{ 
@@ -653,10 +653,10 @@ function MomentumStrategy() {
         cancelText="取消"
       >
         <div style={{ padding: '20px 0' }}>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8 }}>回测日期范围：</label>
+          <div className="terminal-section-gap">
+            <label className="terminal-field-label">回测日期范围：</label>
             <RangePicker
-              style={{ width: '100%' }}
+              className="terminal-full-width"
               value={[backtestStartDate, backtestEndDate]}
               onChange={(dates) => {
                 if (dates && dates.length === 2) {
@@ -670,9 +670,9 @@ function MomentumStrategy() {
             />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: 8 }}>初始资金：</label>
+            <label className="terminal-field-label">初始资金：</label>
             <InputNumber
-              style={{ width: '100%' }}
+              className="terminal-full-width"
               value={initialCapital}
               onChange={(value) => setInitialCapital(value || 100000)}
               min={1000}
@@ -681,8 +681,8 @@ function MomentumStrategy() {
               parser={(value) => value.replace(/¥\s?|(,*)/g, '')}
             />
           </div>
-          <div className="terminal-info-box terminal-info-box-cyan" style={{ marginTop: 16 }}>
-            <p style={{ margin: 0, fontSize: '12px' }}>
+          <div className="terminal-info-box terminal-info-box-cyan terminal-field-offset-lg">
+            <p className="terminal-small-text">
               <strong>提示：</strong>回测功能由Java后端直接执行，无需额外工具。
               <br />
               选择日期范围和初始资金后，点击"执行回测"即可开始。
@@ -695,7 +695,7 @@ function MomentumStrategy() {
 
       {/* 策略说明 */}
       <Card title="21日动量策略说明">
-        <div style={{ lineHeight: '2' }}>
+        <div className="terminal-copy-block">
           <p>
             <strong>21日动量策略</strong>是一种基于动量的ETF轮动策略，
             通过计算各ETF的21日收益率（动量），选择动量最强的ETF进行投资。
@@ -725,9 +725,9 @@ function MomentumStrategy() {
             <li>注意交易成本和滑点影响</li>
           </ul>
 
-          <div className="terminal-info-box terminal-info-box-amber" style={{ marginTop: 12 }}>
+          <div className="terminal-info-box terminal-info-box-amber terminal-field-offset-lg">
             <strong>⚠️ 风险提示：</strong>
-            <p style={{ margin: '8px 0 0 0' }}>
+            <p className="terminal-inline-note-space">
               动量策略在趋势明显的市场中表现较好，但在震荡市场中可能产生频繁交易。
               本策略仅供参考，不构成投资建议。请结合自身风险承受能力，谨慎决策。
               投资有风险，入市需谨慎。

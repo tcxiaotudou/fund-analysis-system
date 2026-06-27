@@ -328,7 +328,7 @@ function FundPortfolio() {
               step={0.01}
               value={weights[record.fundCode] || 0}
               onChange={(value) => handleWeightChange(record.fundCode, value)}
-              style={{ width: '100%' }}
+              className="terminal-full-width"
               placeholder="0.00"
             />
           )
@@ -522,10 +522,10 @@ function FundPortfolio() {
             刷新 RSI
           </Button>
         }
-        style={{ marginBottom: 16 }}
+        className="terminal-section-gap"
       >
         {rsiLoading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <div className="terminal-empty-state">
             <Spin tip="计算中...">
               <div className="loading-spin-content" />
             </Spin>
@@ -559,14 +559,14 @@ function FundPortfolio() {
             </Col>
           </Row>
             {rsiData.rsi14 != null && rsiData.rsi90 != null && (
-              <div className="terminal-info-box terminal-info-box-cyan" style={{ marginTop: 16 }}>
+              <div className="terminal-info-box terminal-info-box-cyan terminal-field-offset-lg">
                 <strong>建议：</strong>
                 <span style={{ color: getRsiSuggestion(rsiData.rsi14, rsiData.rsi90).color, marginLeft: 8 }}>
                   {getRsiSuggestion(rsiData.rsi14, rsiData.rsi90).text}
                 </span>
               </div>
             )}
-            <div className="terminal-muted-text" style={{ marginTop: 8, fontSize: '12px' }}>
+            <div className="terminal-small-text terminal-field-offset">
               基金数量: {rsiData.fundCount || 0} | 
               更新时间: {rsiData.updateTime ? new Date(rsiData.updateTime).toLocaleString('zh-CN') : '-'}
             </div>
@@ -596,10 +596,10 @@ function FundPortfolio() {
             刷新图表
           </Button>
         }
-        style={{ marginBottom: 16 }}
+        className="terminal-section-gap"
       >
         {rsiHistoryLoading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <div className="terminal-empty-state">
             <Spin tip="加载中...">
               <div className="loading-spin-content" />
             </Spin>
@@ -742,7 +742,7 @@ function FundPortfolio() {
 
       {/* 说明 */}
       <Card title="使用说明">
-        <div style={{ lineHeight: '2' }}>
+        <div className="terminal-copy-block">
           <h3>基金组合功能：</h3>
           <ul>
             <li><strong>组合 RSI：</strong>基于所有持有基金的加权组合计算 RSI 指标</li>
@@ -751,14 +751,14 @@ function FundPortfolio() {
             <li><strong>14周 RSI：</strong>周线指标，反映中期趋势</li>
           </ul>
 
-          <h3 style={{ marginTop: '20px' }}>关键指标说明：</h3>
+          <h3 className="terminal-field-offset-xl">关键指标说明：</h3>
           <ul>
             <li><strong>卡玛比率排名：</strong>衡量单位回撤下的收益，排名越小越好</li>
             <li><strong>夏普比率排名：</strong>衡量风险调整后的收益，排名越小越好</li>
             <li><strong>最大回撤：</strong>近5年内的最大跌幅，反映风险控制能力</li>
           </ul>
 
-          <h3 style={{ marginTop: '20px' }}>操作说明：</h3>
+          <h3 className="terminal-field-offset-xl">操作说明：</h3>
           <ul>
             <li><strong>添加基金：</strong>在"基金推荐"页面标记为持有，或手动添加基金代码和名称</li>
             <li><strong>编辑权重：</strong>点击"编辑权重"按钮，修改每只基金在组合中的权重</li>
@@ -768,9 +768,9 @@ function FundPortfolio() {
             <li><strong>刷新数据：</strong>重新加载基金列表和计算组合 RSI</li>
           </ul>
 
-          <div className="terminal-info-box terminal-info-box-amber" style={{ marginTop: 12 }}>
+          <div className="terminal-info-box terminal-info-box-amber terminal-field-offset-lg">
             <strong>⚠️ 提示：</strong>
-            <p style={{ margin: '8px 0 0 0' }}>
+            <p className="terminal-inline-note-space">
               组合 RSI 仅作为参考指标，投资决策请结合市场环境和个人风险承受能力。
             </p>
           </div>
@@ -786,8 +786,8 @@ function FundPortfolio() {
         okText="添加"
         cancelText="取消"
       >
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ marginBottom: 8 }}>
+        <div className="terminal-section-gap">
+          <p className="terminal-field-label">
             <strong style={{ color: 'red' }}>*</strong> 基金代码：
           </p>
           <Input
@@ -798,7 +798,7 @@ function FundPortfolio() {
           />
         </div>
         <div>
-          <p style={{ marginBottom: 8 }}>
+          <p className="terminal-field-label">
             <strong style={{ color: 'red' }}>*</strong> 基金名称：
           </p>
           <Input

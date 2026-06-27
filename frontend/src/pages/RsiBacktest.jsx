@@ -212,32 +212,32 @@ function RsiBacktest() {
       status={<span>{result ? `回测标的：${result.etfName} (${result.etfCode})` : `默认标的：${etfCode}`}</span>}
     >
 
-      <Card title="回测参数设置" style={{ marginBottom: 16 }}>
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
+      <Card title="回测参数设置" className="terminal-section-gap">
+        <Space direction="vertical" className="terminal-full-width" size="large">
           <Row gutter={16}>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div style={{ marginBottom: 8 }}>ETF编码：</div>
+                <div className="terminal-field-label">ETF编码：</div>
                 <Input placeholder="例如：sh512170" value={etfCode} onChange={e => setEtfCode(e.target.value)} />
               </div>
             </Col>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div style={{ marginBottom: 8 }}>开始时间：</div>
-                <DatePicker style={{ width: '100%' }} value={startDate} onChange={setStartDate} format="YYYY-MM-DD" />
+                <div className="terminal-field-label">开始时间：</div>
+                <DatePicker className="terminal-full-width" value={startDate} onChange={setStartDate} format="YYYY-MM-DD" />
               </div>
             </Col>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div style={{ marginBottom: 8 }}>结束时间：</div>
-                <DatePicker style={{ width: '100%' }} value={endDate} onChange={setEndDate} format="YYYY-MM-DD" />
+                <div className="terminal-field-label">结束时间：</div>
+                <DatePicker className="terminal-full-width" value={endDate} onChange={setEndDate} format="YYYY-MM-DD" />
               </div>
             </Col>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div style={{ marginBottom: 8 }}>初始资金：</div>
+                <div className="terminal-field-label">初始资金：</div>
                 <InputNumber
-                  style={{ width: '100%' }} value={initialCapital} onChange={setInitialCapital}
+                  className="terminal-full-width" value={initialCapital} onChange={setInitialCapital}
                   min={1000} step={10000}
                   formatter={v => `¥ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={v => v.replace(/¥\s?|(,*)/g, '')}
@@ -247,10 +247,10 @@ function RsiBacktest() {
             <Col xs={24} sm={12} lg={4}>
               <div>
                 <Tooltip title="每次触发买入/卖出信号时使用的固定金额，可连续多天操作">
-                  <div style={{ marginBottom: 8 }}>每笔交易金额：</div>
+                  <div className="terminal-field-label">每笔交易金额：</div>
                 </Tooltip>
                 <InputNumber
-                  style={{ width: '100%' }} value={fixedAmount} onChange={setFixedAmount}
+                  className="terminal-full-width" value={fixedAmount} onChange={setFixedAmount}
                   min={100} step={1000}
                   formatter={v => `¥ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={v => v.replace(/¥\s?|(,*)/g, '')}
@@ -259,22 +259,22 @@ function RsiBacktest() {
             </Col>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div style={{ marginBottom: 8 }}>RSI周期：</div>
-                <InputNumber style={{ width: '100%' }} value={rsiPeriod} onChange={setRsiPeriod} min={2} max={100} />
+                <div className="terminal-field-label">RSI周期：</div>
+                <InputNumber className="terminal-full-width" value={rsiPeriod} onChange={setRsiPeriod} min={2} max={100} />
               </div>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div style={{ marginBottom: 8 }}>买入阈值(RSI≤)：</div>
-                <InputNumber style={{ width: '100%' }} value={buyThreshold} onChange={setBuyThreshold} min={1} max={99} />
+                <div className="terminal-field-label">买入阈值(RSI≤)：</div>
+                <InputNumber className="terminal-full-width" value={buyThreshold} onChange={setBuyThreshold} min={1} max={99} />
               </div>
             </Col>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div style={{ marginBottom: 8 }}>卖出阈值(RSI≥)：</div>
-                <InputNumber style={{ width: '100%' }} value={sellThreshold} onChange={setSellThreshold} min={1} max={99} />
+                <div className="terminal-field-label">卖出阈值(RSI≥)：</div>
+                <InputNumber className="terminal-full-width" value={sellThreshold} onChange={setSellThreshold} min={1} max={99} />
               </div>
             </Col>
           </Row>
@@ -286,7 +286,7 @@ function RsiBacktest() {
 
       {result && (
         <>
-          <Card title={`回测结果：${result.etfName} (${result.etfCode})`} style={{ marginBottom: 16 }}>
+          <Card title={`回测结果：${result.etfName} (${result.etfCode})`} className="terminal-section-gap">
             <Row gutter={16}>
               <Col xs={12} sm={8} lg={4}>
                 <Statistic
@@ -343,8 +343,8 @@ function RsiBacktest() {
             </Row>
           </Card>
 
-          <Card title="价格走势与买卖点" style={{ marginBottom: 16 }}>
-            <div style={{ marginBottom: 16 }}>
+          <Card title="价格走势与买卖点" className="terminal-section-gap">
+            <div className="terminal-section-gap">
               <span className="terminal-muted-text" style={{ marginRight: 8 }}>时间范围缩放：</span>
               <Slider
                 range value={chartRange} onChange={setChartRange}
@@ -385,7 +385,7 @@ function RsiBacktest() {
             </ResponsiveContainer>
           </Card>
 
-          <Card title="RSI指标走势" style={{ marginBottom: 16 }}>
+          <Card title="RSI指标走势" className="terminal-section-gap">
             <ResponsiveContainer width="100%" height={300}>
               <ComposedChart data={slicedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
@@ -414,7 +414,7 @@ function RsiBacktest() {
             </ResponsiveContainer>
           </Card>
 
-          <Card title="交易记录" style={{ marginBottom: 16 }}>
+          <Card title="交易记录" className="terminal-section-gap">
             <Table
               columns={transactionColumns}
               dataSource={result.transactions || []}
@@ -430,8 +430,8 @@ function RsiBacktest() {
             />
           </Card>
 
-          <Card title="策略说明" style={{ marginBottom: 16 }}>
-            <div style={{ lineHeight: '2' }}>
+          <Card title="策略说明" className="terminal-section-gap">
+            <div className="terminal-copy-block">
               <p>
                 <strong>RSI定额分批策略</strong>：每天检查RSI值，只要触发阈值就用固定金额买入或卖出，
                 可以连续多天操作，逐步建仓和减仓。
@@ -447,9 +447,9 @@ function RsiBacktest() {
                 </ul>
               </div>
 
-              <div className="terminal-info-box terminal-info-box-amber" style={{ marginTop: 16 }}>
+              <div className="terminal-info-box terminal-info-box-amber terminal-field-offset-lg">
                 <strong>风险提示：</strong>
-                <p style={{ margin: '8px 0 0' }}>
+                <p className="terminal-inline-note-space">
                   历史回测结果不代表未来收益。任何策略都有局限性，请结合自身风险承受能力谨慎决策。
                 </p>
               </div>

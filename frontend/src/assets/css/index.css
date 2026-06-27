@@ -1731,6 +1731,48 @@ body {
   font-weight: 700;
 }
 
+.terminal-section-gap {
+  margin-bottom: 16px;
+}
+
+.terminal-field-offset {
+  margin-top: 8px;
+}
+
+.terminal-field-offset-lg {
+  margin-top: 12px;
+}
+
+.terminal-field-offset-xl {
+  margin-top: 20px;
+}
+
+.terminal-copy-block {
+  line-height: 2;
+}
+
+.terminal-small-text {
+  color: var(--terminal-muted);
+  font-size: 12px;
+}
+
+.terminal-full-width {
+  width: 100%;
+}
+
+.terminal-inline-note-space {
+  margin: 8px 0 0;
+}
+
+.terminal-input-short {
+  width: 200px;
+}
+
+.terminal-input-small {
+  width: 100%;
+  border-radius: 6px;
+}
+
 .terminal-muted-text {
   color: var(--terminal-muted) !important;
 }

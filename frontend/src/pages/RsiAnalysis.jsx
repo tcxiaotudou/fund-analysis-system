@@ -140,7 +140,7 @@ function RsiAnalysis() {
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 200 }}
+            className="terminal-input-short"
             allowClear
           />
           <Button 
@@ -171,7 +171,7 @@ function RsiAnalysis() {
 
       {/* 使用说明 */}
       <Card title="RSI指标说明">
-        <div style={{ lineHeight: '2' }}>
+        <div className="terminal-copy-block">
           <p><strong>RSI（相对强弱指标）</strong>是一种动量指标，用于衡量价格变动的速度和幅度。</p>
           <ul>
             <li>RSI值介于0-100之间</li>
