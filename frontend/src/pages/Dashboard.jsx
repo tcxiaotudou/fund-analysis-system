@@ -248,6 +248,7 @@ function Dashboard() {
       <MarketOverviewWorkbench
         metrics={dashboard.metrics}
         operations={dashboard.operations}
+        indexValuations={dashboard.indexValuations}
         onRunOperation={handleRunOperation}
       />
       <SignalTables

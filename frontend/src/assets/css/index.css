@@ -421,6 +421,83 @@ body {
   font-size: 12px;
 }
 
+.index-valuation-section {
+  min-width: 0;
+  margin-top: 10px;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.index-valuation-list {
+  display: grid;
+  gap: 0;
+}
+
+.index-valuation-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 1px minmax(120px, 0.38fr) minmax(120px, 0.38fr);
+  align-items: center;
+  gap: 18px;
+  padding: 14px 16px;
+}
+
+.index-valuation-main {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.index-valuation-main strong {
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.index-valuation-main span,
+.index-valuation-stat span {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.index-valuation-main b {
+  color: #f97316;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.index-valuation-card-success .index-valuation-main b {
+  color: #0f9f6e;
+}
+
+.index-valuation-card-danger .index-valuation-main b,
+.index-valuation-card-warning .index-valuation-main b {
+  color: #f97316;
+}
+
+.index-valuation-divider {
+  width: 1px;
+  height: 56px;
+  background: #e2e8f0;
+}
+
+.index-valuation-stat {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.index-valuation-stat strong {
+  color: #0f172a;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
 .primary-action-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -604,9 +681,15 @@ body {
 
   .market-metric-section-header,
   .market-metric-grid,
-  .primary-action-grid {
+  .primary-action-grid,
+  .index-valuation-card {
     grid-template-columns: 1fr;
     overflow: visible;
+  }
+
+  .index-valuation-divider {
+    width: 100%;
+    height: 1px;
   }
 
   .market-metric-card {

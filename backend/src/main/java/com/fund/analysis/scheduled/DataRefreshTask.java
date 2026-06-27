@@ -1,6 +1,7 @@
 package com.fund.analysis.scheduled;
 
 import com.fund.analysis.exception.BusinessException;
+import com.fund.analysis.service.DanjuanIndexValuationService;
 import com.fund.analysis.service.FundAnalysisService;
 import com.fund.analysis.service.FundPortfolioService;
 import com.fund.analysis.service.MarketDataService;
@@ -41,6 +42,12 @@ public class DataRefreshTask {
     
     @Autowired
     private MomentumStrategyService momentumStrategyService;
+
+    /**
+     * 蛋卷指数估值服务
+     */
+    @Autowired
+    private DanjuanIndexValuationService danjuanIndexValuationService;
     
     /**
      * 每天早上9点执行市场数据刷新
@@ -54,6 +61,17 @@ public class DataRefreshTask {
                 throw new BusinessException("市场数据刷新返回失败");
             }
             logger.info("市场数据刷新成功");
+        });
+    }
+
+    /**
+     * 每天交易时段每5分钟刷新一次指数估值缓存
+     */
+    @Scheduled(cron = "0 0/5 9-16 * * MON-FRI")
+    public void refreshIndexValuation() {
+        runRefreshTask("刷新指数估值数据", () -> {
+            danjuanIndexValuationService.refreshNasdaq100Valuation();
+            logger.info("指数估值数据刷新成功");
         });
     }
 
@@ -140,6 +158,10 @@ public class DataRefreshTask {
         runRefreshTask("执行完整数据刷新", () -> {
             logger.info("正在刷新市场数据...");
             marketDataService.refreshMarketOverview();
+            sleepForRateLimit(5000);
+
+            logger.info("正在刷新指数估值数据...");
+            danjuanIndexValuationService.refreshNasdaq100Valuation();
             sleepForRateLimit(5000);
 
             logger.info("正在刷新ETF RSI数据...");

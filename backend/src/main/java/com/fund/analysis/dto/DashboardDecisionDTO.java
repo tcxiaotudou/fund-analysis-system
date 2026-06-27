@@ -53,6 +53,11 @@ public class DashboardDecisionDTO {
     private List<FundRecommendationDTO> fundRecommendations = new ArrayList<>();
 
     /**
+     * 指数估值列表
+     */
+    private List<IndexValuationDTO> indexValuations = new ArrayList<>();
+
+    /**
      * 数据更新时间
      */
     private String updateTime;
@@ -270,6 +275,11 @@ public class DashboardDecisionDTO {
         private String conditionId;
 
         /**
+         * 数据时间
+         */
+        private String dataTime;
+
+        /**
          * 标签
          */
         private String tag;
@@ -283,5 +293,52 @@ public class DashboardDecisionDTO {
          * 是否排除
          */
         private boolean blacklisted;
+    }
+
+    /**
+     * 指数估值卡片
+     */
+    @Data
+    public static class IndexValuationDTO {
+
+        /**
+         * 指数代码
+         */
+        private String indexCode;
+
+        /**
+         * 指数名称
+         */
+        private String name;
+
+        /**
+         * 历史低位占比文案
+         */
+        private String historyLowText;
+
+        /**
+         * 估值状态文案
+         */
+        private String valuationLabel;
+
+        /**
+         * 展示级别，success、warning、danger、info、neutral
+         */
+        private String level;
+
+        /**
+         * PE日期
+         */
+        private String peDate;
+
+        /**
+         * PE值
+         */
+        private String pe;
+
+        /**
+         * PE百分位
+         */
+        private String pePercentile;
     }
 }

@@ -169,6 +169,7 @@ docker compose down
 - `fund_portfolio_rsi`：基金组合 RSI 汇总
 - `fund_portfolio_rsi_history`：基金组合 RSI 历史
 - `stock_bond_balance`：市场股债平衡建议与估值指标
+- `index_valuation`：指数估值缓存
 - `system_config`：系统配置
 
 ## 验证命令

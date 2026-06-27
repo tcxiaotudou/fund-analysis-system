@@ -138,6 +138,17 @@ public class ExternalApiClient {
         return parseJson(url, get(url));
     }
 
+    /**
+     * 执行带请求头的第三方 JSON GET 请求
+     *
+     * @param url 请求地址
+     * @param headers 请求头
+     * @return JSON响应
+     */
+    public JsonElement getJson(String url, Map<String, String> headers) {
+        return parseJson(url, get(url, headers));
+    }
+
     public JsonElement postJsonElement(String url, Object body) {
         return parseJson(url, postJson(url, body));
     }

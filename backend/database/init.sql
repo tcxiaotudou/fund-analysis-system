@@ -214,6 +214,25 @@ CREATE TABLE `stock_bond_balance` (
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='股债平衡策略表';
 
 
+-- fund_analysis.index_valuation definition
+
+CREATE TABLE `index_valuation` (
+                                   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+                                   `index_code` varchar(32) NOT NULL COMMENT '指数代码',
+                                   `name` varchar(64) NOT NULL COMMENT '指数名称',
+                                   `history_low_text` varchar(128) NOT NULL COMMENT '历史低位占比文案',
+                                   `valuation_label` varchar(32) NOT NULL COMMENT '估值状态文案',
+                                   `level` varchar(32) NOT NULL COMMENT '展示级别',
+                                   `pe_date` varchar(16) NOT NULL COMMENT 'PE日期',
+                                   `pe` varchar(32) NOT NULL COMMENT 'PE值',
+                                   `pe_percentile` varchar(32) NOT NULL COMMENT 'PE百分位',
+                                   `data_time` datetime NOT NULL COMMENT '数据时间',
+                                   `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                                   PRIMARY KEY (`id`),
+                                   KEY `idx_index_code_data_time` (`index_code`, `data_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='指数估值缓存表';
+
+
 -- fund_analysis.system_config definition
 
 CREATE TABLE `system_config` (

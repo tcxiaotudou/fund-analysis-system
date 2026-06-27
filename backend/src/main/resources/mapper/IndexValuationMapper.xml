@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.analysis.mapper.IndexValuationMapper">
+
+    <!-- 查询指定指数最新估值 -->
+    <select id="selectLatestByIndexCode" resultType="com.fund.analysis.entity.IndexValuation">
+        SELECT * FROM index_valuation
+        WHERE index_code = #{indexCode}
+        ORDER BY data_time DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <!-- 新增指数估值缓存 -->
+    <insert id="insert" parameterType="com.fund.analysis.entity.IndexValuation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO index_valuation (
+            index_code,
+            name,
+            history_low_text,
+            valuation_label,
+            level,
+            pe_date,
+            pe,
+            pe_percentile,
+            data_time,
+            create_time
+        ) VALUES (
+            #{indexCode},
+            #{name},
+            #{historyLowText},
+            #{valuationLabel},
+            #{level},
+            #{peDate},
+            #{pe},
+            #{pePercentile},
+            #{dataTime},
+            #{createTime}
+        )
+    </insert>
+
+    <!-- 删除旧数据 -->
+    <delete id="deleteOldData">
+        DELETE FROM index_valuation
+        WHERE index_code = #{indexCode}
+          AND id NOT IN (
+            SELECT id FROM (
+                SELECT id FROM index_valuation
+                WHERE index_code = #{indexCode}
+                ORDER BY data_time DESC, id DESC
+                LIMIT #{keepCount}
+            ) tmp
+        )
+    </delete>
+
+</mapper>

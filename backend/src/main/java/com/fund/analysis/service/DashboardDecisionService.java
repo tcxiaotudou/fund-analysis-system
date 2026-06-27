@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -20,6 +23,11 @@ import java.util.Map;
  */
 @Service
 public class DashboardDecisionService {
+
+    /**
+     * 首页日期时间格式
+     */
+    private static final DateTimeFormatter DASHBOARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
      * 市场数据服务
@@ -58,6 +66,12 @@ public class DashboardDecisionService {
     private FundPortfolioService fundPortfolioService;
 
     /**
+     * 蛋卷指数估值服务
+     */
+    @Autowired
+    private DanjuanIndexValuationService danjuanIndexValuationService;
+
+    /**
      * 获取决策驾驶舱数据
      *
      * @return 决策驾驶舱数据
@@ -75,6 +89,7 @@ public class DashboardDecisionService {
         }
         loadMaSignals(result);
         loadFundRecommendations(result);
+        loadIndexValuations(result);
         buildOperations(result);
         updateHealthMessage(result);
         return result;
@@ -152,6 +167,7 @@ public class DashboardDecisionService {
                 item.setFundCode(fund.getFundCode());
                 item.setFundName(fund.getFundName());
                 item.setConditionId("");
+                item.setDataTime(formatFundDataTime(fund.getDataTime()));
                 item.setIsHolding(fund.getIsHolding());
                 item.setBlacklisted(fundBlacklistService.isBlacklisted(fund.getFundCode()));
                 item.setTag(resolveFundTag(item));
@@ -159,6 +175,19 @@ public class DashboardDecisionService {
             }
         } catch (RuntimeException e) {
             addModuleError(result, "基金推荐", e.getMessage());
+        }
+    }
+
+    /**
+     * 加载指数估值
+     *
+     * @param result 聚合结果
+     */
+    private void loadIndexValuations(DashboardDecisionDTO result) {
+        try {
+            result.getIndexValuations().add(danjuanIndexValuationService.getCachedNasdaq100Valuation());
+        } catch (RuntimeException e) {
+            addModuleError(result, "指数估值", e.getMessage());
         }
     }
 
@@ -349,6 +378,19 @@ public class DashboardDecisionService {
             return "已持有";
         }
         return "推荐";
+    }
+
+    /**
+     * 格式化基金数据时间
+     *
+     * @param dataTime 基金数据时间
+     * @return 页面展示时间
+     */
+    private String formatFundDataTime(Date dataTime) {
+        if (dataTime == null) {
+            return null;
+        }
+        return DASHBOARD_TIME_FORMATTER.format(dataTime.toInstant().atZone(ZoneId.systemDefault()));
     }
 
     /**

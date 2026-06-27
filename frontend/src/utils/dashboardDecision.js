@@ -8,6 +8,7 @@ export const EMPTY_DASHBOARD_DECISION = {
   etfOpportunities: [],
   maSignals: [],
   fundRecommendations: [],
+  indexValuations: [],
   updateTime: '',
 }
 
@@ -19,11 +20,14 @@ export function normalizeDashboardDecision(data) {
   if (!data.dataStatus || !data.dataStatus.status || !data.dataStatus.message) {
     throw new Error('首页数据缺少健康状态')
   }
+  const moduleErrors = [...readRequiredArray(data.dataStatus.moduleErrors, '模块错误')]
+  const indexValuations = readDashboardExtensionArray(data.indexValuations, '指数估值', moduleErrors)
+  const hasExtensionError = moduleErrors.length > data.dataStatus.moduleErrors.length
   return {
     dataStatus: {
-      status: data.dataStatus.status,
-      message: data.dataStatus.message,
-      moduleErrors: readRequiredArray(data.dataStatus.moduleErrors, '模块错误'),
+      status: hasExtensionError && data.dataStatus.status === 'normal' ? 'partial' : data.dataStatus.status,
+      message: hasExtensionError && data.dataStatus.status === 'normal' ? '部分模块加载失败' : data.dataStatus.message,
+      moduleErrors,
     },
     decisions: readRequiredArray(data.decisions, '今日决策'),
     metrics: readRequiredArray(data.metrics, '核心指标'),
@@ -32,6 +36,7 @@ export function normalizeDashboardDecision(data) {
     etfOpportunities: readRequiredArray(data.etfOpportunities, 'ETF机会'),
     maSignals: readRequiredArray(data.maSignals, 'MA信号'),
     fundRecommendations: readRequiredArray(data.fundRecommendations, '基金推荐'),
+    indexValuations,
     updateTime: data.updateTime || '',
   }
 }
@@ -42,6 +47,15 @@ function readRequiredArray(value, label) {
     throw new Error(`首页数据字段格式错误：${label}`)
   }
   return value
+}
+
+// 读取可扩展数组字段，旧后端未返回时显式暴露模块错误。
+function readDashboardExtensionArray(value, label, moduleErrors) {
+  if (value === undefined) {
+    moduleErrors.push({ module: label, message: `首页数据缺少${label}字段，请确认后端已更新` })
+    return []
+  }
+  return readRequiredArray(value, label)
 }
 
 // 获取数据状态展示颜色。
@@ -73,8 +87,8 @@ const MARKET_METRIC_SECTION_DEFINITIONS = [
   {
     key: 'allocation',
     title: '配置与估值',
-    description: '股债比例、风险溢价和长期趋势',
-    metricKeys: ['balance', 'riskPremium', 'ma5yDeviation'],
+    description: '风险溢价和长期趋势',
+    metricKeys: ['riskPremium', 'ma5yDeviation'],
   },
 ]
 

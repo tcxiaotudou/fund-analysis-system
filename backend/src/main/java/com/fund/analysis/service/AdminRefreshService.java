@@ -45,6 +45,12 @@ public class AdminRefreshService {
     private FundPortfolioService fundPortfolioService;
 
     /**
+     * 蛋卷指数估值服务
+     */
+    @Autowired
+    private DanjuanIndexValuationService danjuanIndexValuationService;
+
+    /**
      * 刷新全部分析数据
      *
      * @return 刷新结果摘要
@@ -53,6 +59,9 @@ public class AdminRefreshService {
         Map<String, Object> data = new HashMap<>();
 
         data.put("marketDataRefreshed", refreshMarket());
+        pauseForExternalApiInterval(5000);
+
+        data.put("indexValuationRefreshed", refreshIndexValuation());
         pauseForExternalApiInterval(5000);
 
         data.put("rsiRecordsRefreshed", refreshRsi().get("recordsRefreshed"));
@@ -77,6 +86,16 @@ public class AdminRefreshService {
      */
     public boolean refreshMarket() {
         return marketDataService.refreshMarketOverview();
+    }
+
+    /**
+     * 刷新指数估值缓存
+     *
+     * @return 是否刷新成功
+     */
+    public boolean refreshIndexValuation() {
+        danjuanIndexValuationService.refreshNasdaq100Valuation();
+        return true;
     }
 
     /**

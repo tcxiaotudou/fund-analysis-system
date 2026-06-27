@@ -42,7 +42,7 @@ const renderTrendIcon = (trend) => {
 }
 
 // 市场状态与今日行动工作台。
-function MarketOverviewWorkbench({ metrics, operations, onRunOperation }) {
+function MarketOverviewWorkbench({ metrics, operations, indexValuations, onRunOperation }) {
   const metricSections = buildMarketMetricSections(metrics)
   const primaryOperations = pickOperations(operations, PRIMARY_OPERATION_KEYS)
   const secondaryOperations = pickOperations(operations, SECONDARY_OPERATION_KEYS)
@@ -81,6 +81,34 @@ function MarketOverviewWorkbench({ metrics, operations, onRunOperation }) {
             </div>
           ))}
         </div>
+        {indexValuations.length > 0 && (
+          <div className="index-valuation-section">
+            <div className="market-metric-section-header">
+              <strong>指数估值</strong>
+              <span>蛋卷估值表</span>
+            </div>
+            <div className="index-valuation-list">
+              {indexValuations.map(valuation => (
+                <article className={`index-valuation-card index-valuation-card-${valuation.level}`} key={valuation.indexCode}>
+                  <div className="index-valuation-main">
+                    <strong>{valuation.name}</strong>
+                    <span>{valuation.historyLowText}</span>
+                    <b>{valuation.valuationLabel}</b>
+                  </div>
+                  <div className="index-valuation-divider" />
+                  <div className="index-valuation-stat">
+                    <span>PE {valuation.peDate}</span>
+                    <strong>{valuation.pe}</strong>
+                  </div>
+                  <div className="index-valuation-stat">
+                    <span>PE百分位</span>
+                    <strong>{valuation.pePercentile}</strong>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="action-command-panel">
