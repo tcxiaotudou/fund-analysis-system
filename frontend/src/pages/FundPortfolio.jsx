@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, Table, Tag, Button, Space, Modal, Input, message, Statistic, Row, Col, Spin, InputNumber, Tooltip } from 'antd'
 import { ReloadOutlined, PlusOutlined, DeleteOutlined, LineChartOutlined, SaveOutlined, EditOutlined } from '@ant-design/icons'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts'
+import TerminalPage from '../components/TerminalPage'
 import { portfolioApi, fundApi } from '../services/api'
 
 function FundPortfolio() {
@@ -497,10 +498,11 @@ function FundPortfolio() {
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>💼 基金组合</h1>
-      </div>
+    <TerminalPage
+      title="基金组合"
+      subtitle="持有基金、组合权重和组合 RSI 监控"
+      status={<span>持有基金：{holdingFunds.length}</span>}
+    >
 
       {/* 组合 RSI 指标 */}
       <Card 
@@ -524,7 +526,9 @@ function FundPortfolio() {
       >
         {rsiLoading ? (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <Spin tip="计算中..." />
+            <Spin tip="计算中...">
+              <div className="loading-spin-content" />
+            </Spin>
           </div>
         ) : rsiData ? (
           <>
@@ -551,24 +555,24 @@ function FundPortfolio() {
                   value={rsiData.weeklyRsi14 != null ? rsiData.weeklyRsi14.toFixed(2) : 'N/A'}
                   valueStyle={{ color: rsiData.weeklyRsi14 != null ? getRsiColor(rsiData.weeklyRsi14) : '#000' }}
                   suffix={rsiData.weeklyRsi14 != null ? '' : ''}
-                />
-              </Col>
-            </Row>
+              />
+            </Col>
+          </Row>
             {rsiData.rsi14 != null && rsiData.rsi90 != null && (
-              <div style={{ marginTop: 16, padding: '12px', background: '#f0f2f5', borderRadius: '4px' }}>
+              <div className="terminal-info-box terminal-info-box-cyan" style={{ marginTop: 16 }}>
                 <strong>建议：</strong>
                 <span style={{ color: getRsiSuggestion(rsiData.rsi14, rsiData.rsi90).color, marginLeft: 8 }}>
                   {getRsiSuggestion(rsiData.rsi14, rsiData.rsi90).text}
                 </span>
               </div>
             )}
-            <div style={{ marginTop: 8, fontSize: '12px', color: '#999' }}>
+            <div className="terminal-muted-text" style={{ marginTop: 8, fontSize: '12px' }}>
               基金数量: {rsiData.fundCount || 0} | 
               更新时间: {rsiData.updateTime ? new Date(rsiData.updateTime).toLocaleString('zh-CN') : '-'}
             </div>
           </>
         ) : (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+          <div className="terminal-empty-state">
             暂无数据，请先添加持有基金
           </div>
         )}
@@ -596,10 +600,12 @@ function FundPortfolio() {
       >
         {rsiHistoryLoading ? (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <Spin tip="加载中..." />
+            <Spin tip="加载中...">
+              <div className="loading-spin-content" />
+            </Spin>
           </div>
         ) : rsiHistoryData.length > 0 ? (
-          <div style={{ width: '100%', height: 400 }}>
+          <div className="terminal-chart-box" style={{ height: 400 }}>
             <ResponsiveContainer>
               <LineChart
                 data={rsiHistoryData}
@@ -620,7 +626,7 @@ function FundPortfolio() {
                 />
                 <RechartsTooltip 
                   formatter={(value) => [value.toFixed(2), 'RSI']}
-                  labelStyle={{ color: '#000' }}
+                  labelStyle={{ color: '#e2e8f0' }}
                 />
                 <Legend />
                 
@@ -663,7 +669,7 @@ function FundPortfolio() {
             </ResponsiveContainer>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+          <div className="terminal-empty-state">
             暂无历史数据，请先添加持有基金
           </div>
         )}
@@ -672,7 +678,7 @@ function FundPortfolio() {
       {/* 持有基金列表 */}
       <Card>
         {/* 操作栏 */}
-        <Space style={{ marginBottom: 16 }}>
+        <Space className="terminal-toolbar" wrap>
           <Button 
             type="primary" 
             icon={<ReloadOutlined />}
@@ -735,7 +741,7 @@ function FundPortfolio() {
       </Card>
 
       {/* 说明 */}
-      <Card title="📖 使用说明" style={{ marginTop: 16 }}>
+      <Card title="使用说明">
         <div style={{ lineHeight: '2' }}>
           <h3>基金组合功能：</h3>
           <ul>
@@ -762,13 +768,7 @@ function FundPortfolio() {
             <li><strong>刷新数据：</strong>重新加载基金列表和计算组合 RSI</li>
           </ul>
 
-          <div style={{ 
-            background: '#fff7e6', 
-            border: '1px solid #ffd591',
-            borderRadius: '4px',
-            padding: '12px',
-            marginTop: '12px'
-          }}>
+          <div className="terminal-info-box terminal-info-box-amber" style={{ marginTop: 12 }}>
             <strong>⚠️ 提示：</strong>
             <p style={{ margin: '8px 0 0 0' }}>
               组合 RSI 仅作为参考指标，投资决策请结合市场环境和个人风险承受能力。
@@ -809,7 +809,7 @@ function FundPortfolio() {
           />
         </div>
       </Modal>
-    </div>
+    </TerminalPage>
   )
 }
 

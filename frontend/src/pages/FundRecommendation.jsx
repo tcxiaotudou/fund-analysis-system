@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, Table, Tag, Button, Space, Tooltip, Modal, Input, message } from 'antd'
 import { ReloadOutlined, SaveOutlined, StarOutlined, StarFilled, StopOutlined } from '@ant-design/icons'
+import TerminalPage from '../components/TerminalPage'
 import { fundApi, systemConfigApi } from '../services/api'
 
 const { TextArea } = Input
@@ -476,12 +477,13 @@ function FundRecommendation() {
   ]
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>🏆 基金推荐</h1>
-        {data.length > 0 && data[0]?.dataTime && (
-          <span style={{ color: '#999', fontSize: '14px' }}>
-            数据更新时间: {new Date(data[0].dataTime).toLocaleString('zh-CN', {
+    <TerminalPage
+      title="基金推荐"
+      subtitle="第三方筛选条件、推荐列表和持有/排除状态"
+      status={
+        data.length > 0 && data[0]?.dataTime ? (
+          <span>
+            数据更新时间：{new Date(data[0].dataTime).toLocaleString('zh-CN', {
               year: 'numeric',
               month: '2-digit', 
               day: '2-digit',
@@ -490,24 +492,17 @@ function FundRecommendation() {
               second: '2-digit'
             })}
           </span>
-        )}
-      </div>
+        ) : (
+          <span>推荐数：{data.length}</span>
+        )
+      }
+    >
 
-      <Card>
+      <Card title="基金推荐列表">
         {/* 操作栏 */}
-        <Space style={{ marginBottom: 16 }} wrap>
+        <Space className="terminal-toolbar" wrap>
           <div style={{ display: 'inline-flex', maxWidth: '100%' }}>
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '0 11px',
-              color: '#666',
-              background: '#fafafa',
-              border: '1px solid #d9d9d9',
-              borderRight: 0,
-              borderRadius: '6px 0 0 6px',
-              whiteSpace: 'nowrap',
-            }}>
+            <span className="terminal-input-addon">
               condition_id
             </span>
             <Input
@@ -568,7 +563,7 @@ function FundRecommendation() {
       </Card>
 
       {/* 筛选标准说明 */}
-      <Card title="📖 筛选标准说明" style={{ marginTop: 16 }}>
+      <Card title="筛选标准说明">
         <div style={{ lineHeight: '2' }}>
           <h3>本推荐列表的筛选标准：</h3>
           <ul>
@@ -587,13 +582,7 @@ function FundRecommendation() {
             <li><strong>赎回费率：</strong>不同持有时长对应的赎回费率</li>
           </ul>
 
-          <div style={{ 
-            background: '#e6f7ff', 
-            border: '1px solid #91d5ff',
-            borderRadius: '4px',
-            padding: '12px',
-            marginTop: '12px'
-          }}>
+          <div className="terminal-info-box terminal-info-box-cyan" style={{ marginTop: 12 }}>
             <strong>💡 为什么使用卡玛比率排序？</strong>
             <p style={{ margin: '8px 0 0 0' }}>
               卡玛比率综合考虑了收益和风险（最大回撤），比单纯的收益率排序更能反映基金的长期投资价值。
@@ -601,13 +590,7 @@ function FundRecommendation() {
             </p>
           </div>
 
-          <div style={{ 
-            background: '#fff7e6', 
-            border: '1px solid #ffd591',
-            borderRadius: '4px',
-            padding: '12px',
-            marginTop: '12px'
-          }}>
+          <div className="terminal-info-box terminal-info-box-amber" style={{ marginTop: 12 }}>
             <strong>⚠️ 免责声明：</strong>
             <p style={{ margin: '8px 0 0 0' }}>
               本推荐仅基于历史数据筛选，不构成投资建议。
@@ -651,21 +634,21 @@ function FundRecommendation() {
 
       <style>{`
         .blacklisted-row {
-          background-color: #f5f5f5 !important;
+          background-color: rgba(51, 65, 85, 0.4) !important;
           opacity: 0.6;
         }
         .blacklisted-row:hover {
-          background-color: #e8e8e8 !important;
+          background-color: rgba(51, 65, 85, 0.62) !important;
         }
         .holding-row {
-          background-color: #e6f7ff !important;
-          border-left: 3px solid #1890ff;
+          background-color: rgba(8, 145, 178, 0.16) !important;
+          border-left: 3px solid #22d3ee;
         }
         .holding-row:hover {
-          background-color: #d9f0ff !important;
+          background-color: rgba(8, 145, 178, 0.28) !important;
         }
       `}</style>
-    </div>
+    </TerminalPage>
   )
 }
 

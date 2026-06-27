@@ -87,7 +87,7 @@ public class AdminController {
     @PostMapping("/refresh-market")
     public Result<Void> refreshMarket() {
         adminRefreshService.refreshMarket();
-        return Result.success("市场数据刷新成功", null);
+        return Result.success("市场和指数估值数据刷新成功", null);
     }
 
     /**

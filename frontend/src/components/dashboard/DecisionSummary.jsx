@@ -1,12 +1,18 @@
 import React from 'react'
-import { InfoCircleOutlined } from '@ant-design/icons'
+import { InfoCircleOutlined, SignalFilled } from '@ant-design/icons'
 import { getLevelColor } from '../../utils/dashboardDecision'
 
 // 今日决策摘要区。
 function DecisionSummary({ decisions }) {
   return (
-    <section className="dashboard-section">
-      <div className="dashboard-section-title">今日决策</div>
+    <section className="terminal-panel decision-summary-panel">
+      <div className="terminal-panel-header">
+        <div>
+          <h2>今日决策信号</h2>
+          <p>RSI、均线与配置建议汇总</p>
+        </div>
+        <SignalFilled />
+      </div>
       <div className="decision-grid">
         {decisions.map(decision => (
           <article className={`decision-card decision-card-${decision.level}`} key={decision.key}>
@@ -21,6 +27,9 @@ function DecisionSummary({ decisions }) {
             <div className="decision-card-desc">{decision.description}</div>
           </article>
         ))}
+        {decisions.length === 0 && (
+          <div className="terminal-empty">暂无今日决策数据</div>
+        )}
       </div>
     </section>
   )

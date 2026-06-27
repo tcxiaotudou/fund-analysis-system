@@ -75,6 +75,9 @@ function MainLayout({ children }) {
   // 获取当前路由位置
   const location = useLocation()
 
+  // 判断当前是否为首页终端驾驶舱。
+  const isDashboardHome = location.pathname === '/'
+
   // 移动端默认收起侧栏，桌面端恢复展开。
   useEffect(() => {
     setCollapsed(isMobile)
@@ -92,11 +95,11 @@ function MainLayout({ children }) {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="app-layout app-layout-terminal" style={{ minHeight: '100vh' }}>
       {/* 左侧边栏 */}
       <Sider 
         className="app-sider"
-        theme="light"
+        theme="dark"
         collapsible 
         collapsed={collapsed} 
         onCollapse={setCollapsed}
@@ -120,7 +123,7 @@ function MainLayout({ children }) {
         
         {/* 导航菜单 */}
         <Menu
-          theme="light"
+          theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
           items={menuItems}
@@ -140,13 +143,11 @@ function MainLayout({ children }) {
       {/* 右侧内容区域 */}
       <Layout style={{ marginLeft: isMobile ? 0 : siderWidth, transition: 'all 0.2s' }}>
         {/* 顶部导航栏 */}
-        <Header style={{
+        <Header className="app-header" style={{
           padding: isMobile ? '0 12px' : '0 24px',
-          background: '#fff',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 1px 4px rgba(0,21,41,.08)',
         }}>
           {isMobile && collapsed && (
             <Button
@@ -162,9 +163,9 @@ function MainLayout({ children }) {
         </Header>
 
         {/* 主内容区域 */}
-        <Content style={{
-          margin: isMobile ? '12px' : '24px',
-          padding: isMobile ? '12px' : '24px',
+        <Content className="app-content" style={{
+          margin: isDashboardHome ? '10px' : isMobile ? '12px' : '24px',
+          padding: isDashboardHome ? 0 : isMobile ? '12px' : '24px',
           minHeight: 280,
         }}>
           {children}

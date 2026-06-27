@@ -6,6 +6,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Alert, Card, Table, Tag, Button, Space, DatePicker, InputNumber, message, Modal, Slider, Row, Col } from 'antd'
 import { ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
+import TerminalPage from '../components/TerminalPage'
 import { momentumStrategyApi } from '../services/api'
 import {
   createMomentumBacktestSearchParams,
@@ -346,11 +347,11 @@ function MomentumStrategy() {
       
       return (
         <div style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          border: '1px solid #ccc',
+          backgroundColor: 'rgba(15, 23, 42, 0.96)',
+          border: '1px solid #334155',
           borderRadius: '4px',
           padding: '10px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          boxShadow: '0 18px 40px rgba(2,6,23,0.45)',
           minWidth: '200px'
         }}>
           <p style={{ margin: 0, fontWeight: 'bold' }}>{formatDate(data.date)}</p>
@@ -361,13 +362,13 @@ function MomentumStrategy() {
             收益率: {data.returnRate ? data.returnRate.toFixed(2) : '0.00'}%
           </p>
           {data.holdingEtfName && (
-            <p style={{ margin: '5px 0', color: '#666' }}>
+            <p style={{ margin: '5px 0', color: '#94a3b8' }}>
               持仓: {data.holdingEtfCode} {data.holdingEtfName}
             </p>
           )}
           {/* 显示买卖操作信息 */}
           {(data.buyInfo || data.sellInfo) && (
-            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #eee' }}>
+            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #334155' }}>
               {data.buyInfo && (
                 <div style={{ marginBottom: data.sellInfo ? '8px' : '0' }}>
                   <p style={{ margin: '3px 0', color: '#52c41a', fontWeight: 'bold' }}>
@@ -403,8 +404,11 @@ function MomentumStrategy() {
   }
 
   return (
-    <div>
-      <h1 className="page-title">📊 21日动量策略 - ETF轮动交易记录</h1>
+    <TerminalPage
+      title="21日动量策略"
+      subtitle="ETF 轮动交易记录、资金曲线和回测区间"
+      status={<span>交易 {data.length} / 买入 {buyCount} / 卖出 {sellCount}</span>}
+    >
       {urlRangeError && (
         <Alert
           type="error"
@@ -417,32 +421,32 @@ function MomentumStrategy() {
 
       {/* 统计信息卡片 */}
       <Card style={{ marginBottom: 16 }}>
-        <Space size="large">
-          <div>
+        <Space className="terminal-stat-strip" size="middle" wrap>
+          <div className="terminal-stat-chip">
             <span style={{ color: '#999' }}>总交易次数：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {data.length}
             </span>
           </div>
-          <div>
+          <div className="terminal-stat-chip">
             <span style={{ color: '#52c41a' }}>买入次数：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#52c41a', marginLeft: '8px' }}>
               {buyCount}
             </span>
           </div>
-          <div>
+          <div className="terminal-stat-chip">
             <span style={{ color: '#ff4d4f' }}>卖出次数：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#ff4d4f', marginLeft: '8px' }}>
               {sellCount}
             </span>
           </div>
-          <div>
+          <div className="terminal-stat-chip">
             <span style={{ color: '#999' }}>累计买入：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {totalBuyQuantity.toLocaleString()}
             </span>
           </div>
-          <div>
+          <div className="terminal-stat-chip">
             <span style={{ color: '#999' }}>累计卖出：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {totalSellQuantity.toLocaleString()}
@@ -453,7 +457,7 @@ function MomentumStrategy() {
 
       {/* 资金曲线图表 */}
       <Card 
-        title="📈 资金曲线" 
+        title="资金曲线" 
         style={{ marginBottom: 16 }}
         extra={
           <Button 
@@ -471,10 +475,10 @@ function MomentumStrategy() {
             {/* 时间范围选择器 */}
             <div style={{ marginBottom: 20 }}>
               <Row gutter={16} align="middle">
-                <Col span={2}>
-                  <span style={{ fontSize: '12px', color: '#666' }}>时间范围:</span>
+                <Col xs={24} sm={4} lg={2}>
+                  <span className="terminal-muted-text" style={{ fontSize: '12px' }}>时间范围:</span>
                 </Col>
-                <Col span={20}>
+                <Col xs={24} sm={16} lg={20}>
                   <Slider
                     range
                     value={dateRange}
@@ -489,7 +493,7 @@ function MomentumStrategy() {
                     }}
                   />
                 </Col>
-                <Col span={2}>
+                <Col xs={24} sm={4} lg={2}>
                   <Button 
                     size="small" 
                     onClick={() => setDateRange([0, 100])}
@@ -561,13 +565,13 @@ function MomentumStrategy() {
                 </ComposedChart>
               </ResponsiveContainer>
             ) : (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+              <div className="terminal-empty-state">
                 当前时间范围内暂无数据
               </div>
             )}
 
             {/* 买卖点标注说明 */}
-            <div style={{ marginTop: 16, padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}>
+            <div className="terminal-info-box" style={{ marginTop: 16 }}>
               <Space>
                 <span>
                   <span style={{ 
@@ -595,7 +599,7 @@ function MomentumStrategy() {
             </div>
           </>
         ) : (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+          <div className="terminal-empty-state">
             {performanceLoading ? '加载中...' : '暂无收益曲线数据，请先执行回测'}
           </div>
         )}
@@ -603,7 +607,7 @@ function MomentumStrategy() {
 
       <Card>
         {/* 操作栏 */}
-        <Space style={{ marginBottom: 16 }}>
+        <Space className="terminal-toolbar" wrap>
           <Button 
             type="primary" 
             icon={<ReloadOutlined />}
@@ -625,7 +629,7 @@ function MomentumStrategy() {
         <Table
           columns={columns}
           dataSource={data}
-          rowKey={(record, index) => `${record.date}-${record.code}-${index}`}
+          rowKey={(record) => `${record.date}-${record.code}-${record.type}-${record.quantity}-${record.price}`}
           loading={loading}
           scroll={{ x: 1000 }}
           pagination={{
@@ -677,8 +681,8 @@ function MomentumStrategy() {
               parser={(value) => value.replace(/¥\s?|(,*)/g, '')}
             />
           </div>
-          <div style={{ marginTop: 16, padding: '12px', background: '#f0f9ff', borderRadius: '4px' }}>
-            <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>
+          <div className="terminal-info-box terminal-info-box-cyan" style={{ marginTop: 16 }}>
+            <p style={{ margin: 0, fontSize: '12px' }}>
               <strong>提示：</strong>回测功能由Java后端直接执行，无需额外工具。
               <br />
               选择日期范围和初始资金后，点击"执行回测"即可开始。
@@ -690,7 +694,7 @@ function MomentumStrategy() {
       </Modal>
 
       {/* 策略说明 */}
-      <Card title="📖 21日动量策略说明" style={{ marginTop: 16 }}>
+      <Card title="21日动量策略说明">
         <div style={{ lineHeight: '2' }}>
           <p>
             <strong>21日动量策略</strong>是一种基于动量的ETF轮动策略，
@@ -721,13 +725,7 @@ function MomentumStrategy() {
             <li>注意交易成本和滑点影响</li>
           </ul>
 
-          <div style={{ 
-            background: '#fff7e6', 
-            border: '1px solid #ffd591',
-            borderRadius: '4px',
-            padding: '12px',
-            marginTop: '12px'
-          }}>
+          <div className="terminal-info-box terminal-info-box-amber" style={{ marginTop: 12 }}>
             <strong>⚠️ 风险提示：</strong>
             <p style={{ margin: '8px 0 0 0' }}>
               动量策略在趋势明显的市场中表现较好，但在震荡市场中可能产生频繁交易。
@@ -737,7 +735,7 @@ function MomentumStrategy() {
           </div>
         </div>
       </Card>
-    </div>
+    </TerminalPage>
   )
 }
 

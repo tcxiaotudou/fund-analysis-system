@@ -58,7 +58,7 @@ public class AdminRefreshService {
     public Map<String, Object> refreshAll() {
         Map<String, Object> data = new HashMap<>();
 
-        data.put("marketDataRefreshed", refreshMarket());
+        data.put("marketDataRefreshed", refreshMarketOverview());
         pauseForExternalApiInterval(5000);
 
         data.put("indexValuationRefreshed", refreshIndexValuation());
@@ -85,6 +85,17 @@ public class AdminRefreshService {
      * @return 是否刷新成功
      */
     public boolean refreshMarket() {
+        boolean refreshed = refreshMarketOverview();
+        refreshIndexValuation();
+        return refreshed;
+    }
+
+    /**
+     * 刷新市场概览基础数据
+     *
+     * @return 是否刷新成功
+     */
+    private boolean refreshMarketOverview() {
         return marketDataService.refreshMarketOverview();
     }
 

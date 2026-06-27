@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, Table, Button, Space, Modal, Form, Input, Select, InputNumber, message, Tag } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
+import TerminalPage from '../components/TerminalPage'
 import { etfApi } from '../services/api'
 import { getRsiThresholdOrderError } from '../utils/backtestValidation'
 
@@ -209,12 +210,15 @@ function EtfManagement() {
   ]
 
   return (
-    <div>
-      <h1 className="page-title">📊 ETF监控管理</h1>
+    <TerminalPage
+      title="ETF监控管理"
+      subtitle="监控 ETF 列表、分类和 RSI 阈值"
+      status={<span>ETF 数：{data.length}</span>}
+    >
 
-      <Card>
+      <Card title="ETF监控列表">
         {/* 操作栏 */}
-        <Space style={{ marginBottom: 16 }}>
+        <Space className="terminal-toolbar" wrap>
           <Button 
             type="primary" 
             icon={<PlusOutlined />}
@@ -237,6 +241,7 @@ function EtfManagement() {
           dataSource={data}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 900 }}
           pagination={{
             pageSize: 10,
             showTotal: (total) => `共 ${total} 个ETF`,
@@ -326,7 +331,7 @@ function EtfManagement() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </TerminalPage>
   )
 }
 

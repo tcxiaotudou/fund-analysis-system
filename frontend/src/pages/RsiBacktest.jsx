@@ -8,6 +8,7 @@ import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, ReferenceLine, Scatter, Area, Legend
 } from 'recharts'
+import TerminalPage from '../components/TerminalPage'
 import { rsiBacktestApi } from '../services/api'
 import {
   getDateRangeError,
@@ -205,8 +206,11 @@ function RsiBacktest() {
   const slicedData = getSlicedData()
 
   return (
-    <div>
-      <h1 className="page-title">RSI策略回测</h1>
+    <TerminalPage
+      title="RSI策略回测"
+      subtitle="定额分批 RSI 买卖阈值回测"
+      status={<span>{result ? `回测标的：${result.etfName} (${result.etfCode})` : `默认标的：${etfCode}`}</span>}
+    >
 
       <Card title="回测参数设置" style={{ marginBottom: 16 }}>
         <Space direction="vertical" style={{ width: '100%' }} size="large">
@@ -284,32 +288,32 @@ function RsiBacktest() {
         <>
           <Card title={`回测结果：${result.etfName} (${result.etfCode})`} style={{ marginBottom: 16 }}>
             <Row gutter={16}>
-              <Col span={4}>
+              <Col xs={12} sm={8} lg={4}>
                 <Statistic
                   title="总收益率" value={result.totalReturnRate} precision={2} suffix="%"
                   valueStyle={{ color: Number(result.totalReturnRate) >= 0 ? '#3f8600' : '#cf1322' }}
                   prefix={Number(result.totalReturnRate) >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                 />
               </Col>
-              <Col span={4}>
+              <Col xs={12} sm={8} lg={4}>
                 <Statistic
                   title="年化收益率" value={result.annualizedReturnRate} precision={2} suffix="%"
                   valueStyle={{ color: Number(result.annualizedReturnRate) >= 0 ? '#3f8600' : '#cf1322' }}
                 />
               </Col>
-              <Col span={4}>
+              <Col xs={12} sm={8} lg={4}>
                 <Statistic title="初始资金" value={result.initialCapital} precision={2} prefix="¥" />
               </Col>
-              <Col span={4}>
+              <Col xs={12} sm={8} lg={4}>
                 <Statistic
                   title="最终总资产" value={result.finalCapital} precision={2} prefix="¥"
                   valueStyle={{ color: Number(result.finalCapital) >= Number(result.initialCapital) ? '#3f8600' : '#cf1322' }}
                 />
               </Col>
-              <Col span={4}>
+              <Col xs={12} sm={8} lg={4}>
                 <Statistic title="最大回撤" value={result.maxDrawdown} precision={2} suffix="%" valueStyle={{ color: '#cf1322' }} />
               </Col>
-              <Col span={4}>
+              <Col xs={12} sm={8} lg={4}>
                 <Statistic
                   title="卖出胜率" value={result.winRate} precision={2} suffix="%"
                   valueStyle={{ color: Number(result.winRate) >= 50 ? '#3f8600' : '#cf1322' }}
@@ -318,22 +322,22 @@ function RsiBacktest() {
             </Row>
             <Divider />
             <Row gutter={16}>
-              <Col span={4}>
+              <Col xs={12} sm={8} lg={4}>
                 <Statistic title="交易次数" value={result.tradeCount} />
               </Col>
-              <Col span={4}>
+              <Col xs={12} sm={8} lg={4}>
                 <Statistic title="买入次数" value={result.buyCount} valueStyle={{ color: '#52c41a' }} />
               </Col>
-              <Col span={4}>
+              <Col xs={12} sm={8} lg={4}>
                 <Statistic title="卖出次数" value={result.sellCount} valueStyle={{ color: '#ff4d4f' }} />
               </Col>
-              <Col span={4}>
+              <Col xs={12} sm={8} lg={4}>
                 <Statistic title="累计投入" value={result.totalInvested} precision={2} prefix="¥" />
               </Col>
-              <Col span={4}>
+              <Col xs={12} sm={8} lg={4}>
                 <Statistic title="剩余持仓" value={result.finalHoldingQuantity} suffix="份" />
               </Col>
-              <Col span={4}>
+              <Col xs={12} sm={8} lg={4}>
                 <Statistic title="持仓均价" value={result.averageCost} precision={3} prefix="¥" />
               </Col>
             </Row>
@@ -341,7 +345,7 @@ function RsiBacktest() {
 
           <Card title="价格走势与买卖点" style={{ marginBottom: 16 }}>
             <div style={{ marginBottom: 16 }}>
-              <span style={{ marginRight: 8, color: '#666' }}>时间范围缩放：</span>
+              <span className="terminal-muted-text" style={{ marginRight: 8 }}>时间范围缩放：</span>
               <Slider
                 range value={chartRange} onChange={setChartRange}
                 tooltip={{ formatter: v => {
@@ -349,6 +353,7 @@ function RsiBacktest() {
                   const idx = Math.floor((v / 100) * allData.length)
                   return allData[Math.min(idx, allData.length - 1)]?.date || ''
                 }}}
+                className="terminal-inline-slider"
                 style={{ maxWidth: 600, display: 'inline-block', width: '60%', verticalAlign: 'middle' }}
               />
             </div>
@@ -393,7 +398,7 @@ function RsiBacktest() {
                                label={{ value: `买入线(${buyThreshold})`, position: 'right', fill: '#52c41a', fontSize: 11 }} />
                 <ReferenceLine y={sellThreshold} stroke="#ff4d4f" strokeDasharray="5 5"
                                label={{ value: `卖出线(${sellThreshold})`, position: 'right', fill: '#ff4d4f', fontSize: 11 }} />
-                <Area type="monotone" dataKey="rsi" stroke="#1890ff" fill="#e6f7ff" fillOpacity={0.3}
+                <Area type="monotone" dataKey="rsi" stroke="#1890ff" fill="#22d3ee" fillOpacity={0.12}
                       strokeWidth={1.5} name="RSI" />
                 <Scatter dataKey="buyRsi" fill="#52c41a" name="买入RSI"
                          shape={props => {
@@ -413,7 +418,7 @@ function RsiBacktest() {
             <Table
               columns={transactionColumns}
               dataSource={result.transactions || []}
-              rowKey={(record, index) => `${record.date}-${record.type}-${index}`}
+              rowKey={(record) => `${record.date}-${record.type}-${record.price}-${record.quantity}-${record.amount}`}
               pagination={{
                 defaultPageSize: 20,
                 showTotal: total => `共 ${total} 条交易记录`,
@@ -432,7 +437,7 @@ function RsiBacktest() {
                 可以连续多天操作，逐步建仓和减仓。
               </p>
               <h3>当前回测参数：</h3>
-              <div style={{ background: '#f0f9ff', border: '1px solid #bae7ff', borderRadius: 4, padding: 16 }}>
+              <div className="terminal-info-box terminal-info-box-cyan">
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
                   <li>RSI周期：<strong>{result.rsiPeriod}日</strong></li>
                   <li>买入条件：当日RSI ≤ <strong>{Number(result.rsiBuyThreshold)}</strong> → 买入 <strong>¥{Number(result.fixedAmountPerTrade).toLocaleString()}</strong></li>
@@ -442,7 +447,7 @@ function RsiBacktest() {
                 </ul>
               </div>
 
-              <div style={{ background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 4, padding: 12, marginTop: 16 }}>
+              <div className="terminal-info-box terminal-info-box-amber" style={{ marginTop: 16 }}>
                 <strong>风险提示：</strong>
                 <p style={{ margin: '8px 0 0' }}>
                   历史回测结果不代表未来收益。任何策略都有局限性，请结合自身风险承受能力谨慎决策。
@@ -452,7 +457,7 @@ function RsiBacktest() {
           </Card>
         </>
       )}
-    </div>
+    </TerminalPage>
   )
 }
 

@@ -2,6 +2,7 @@ package com.fund.analysis.config;
 
 import com.fund.analysis.entity.RsiAnalysis;
 import com.fund.analysis.entity.StockBondBalance;
+import com.fund.analysis.mapper.IndexValuationMapper;
 import com.fund.analysis.mapper.RsiAnalysisMapper;
 import com.fund.analysis.mapper.StockBondBalanceMapper;
 import org.slf4j.Logger;
@@ -18,23 +19,27 @@ public class ApplicationStartupListener implements ApplicationRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(ApplicationStartupListener.class);
     private static final String GUO_ZHENG = "sz399317";
+    private static final String NASDAQ_100 = "NDX";
 
     private final StockBondBalanceMapper stockBondBalanceMapper;
     private final RsiAnalysisMapper rsiAnalysisMapper;
+    private final IndexValuationMapper indexValuationMapper;
 
     public ApplicationStartupListener(StockBondBalanceMapper stockBondBalanceMapper,
-                                      RsiAnalysisMapper rsiAnalysisMapper) {
+                                      RsiAnalysisMapper rsiAnalysisMapper,
+                                      IndexValuationMapper indexValuationMapper) {
         this.stockBondBalanceMapper = stockBondBalanceMapper;
         this.rsiAnalysisMapper = rsiAnalysisMapper;
+        this.indexValuationMapper = indexValuationMapper;
     }
 
     @Override
     public void run(ApplicationArguments args) {
         logger.info("========== 应用启动数据检查 ==========");
         if (checkNeedRefresh()) {
-            logger.warn("数据库中缺少市场概览数据，请调用 POST /api/admin/refresh-market 或等待定时任务刷新");
+            logger.warn("数据库中缺少市场概览或指数估值数据，请调用 POST /api/admin/refresh-market 或等待定时任务刷新");
         } else {
-            logger.info("数据库中已有市场概览基础数据");
+            logger.info("数据库中已有市场概览和指数估值基础数据");
         }
         logger.info("========== 应用启动数据检查完成 ==========");
     }
@@ -50,6 +55,11 @@ public class ApplicationStartupListener implements ApplicationRunner {
         RsiAnalysis rsi90 = rsiAnalysisMapper.selectLatestByCodeAndPeriod(GUO_ZHENG, 90);
         if (rsi14 == null || rsi90 == null) {
             logger.info("RSI分析表中没有国证指数数据");
+            return true;
+        }
+
+        if (indexValuationMapper.selectLatestByIndexCode(NASDAQ_100) == null) {
+            logger.info("指数估值表中没有纳指100数据");
             return true;
         }
 

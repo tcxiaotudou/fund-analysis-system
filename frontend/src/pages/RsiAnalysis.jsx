@@ -2,9 +2,10 @@
  * RSI分析页面
  * 展示ETF的RSI技术指标分析
  */
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Card, Table, Tag, Input, Button, Space, Spin, message } from 'antd'
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'
+import TerminalPage from '../components/TerminalPage'
 import { rsiApi } from '../services/api'
 
 function RsiAnalysis() {
@@ -12,6 +13,15 @@ function RsiAnalysis() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState([])
   const [searchText, setSearchText] = useState('')
+
+  // 搜索框只过滤 ETF 名称，避免 AntD 单列 filteredValue 触发表格配置告警。
+  const filteredData = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase()
+    if (!keyword) {
+      return data
+    }
+    return data.filter(item => item.name?.toLowerCase().includes(keyword))
+  }, [data, searchText])
 
   /**
    * 加载RSI分析数据
@@ -44,9 +54,6 @@ function RsiAnalysis() {
       title: 'ETF名称',
       dataIndex: 'name',
       key: 'name',
-      filteredValue: searchText ? [searchText] : null,
-      onFilter: (value, record) => 
-        record.name?.toLowerCase().includes(value.toLowerCase()),
     },
     {
       title: 'ETF代码',
@@ -119,12 +126,15 @@ function RsiAnalysis() {
   ]
 
   return (
-    <div>
-      <h1 className="page-title">📊 RSI技术指标分析</h1>
+    <TerminalPage
+      title="RSI技术指标分析"
+      subtitle="ETF 相对强弱指标信号扫描"
+      status={<span>记录数：{data.length}</span>}
+    >
 
       <Card>
         {/* 搜索和操作栏 */}
-        <Space style={{ marginBottom: 16 }}>
+        <Space className="terminal-toolbar" wrap>
           <Input
             placeholder="搜索ETF名称"
             prefix={<SearchOutlined />}
@@ -144,9 +154,9 @@ function RsiAnalysis() {
         </Space>
 
         {/* 数据表格 */}
-        <Table
+      <Table
           columns={columns}
-          dataSource={data}
+          dataSource={filteredData}
           rowKey="code"
           loading={loading}
           pagination={{
@@ -160,7 +170,7 @@ function RsiAnalysis() {
       </Card>
 
       {/* 使用说明 */}
-      <Card title="📖 RSI指标说明" style={{ marginTop: 16 }}>
+      <Card title="RSI指标说明">
         <div style={{ lineHeight: '2' }}>
           <p><strong>RSI（相对强弱指标）</strong>是一种动量指标，用于衡量价格变动的速度和幅度。</p>
           <ul>
@@ -176,7 +186,7 @@ function RsiAnalysis() {
           </ul>
         </div>
       </Card>
-    </div>
+    </TerminalPage>
   )
 }
 

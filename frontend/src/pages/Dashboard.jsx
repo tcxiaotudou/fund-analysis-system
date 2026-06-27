@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Button, Modal, Space, Spin, Tag, message } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import DashboardActionConsole from '../components/dashboard/DashboardActionConsole'
 import DecisionSummary from '../components/dashboard/DecisionSummary'
 import MarketOverviewWorkbench from '../components/dashboard/MarketOverviewWorkbench'
-import SignalTables from '../components/dashboard/SignalTables'
+import SignalTables, { FundRecommendationPanel } from '../components/dashboard/SignalTables'
 import { adminApi, dashboardApi, systemConfigApi } from '../services/api'
 import {
   EMPTY_DASHBOARD_DECISION,
@@ -200,14 +201,23 @@ function Dashboard() {
   }
 
   return (
-    <div className="decision-dashboard">
-      <header className="dashboard-topbar">
-        <div>
-          <h1>基金和ETF投资策略分析系统</h1>
-          <Space size={12} wrap>
-            <Tag color={getDashboardStatusColor(dashboard.dataStatus.status)}>数据状态：{dashboard.dataStatus.message}</Tag>
-            {dashboard.updateTime && <span className="dashboard-update-time">最后更新：{dashboard.updateTime}</span>}
-          </Space>
+    <div className="decision-dashboard terminal-dashboard">
+      <header className="dashboard-command-bar">
+        <div className="terminal-brand">
+          <span className="terminal-live-dot" />
+          <div>
+            <h1>QUANT TERMINAL v2.0</h1>
+            <p>基金和ETF投资策略分析系统</p>
+          </div>
+        </div>
+        <div className="terminal-status-strip">
+          <Tag color={getDashboardStatusColor(dashboard.dataStatus.status)}>状态：{dashboard.dataStatus.message}</Tag>
+          {dashboard.updateTime && <span>数据同步：{dashboard.updateTime}</span>}
+          {refreshStatus && refreshStatus.status !== 'idle' && (
+            <span className={`terminal-refresh-state terminal-refresh-state-${refreshStatus.status}`}>
+              {refreshStatus.message}
+            </span>
+          )}
         </div>
         <Button
           icon={<ReloadOutlined />}
@@ -244,18 +254,30 @@ function Dashboard() {
         />
       )}
 
-      <DecisionSummary decisions={dashboard.decisions} />
-      <MarketOverviewWorkbench
-        metrics={dashboard.metrics}
-        operations={dashboard.operations}
-        indexValuations={dashboard.indexValuations}
-        onRunOperation={handleRunOperation}
-      />
-      <SignalTables
-        etfOpportunities={dashboard.etfOpportunities}
-        maSignals={dashboard.maSignals}
-        fundRecommendations={dashboard.fundRecommendations}
-      />
+      <main className="terminal-board">
+        <section className="terminal-column terminal-column-left">
+          <DecisionSummary decisions={dashboard.decisions} />
+          <MarketOverviewWorkbench
+            metrics={dashboard.metrics}
+            indexValuations={dashboard.indexValuations}
+          />
+        </section>
+
+        <section className="terminal-column terminal-column-center">
+          <SignalTables
+            etfOpportunities={dashboard.etfOpportunities}
+            maSignals={dashboard.maSignals}
+          />
+        </section>
+
+        <section className="terminal-column terminal-column-right">
+          <DashboardActionConsole
+            operations={dashboard.operations}
+            onRunOperation={handleRunOperation}
+          />
+          <FundRecommendationPanel fundRecommendations={dashboard.fundRecommendations} />
+        </section>
+      </main>
 
     </div>
   )

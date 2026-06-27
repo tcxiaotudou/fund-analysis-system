@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, Table, Tag, Button, Space, Tooltip, Input, DatePicker, InputNumber, message, Row, Col, Statistic, Divider } from 'antd'
 import { ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons'
+import TerminalPage from '../components/TerminalPage'
 import { maStrategyApi } from '../services/api'
 import {
   getDateRangeError,
@@ -196,16 +197,19 @@ function MaStrategy() {
   const holdCount = data.length - buySignalCount - sellSignalCount
 
   return (
-    <div>
-      <h1 className="page-title">📈 双均线策略</h1>
+    <TerminalPage
+      title="双均线策略"
+      subtitle="MA10 / MA30 金叉死叉信号和策略回测"
+      status={<span>买入 {buySignalCount} / 卖出 {sellSignalCount} / 观望 {holdCount}</span>}
+    >
       
       {/* 回测功能区域 */}
       <Card 
-        title="📊 双均线策略回测" 
+        title="双均线策略回测" 
         style={{ marginBottom: 16 }}
         extra={
           <Tooltip title="基于10日均线和30日均线的金叉（买入）和死叉（卖出）信号进行回测">
-            <span style={{ color: '#999', fontSize: '12px' }}>仅使用双均线策略</span>
+            <span className="terminal-muted-text" style={{ fontSize: '12px' }}>仅使用双均线策略</span>
           </Tooltip>
         }
       >
@@ -279,7 +283,7 @@ function MaStrategy() {
           {/* 回测统计信息 */}
           <Card title={`回测结果：${backtestResult.etfName} (${backtestResult.etfCode})`} style={{ marginBottom: 16 }}>
             <Row gutter={16}>
-              <Col span={6}>
+              <Col xs={12} sm={12} lg={6}>
                 <Statistic
                   title="总收益率"
                   value={backtestResult.totalReturnRate}
@@ -288,7 +292,7 @@ function MaStrategy() {
                   valueStyle={{ color: Number(backtestResult.totalReturnRate) >= 0 ? '#3f8600' : '#cf1322' }}
                 />
               </Col>
-              <Col span={6}>
+              <Col xs={12} sm={12} lg={6}>
                 <Statistic
                   title="年化收益率"
                   value={backtestResult.annualizedReturnRate}
@@ -297,7 +301,7 @@ function MaStrategy() {
                   valueStyle={{ color: Number(backtestResult.annualizedReturnRate) >= 0 ? '#3f8600' : '#cf1322' }}
                 />
               </Col>
-              <Col span={6}>
+              <Col xs={12} sm={12} lg={6}>
                 <Statistic
                   title="初始资金"
                   value={backtestResult.initialCapital}
@@ -305,7 +309,7 @@ function MaStrategy() {
                   prefix="¥"
                 />
               </Col>
-              <Col span={6}>
+              <Col xs={12} sm={12} lg={6}>
                 <Statistic
                   title="最终资金"
                   value={backtestResult.finalCapital}
@@ -317,13 +321,13 @@ function MaStrategy() {
             </Row>
             <Divider />
             <Row gutter={16}>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Statistic title="交易次数" value={backtestResult.tradeCount} />
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Statistic title="买入次数" value={backtestResult.buyCount} valueStyle={{ color: '#52c41a' }} />
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Statistic title="卖出次数" value={backtestResult.sellCount} valueStyle={{ color: '#ff4d4f' }} />
               </Col>
             </Row>
@@ -386,7 +390,7 @@ function MaStrategy() {
                 },
               ]}
               dataSource={backtestResult.transactions || []}
-              rowKey={(record, index) => `${record.date}-${record.type}-${index}`}
+              rowKey={(record) => `${record.date}-${record.type}-${record.price}-${record.quantity}-${record.amount}`}
               pagination={{
                 pageSize: 20,
                 showTotal: (total) => `共 ${total} 条交易记录`,
@@ -398,26 +402,26 @@ function MaStrategy() {
 
       {/* 统计信息卡片 */}
       <Card style={{ marginBottom: 16 }}>
-        <Space size="large">
-          <div>
+        <Space className="terminal-stat-strip" size="middle" wrap>
+          <div className="terminal-stat-chip">
             <span style={{ color: '#999' }}>总计：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {data.length}
             </span>
           </div>
-          <div>
+          <div className="terminal-stat-chip">
             <span style={{ color: '#52c41a' }}>买入信号：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#52c41a', marginLeft: '8px' }}>
               {buySignalCount}
             </span>
           </div>
-          <div>
+          <div className="terminal-stat-chip">
             <span style={{ color: '#ff4d4f' }}>卖出信号：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#ff4d4f', marginLeft: '8px' }}>
               {sellSignalCount}
             </span>
           </div>
-          <div>
+          <div className="terminal-stat-chip">
             <span style={{ color: '#999' }}>观望：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {holdCount}
@@ -428,7 +432,7 @@ function MaStrategy() {
 
       <Card>
         {/* 操作栏 */}
-        <Space style={{ marginBottom: 16 }}>
+        <Space className="terminal-toolbar" wrap>
           <Button 
             type="primary" 
             icon={<ReloadOutlined />}
@@ -457,7 +461,7 @@ function MaStrategy() {
       </Card>
 
       {/* 策略说明 */}
-      <Card title="📖 双均线策略说明" style={{ marginTop: 16 }}>
+      <Card title="双均线策略说明">
         <div style={{ lineHeight: '2' }}>
           <p>
             <strong>双均线策略</strong>是一种基于趋势跟踪的交易策略，
@@ -471,26 +475,14 @@ function MaStrategy() {
           </ul>
 
           <h3>买入信号条件：</h3>
-          <div style={{ 
-            background: '#f0f9ff', 
-            border: '1px solid #bae7ff',
-            borderRadius: '4px',
-            padding: '16px',
-            marginTop: '12px'
-          }}>
+          <div className="terminal-info-box terminal-info-box-cyan" style={{ marginTop: 12 }}>
             <p style={{ margin: 0 }}>
               <strong>条件：</strong>10日均线上穿30日均线（金叉）
             </p>
           </div>
 
           <h3 style={{ marginTop: '20px' }}>卖出信号条件：</h3>
-          <div style={{ 
-            background: '#fff1f0', 
-            border: '1px solid #ffccc7',
-            borderRadius: '4px',
-            padding: '16px',
-            marginTop: '12px'
-          }}>
+          <div className="terminal-info-box terminal-info-box-red" style={{ marginTop: 12 }}>
             <p style={{ margin: 0 }}>
               <strong>条件：</strong>10日均线下穿30日均线（死叉）
             </p>
@@ -512,13 +504,7 @@ function MaStrategy() {
             <li>可结合其他指标（如RSI、MACD）综合判断，提高策略准确性</li>
           </ul>
 
-          <div style={{ 
-            background: '#fff7e6', 
-            border: '1px solid #ffd591',
-            borderRadius: '4px',
-            padding: '12px',
-            marginTop: '12px'
-          }}>
+          <div className="terminal-info-box terminal-info-box-amber" style={{ marginTop: 12 }}>
             <strong>⚠️ 风险提示：</strong>
             <p style={{ margin: '8px 0 0 0' }}>
               任何技术分析策略都有局限性，市场走势受多种因素影响。
@@ -528,7 +514,7 @@ function MaStrategy() {
           </div>
         </div>
       </Card>
-    </div>
+    </TerminalPage>
   )
 }
 

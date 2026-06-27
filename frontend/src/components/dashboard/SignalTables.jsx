@@ -1,81 +1,165 @@
 import React from 'react'
-import { Space, Table, Tag } from 'antd'
 import { Link } from 'react-router-dom'
 import {
-  ETF_OPPORTUNITY_COLUMN_DEFINITIONS,
-  FUND_RECOMMENDATION_COLUMN_DEFINITIONS,
-  MA_SIGNAL_COLUMN_DEFINITIONS,
-} from '../../utils/dashboardSignalTableColumns'
+  AimOutlined,
+  AlertOutlined,
+  CheckCircleOutlined,
+  WalletOutlined,
+} from '@ant-design/icons'
 import { formatNumber } from '../../utils/formatters'
 
-// 表格列渲染器映射。
-const TABLE_COLUMN_RENDERERS = {
-  rsiValue: value => formatNumber(value, 2),
-  priceValue: value => formatNumber(value, 3),
-  etfSignal: (_, record) => <Tag color={record.isBuySignal ? 'green' : 'default'}>{record.isBuySignal ? '关注买入' : '观望'}</Tag>,
-  maSignal: (_, record) => {
-    if (record.isBuySignal) return <Tag color="green">买入</Tag>
-    if (record.isSellSignal) return <Tag color="red">卖出</Tag>
-    return <Tag>观望</Tag>
-  },
-  fundTag: tag => <Tag color={tag === '已持有' ? 'blue' : tag === '已排除' ? 'red' : 'green'}>{tag || '推荐'}</Tag>,
+// RSI 极度超卖阈值用于视觉强调。
+const EXTREME_RSI_THRESHOLD = 25
+
+// 根据 RSI 数值获取 ETF 信号等级。
+const getEtfSignalLevel = (record) => {
+  if (record.isBuySignal && Number(record.currentRsi) <= EXTREME_RSI_THRESHOLD) return 'extreme'
+  if (record.isBuySignal) return 'buy'
+  return 'watch'
 }
 
-// 根据列定义挂载需要的渲染函数。
-const buildTableColumns = columnDefinitions => columnDefinitions.map(({ renderKey, ...column }) => {
-  if (!renderKey) {
-    return column
-  }
-  return {
-    ...column,
-    render: TABLE_COLUMN_RENDERERS[renderKey],
-  }
-})
+// 根据 RSI 信号等级获取展示文案。
+const getEtfSignalLabel = (level) => {
+  if (level === 'extreme') return '极度超卖'
+  if (level === 'buy') return '关注买入'
+  return '观望'
+}
 
-// ETF机会表格列。
-const ETF_COLUMNS = buildTableColumns(ETF_OPPORTUNITY_COLUMN_DEFINITIONS)
+// 根据 MA 信号获取展示等级。
+const getMaSignalLevel = (record) => {
+  if (record.isSellSignal) return 'sell'
+  if (record.isBuySignal) return 'buy'
+  return 'watch'
+}
 
-// MA买卖信号表格列。
-const MA_COLUMNS = buildTableColumns(MA_SIGNAL_COLUMN_DEFINITIONS)
+// 根据 MA 信号等级获取展示文案。
+const getMaSignalLabel = (level) => {
+  if (level === 'sell') return '卖出死叉'
+  if (level === 'buy') return '买入金叉'
+  return '观望'
+}
 
-// 基金推荐表格列。
-const FUND_COLUMNS = buildTableColumns(FUND_RECOMMENDATION_COLUMN_DEFINITIONS)
-
-// ETF、MA 与基金推荐信号表。
-function SignalTables({ etfOpportunities, maSignals, fundRecommendations }) {
+// ETF 超卖机会矩阵。
+function EtfOpportunityMatrix({ etfOpportunities }) {
   return (
-    <section className="dashboard-table-grid">
-      <div className="dashboard-panel">
-        <div className="dashboard-panel-header">
-          <h2 className="panel-title-with-count">
-            ETF机会
-            <Tag className="panel-count-tag" color="blue">{etfOpportunities.length}</Tag>
-          </h2>
-          <Space><Link to="/rsi-analysis">更多</Link></Space>
+    <section className="terminal-panel signal-matrix-panel">
+      <div className="terminal-panel-header">
+        <div>
+          <h2>触发超卖信号的交易标的</h2>
+          <p>RSI 监控面板</p>
         </div>
-        <Table columns={ETF_COLUMNS} dataSource={etfOpportunities} rowKey="code" pagination={false} size="small" scroll={{ x: 680 }} locale={{ emptyText: '当前没有 ETF 机会' }} />
+        <Link to="/rsi-analysis">更多</Link>
       </div>
-      <div className="dashboard-table-stack">
-        <div className="dashboard-panel">
-          <div className="dashboard-panel-header">
-            <h2 className="panel-title-with-count">
-              MA买卖信号
-              <Tag className="panel-count-tag" color="purple">{maSignals.length}</Tag>
-            </h2>
-            <Space><Link to="/ma-strategy">更多</Link></Space>
-          </div>
-          <Table columns={MA_COLUMNS} dataSource={maSignals} rowKey="etfCode" pagination={false} size="small" scroll={{ x: 860 }} locale={{ emptyText: '当前没有 MA 信号' }} />
+
+      <div className="terminal-signal-grid">
+        {etfOpportunities.map(record => {
+          const level = getEtfSignalLevel(record)
+          return (
+            <article className={`terminal-signal-card terminal-signal-card-${level}`} key={record.code}>
+              <div className="terminal-signal-main">
+                <strong>{record.name}</strong>
+                <span>{record.code}</span>
+                <small>时间：{record.dataTime || '未返回'}</small>
+              </div>
+              <div className="terminal-signal-value">
+                <b>RSI {formatNumber(record.currentRsi, 2)}</b>
+                <em>{getEtfSignalLabel(level)}</em>
+              </div>
+            </article>
+          )
+        })}
+        {etfOpportunities.length === 0 && (
+          <div className="terminal-empty">当前没有 ETF 机会</div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+// MA 买卖信号警报栏。
+function MaSignalAlertStrip({ maSignals }) {
+  return (
+    <section className="terminal-panel ma-alert-panel">
+      <div className="terminal-panel-header terminal-panel-header-compact">
+        <div>
+          <h2>MA 均线变盘警报</h2>
+          <p>买卖信号：{maSignals.length}</p>
         </div>
-        <div className="dashboard-panel">
-          <div className="dashboard-panel-header">
-            <h2 className="panel-title-with-count">
-              基金推荐
-              <Tag className="panel-count-tag" color="green">{fundRecommendations.length}</Tag>
-            </h2>
-            <Space><Link to="/fund-recommendation">更多</Link></Space>
-          </div>
-          <Table columns={FUND_COLUMNS} dataSource={fundRecommendations} rowKey="fundCode" pagination={false} size="small" scroll={{ x: 680 }} locale={{ emptyText: '当前没有基金推荐摘要' }} />
+        <Link to="/ma-strategy">更多</Link>
+      </div>
+
+      <div className="terminal-ma-list">
+        {maSignals.map(record => {
+          const level = getMaSignalLevel(record)
+          return (
+            <article className={`terminal-ma-card terminal-ma-card-${level}`} key={record.etfCode}>
+              <div>
+                <strong>{record.etfName}</strong>
+                <span>{record.etfCode}</span>
+              </div>
+              <div>
+                <b>{getMaSignalLabel(level)}</b>
+                <small>{record.signalDescription}</small>
+              </div>
+              <em>当前价 {formatNumber(record.currentDaily, 3)}</em>
+            </article>
+          )
+        })}
+        {maSignals.length === 0 && (
+          <div className="terminal-empty terminal-empty-inline">当前没有 MA 信号</div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+// ETF 与 MA 信号中心面板。
+function SignalTables({ etfOpportunities, maSignals }) {
+  return (
+    <div className="terminal-center-stack">
+      <div className="terminal-center-title">
+        <span><AimOutlined /> 核心战场</span>
+        <strong>ETF 降维机会矩阵</strong>
+      </div>
+      <EtfOpportunityMatrix etfOpportunities={etfOpportunities} />
+      <MaSignalAlertStrip maSignals={maSignals} />
+    </div>
+  )
+}
+
+// 基金推荐与持仓状态面板。
+export function FundRecommendationPanel({ fundRecommendations }) {
+  return (
+    <section className="terminal-panel fund-recommend-panel">
+      <div className="terminal-panel-header">
+        <div>
+          <h2>核心持仓与推荐混合</h2>
+          <p>基金推荐摘要</p>
         </div>
+        <Link to="/fund-recommendation">更多</Link>
+      </div>
+
+      <div className="terminal-fund-list">
+        {fundRecommendations.map(record => {
+          const isHolding = record.tag === '已持有'
+          const isExcluded = record.tag === '已排除'
+          return (
+            <article className={`terminal-fund-card${isHolding ? ' terminal-fund-card-holding' : ''}${isExcluded ? ' terminal-fund-card-excluded' : ''}`} key={record.fundCode}>
+              <div>
+                <strong>{record.fundName}</strong>
+                <span>代码：{record.fundCode}</span>
+              </div>
+              <em>
+                {isHolding ? <WalletOutlined /> : isExcluded ? <AlertOutlined /> : <CheckCircleOutlined />}
+                {record.tag || '推荐'}
+              </em>
+              <small>更新：{record.dataTime || '未返回'}</small>
+            </article>
+          )
+        })}
+        {fundRecommendations.length === 0 && (
+          <div className="terminal-empty">当前没有基金推荐摘要</div>
+        )}
       </div>
     </section>
   )

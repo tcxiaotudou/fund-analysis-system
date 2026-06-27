@@ -1,38 +1,11 @@
 import React from 'react'
-import { Button } from 'antd'
 import {
   ArrowDownOutlined,
   ArrowRightOutlined,
   ArrowUpOutlined,
-  ExperimentOutlined,
-  MailOutlined,
   RadarChartOutlined,
-  RightOutlined,
-  SettingOutlined,
-  SlidersOutlined,
-  ThunderboltOutlined,
 } from '@ant-design/icons'
 import { buildMarketMetricSections, getLevelColor } from '../../utils/dashboardDecision'
-
-// 主要操作的展示顺序。
-const PRIMARY_OPERATION_KEYS = ['rsi-backtest', 'portfolio-weight']
-
-// 次要操作的展示顺序。
-const SECONDARY_OPERATION_KEYS = ['momentum', 'send-email']
-
-// 操作图标映射。
-const OPERATION_ICONS = {
-  'rsi-backtest': <ExperimentOutlined />,
-  'portfolio-weight': <SlidersOutlined />,
-  momentum: <ThunderboltOutlined />,
-  'send-email': <MailOutlined />,
-}
-
-// 根据 key 顺序筛选操作。
-const pickOperations = (operations, keys) => {
-  const operationMap = new Map((operations || []).map(operation => [operation.key, operation]))
-  return keys.map(key => operationMap.get(key)).filter(Boolean)
-}
 
 // 根据趋势方向渲染稳定图标。
 const renderTrendIcon = (trend) => {
@@ -41,121 +14,90 @@ const renderTrendIcon = (trend) => {
   return <ArrowRightOutlined />
 }
 
-// 市场状态与今日行动工作台。
-function MarketOverviewWorkbench({ metrics, operations, indexValuations, onRunOperation }) {
+// 将可解析的数值限定到进度条的展示区间。
+const getMetricProgress = (value) => {
+  const numericValue = Number.parseFloat(String(value).replace('%', ''))
+  if (!Number.isFinite(numericValue)) {
+    return null
+  }
+  return Math.min(100, Math.max(0, numericValue))
+}
+
+// 市场温度与估值概览。
+function MarketOverviewWorkbench({ metrics, indexValuations }) {
   const metricSections = buildMarketMetricSections(metrics)
-  const primaryOperations = pickOperations(operations, PRIMARY_OPERATION_KEYS)
-  const secondaryOperations = pickOperations(operations, SECONDARY_OPERATION_KEYS)
 
   return (
-    <section className="market-workbench">
-      <div className="market-overview-panel">
-        <div className="workbench-heading">
-          <div>
-            <h2>市场概览</h2>
-          </div>
-          <span className="workbench-icon"><RadarChartOutlined /></span>
+    <section className="terminal-panel market-overview-panel">
+      <div className="terminal-panel-header">
+        <div>
+          <h2>动量与市场温度</h2>
+          <p>短中期趋势、组合温度与长期安全边际</p>
         </div>
-        <div className="market-metric-sections">
-          {metricSections.map(section => (
-            <div className="market-metric-section" key={section.key}>
-              <div className="market-metric-section-header">
-                <strong>{section.title}</strong>
-                <span>{section.description}</span>
-              </div>
-              <div className="market-metric-grid">
-                {section.items.map(metric => {
-                  const color = getLevelColor(metric.level)
-                  return (
-                    <article className="market-metric-card" key={metric.key}>
-                      <div className="market-metric-label-row">
-                        <span>{metric.label}</span>
-                        <em>{renderTrendIcon(metric.trend)}</em>
-                      </div>
-                      <strong style={{ color }}>{metric.value}</strong>
-                      <small>{metric.helper}</small>
-                    </article>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-        {indexValuations.length > 0 && (
-          <div className="index-valuation-section">
-            <div className="market-metric-section-header">
-              <strong>指数估值</strong>
-              <span>蛋卷估值表</span>
-            </div>
-            <div className="index-valuation-list">
-              {indexValuations.map(valuation => (
-                <article className={`index-valuation-card index-valuation-card-${valuation.level}`} key={valuation.indexCode}>
-                  <div className="index-valuation-main">
-                    <strong>{valuation.name}</strong>
-                    <span>{valuation.historyLowText}</span>
-                    <b>{valuation.valuationLabel}</b>
-                  </div>
-                  <div className="index-valuation-divider" />
-                  <div className="index-valuation-stat">
-                    <span>PE {valuation.peDate}</span>
-                    <strong>{valuation.pe}</strong>
-                  </div>
-                  <div className="index-valuation-stat">
-                    <span>PE百分位</span>
-                    <strong>{valuation.pePercentile}</strong>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        )}
+        <RadarChartOutlined />
       </div>
 
-      <div className="action-command-panel">
-        <div className="workbench-heading">
-          <div>
-            <h2>今日行动</h2>
+      <div className="terminal-metric-sections">
+        {metricSections.map(section => (
+          <div className="terminal-metric-section" key={section.key}>
+            <div className="terminal-section-title">
+              <strong>{section.title}</strong>
+              <span>{section.description}</span>
+            </div>
+            <div className="terminal-metric-list">
+              {section.items.map(metric => {
+                const color = getLevelColor(metric.level)
+                const progress = getMetricProgress(metric.value)
+                return (
+                  <article className="terminal-metric-row" key={metric.key}>
+                    <div className="terminal-metric-row-main">
+                      <span>{metric.label}</span>
+                      <em style={{ color }}>{renderTrendIcon(metric.trend)}</em>
+                    </div>
+                    <div className="terminal-metric-value" style={{ color }}>{metric.value}</div>
+                    {progress !== null && (
+                      <div className="terminal-meter-track" aria-hidden="true">
+                        <div className={`terminal-meter-fill terminal-meter-fill-${metric.level}`} style={{ width: `${progress}%` }} />
+                      </div>
+                    )}
+                    <small>{metric.helper}</small>
+                  </article>
+                )
+              })}
+            </div>
           </div>
+        ))}
+      </div>
+
+      <div className="terminal-valuation-section">
+        <div className="terminal-section-title">
+          <strong>长期趋势与安全边际</strong>
+          <span>蛋卷估值表</span>
         </div>
-        <div className="primary-action-grid">
-          {primaryOperations.map(operation => (
-            <button
-              className="primary-action-card"
-              key={operation.key}
-              type="button"
-              onClick={() => onRunOperation(operation)}
-            >
-              <span className="primary-action-icon">{OPERATION_ICONS[operation.key] || <RightOutlined />}</span>
-              <span className="primary-action-copy">
-                <strong>{operation.title}</strong>
-                <small>{operation.description}</small>
-              </span>
-              <RightOutlined />
-            </button>
+        <div className="terminal-valuation-list">
+          {indexValuations.map(valuation => (
+            <article className={`terminal-valuation-card terminal-valuation-card-${valuation.level}`} key={valuation.indexCode}>
+              <div>
+                <strong>{valuation.name}</strong>
+                <span>{valuation.historyLowText}</span>
+              </div>
+              <b>{valuation.valuationLabel}</b>
+              <dl>
+                <div>
+                  <dt>PE {valuation.peDate}</dt>
+                  <dd>{valuation.pe}</dd>
+                </div>
+                <div>
+                  <dt>PE百分位</dt>
+                  <dd>{valuation.pePercentile}</dd>
+                </div>
+              </dl>
+            </article>
           ))}
+          {indexValuations.length === 0 && (
+            <div className="terminal-empty">暂无指数估值数据</div>
+          )}
         </div>
-        <div className="secondary-action-list">
-          {secondaryOperations.map(operation => (
-            <button
-              className={operation.danger ? 'secondary-action secondary-action-danger' : 'secondary-action'}
-              key={operation.key}
-              type="button"
-              onClick={() => onRunOperation(operation)}
-            >
-              <span>{OPERATION_ICONS[operation.key] || <RightOutlined />}</span>
-              <strong>{operation.title}</strong>
-              <RightOutlined />
-            </button>
-          ))}
-        </div>
-        <Button
-          block
-          className="operation-all-button"
-          icon={<SettingOutlined />}
-          onClick={() => onRunOperation({ targetPath: '/system-config' })}
-        >
-          系统设置
-        </Button>
       </div>
     </section>
   )

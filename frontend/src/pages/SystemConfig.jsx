@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, Form, Input, Switch, Button, Space, Divider, Modal, message } from 'antd'
 import { SaveOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
+import TerminalPage from '../components/TerminalPage'
 import { systemConfigApi } from '../services/api'
 
 function SystemConfig() {
@@ -144,16 +145,19 @@ function SystemConfig() {
   }
 
   return (
-    <div>
-      <h1 className="page-title">⚙️ 系统配置</h1>
+    <TerminalPage
+      title="系统配置"
+      subtitle="邮件日报、SMTP 和定时发送参数"
+      status={<span>{loadingData ? '配置加载中' : '配置控制台'}</span>}
+    >
 
-      <Card>
+      <Card title="邮件发送配置">
         <Form
           form={form}
           layout="vertical"
         >
           {/* 邮件配置 */}
-          <Divider orientation="left">📧 邮件配置</Divider>
+          <Divider orientation="left">邮件配置</Divider>
           
           <Form.Item
             name="emailEnabled"
@@ -215,7 +219,7 @@ function SystemConfig() {
 
           {/* 保存按钮 */}
           <Form.Item>
-            <Space>
+            <Space className="terminal-toolbar" wrap>
               <Button 
                 type="primary" 
                 icon={<SaveOutlined />}
@@ -236,7 +240,7 @@ function SystemConfig() {
                 icon={<SendOutlined />}
                 onClick={handleSendNow}
                 loading={sendingEmail}
-                style={{ backgroundColor: '#52c41a', color: 'white', borderColor: '#52c41a' }}
+                className="terminal-success-button"
               >
                 立即发送邮件
               </Button>
@@ -249,7 +253,7 @@ function SystemConfig() {
       </Card>
 
       {/* 配置说明 */}
-      <Card title="📖 配置说明" style={{ marginTop: 16 }}>
+      <Card title="配置说明">
         <div style={{ lineHeight: '2' }}>
           <h3>邮件配置：</h3>
           <ul>
@@ -262,7 +266,7 @@ function SystemConfig() {
           </ul>
         </div>
       </Card>
-    </div>
+    </TerminalPage>
   )
 }
 
