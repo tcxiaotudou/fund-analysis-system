@@ -62,27 +62,29 @@ export function getLevelColor(level) {
   return '#475569'
 }
 
-// 构建市场状态工作台指标，避免重复展示短期 RSI。
-export function buildMarketStatusItems(metrics) {
-  const metricMap = new Map((metrics || []).map(metric => [metric.key, metric]))
-  return [
-    createMarketStatusItem(metricMap.get('riskPremium'), 'riskPremium', '估值水位', '沪深300风险溢价', '风险补偿'),
-    createMarketStatusItem(metricMap.get('ma5yDeviation'), 'ma5yDeviation', '趋势位置', '1250日均线偏离度', '长期均线'),
-    createMarketStatusItem(metricMap.get('balance'), 'balance', '配置主线', '股债再平衡比例', '组合仓位'),
-  ]
-}
+// 市场概览指标分组定义，避免同一批指标在页面里重复展示。
+const MARKET_METRIC_SECTION_DEFINITIONS = [
+  {
+    key: 'temperature',
+    title: '市场温度',
+    description: '短中期 RSI 与组合持仓温度',
+    metricKeys: ['rsi14', 'rsi90', 'portfolioRsi'],
+  },
+  {
+    key: 'allocation',
+    title: '配置与估值',
+    description: '股债比例、风险溢价和长期趋势',
+    metricKeys: ['balance', 'riskPremium', 'ma5yDeviation'],
+  },
+]
 
-// 创建市场状态工作台单项指标。
-function createMarketStatusItem(metric, fallbackKey, title, description, caption) {
-  return {
-    key: metric?.key || fallbackKey,
-    title,
-    description,
-    caption,
-    value: metric?.value || '-',
-    helper: metric?.helper || '-',
-    level: metric?.level || 'neutral',
-  }
+// 构建市场概览指标分组。
+export function buildMarketMetricSections(metrics) {
+  const metricMap = new Map((metrics || []).map(metric => [metric.key, metric]))
+  return MARKET_METRIC_SECTION_DEFINITIONS.map(section => ({
+    ...section,
+    items: section.metricKeys.map(key => metricMap.get(key)).filter(Boolean),
+  })).filter(section => section.items.length > 0)
 }
 
 // 获取操作路由，API动作没有路由。

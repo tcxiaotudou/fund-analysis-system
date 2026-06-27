@@ -4,7 +4,6 @@ import { ReloadOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import DecisionSummary from '../components/dashboard/DecisionSummary'
 import MarketOverviewWorkbench from '../components/dashboard/MarketOverviewWorkbench'
-import MetricStrip from '../components/dashboard/MetricStrip'
 import SignalTables from '../components/dashboard/SignalTables'
 import { adminApi, dashboardApi, systemConfigApi } from '../services/api'
 import {
@@ -246,7 +245,6 @@ function Dashboard() {
       )}
 
       <DecisionSummary decisions={dashboard.decisions} />
-      <MetricStrip metrics={dashboard.metrics} />
       <MarketOverviewWorkbench
         metrics={dashboard.metrics}
         operations={dashboard.operations}

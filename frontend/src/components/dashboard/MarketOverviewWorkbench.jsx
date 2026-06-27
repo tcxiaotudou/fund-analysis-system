@@ -1,6 +1,9 @@
 import React from 'react'
 import { Button } from 'antd'
 import {
+  ArrowDownOutlined,
+  ArrowRightOutlined,
+  ArrowUpOutlined,
   ExperimentOutlined,
   MailOutlined,
   RadarChartOutlined,
@@ -9,7 +12,7 @@ import {
   SlidersOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons'
-import { buildMarketStatusItems, getLevelColor } from '../../utils/dashboardDecision'
+import { buildMarketMetricSections, getLevelColor } from '../../utils/dashboardDecision'
 
 // 主要操作的展示顺序。
 const PRIMARY_OPERATION_KEYS = ['rsi-backtest', 'portfolio-weight']
@@ -31,38 +34,52 @@ const pickOperations = (operations, keys) => {
   return keys.map(key => operationMap.get(key)).filter(Boolean)
 }
 
+// 根据趋势方向渲染稳定图标。
+const renderTrendIcon = (trend) => {
+  if (trend === 'up') return <ArrowUpOutlined />
+  if (trend === 'down') return <ArrowDownOutlined />
+  return <ArrowRightOutlined />
+}
+
 // 市场状态与今日行动工作台。
 function MarketOverviewWorkbench({ metrics, operations, onRunOperation }) {
-  const statusItems = buildMarketStatusItems(metrics)
+  const metricSections = buildMarketMetricSections(metrics)
   const primaryOperations = pickOperations(operations, PRIMARY_OPERATION_KEYS)
   const secondaryOperations = pickOperations(operations, SECONDARY_OPERATION_KEYS)
 
   return (
     <section className="market-workbench">
-      <div className="market-state-panel">
+      <div className="market-overview-panel">
         <div className="workbench-heading">
           <div>
-            <h2>市场状态雷达</h2>
+            <h2>市场概览</h2>
           </div>
           <span className="workbench-icon"><RadarChartOutlined /></span>
         </div>
-        <div className="market-state-list">
-          {statusItems.map(item => {
-            const color = getLevelColor(item.level)
-            return (
-              <article className="market-state-item" key={item.key}>
-                <div className="market-state-copy">
-                  <span>{item.title}</span>
-                  <strong style={{ color }}>{item.value}</strong>
-                  <small>{item.description}</small>
-                </div>
-                <div className="market-state-meta">
-                  <span>{item.caption}</span>
-                  <em>{item.helper}</em>
-                </div>
-              </article>
-            )
-          })}
+        <div className="market-metric-sections">
+          {metricSections.map(section => (
+            <div className="market-metric-section" key={section.key}>
+              <div className="market-metric-section-header">
+                <strong>{section.title}</strong>
+                <span>{section.description}</span>
+              </div>
+              <div className="market-metric-grid">
+                {section.items.map(metric => {
+                  const color = getLevelColor(metric.level)
+                  return (
+                    <article className="market-metric-card" key={metric.key}>
+                      <div className="market-metric-label-row">
+                        <span>{metric.label}</span>
+                        <em>{renderTrendIcon(metric.trend)}</em>
+                      </div>
+                      <strong style={{ color }}>{metric.value}</strong>
+                      <small>{metric.helper}</small>
+                    </article>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
