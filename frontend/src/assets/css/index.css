@@ -1902,7 +1902,23 @@ body {
 
 .terminal-page .ant-table-cell-fix-left,
 .terminal-page .ant-table-cell-fix-right {
-  background: #0f172a !important;
+  background: var(--terminal-panel-strong) !important;
+  color: var(--terminal-text);
+}
+
+.terminal-page .terminal-theme-table .terminal-theme-action-column,
+.terminal-page .terminal-theme-table .terminal-theme-action-column.ant-table-cell-fix-right {
+  background: var(--terminal-panel-strong) !important;
+  color: var(--terminal-text);
+}
+
+.terminal-page .terminal-theme-table .terminal-theme-action-column.ant-table-cell-fix-right::after,
+.terminal-page .terminal-theme-table .terminal-theme-action-column.ant-table-cell-fix-right::before {
+  display: none;
+}
+
+.terminal-page .terminal-theme-table .ant-table-cell-fix-right {
+  z-index: 3;
 }
 
 .terminal-page .ant-table-column-sort {

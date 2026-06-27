@@ -308,7 +308,7 @@ function FundRecommendation() {
       render: (_, record, index) => {
         // 被排除的基金不显示排名
         if (isBlacklisted(record.fundCode)) {
-          return <span style={{ color: '#999' }}>-</span>
+          return <span style={{ color: 'var(--terminal-dim)' }}>-</span>
         }
         
         // 计算实际排名（不包括被排除的基金）
@@ -330,7 +330,7 @@ function FundRecommendation() {
       render: (text, record) => (
         <div>
           <div>{text}</div>
-          <div style={{ fontSize: '12px', color: '#999' }}>{record.fundCode}</div>
+          <div style={{ fontSize: '12px', color: 'var(--terminal-dim)' }}>{record.fundCode}</div>
         </div>
       ),
     },
@@ -359,7 +359,7 @@ function FundRecommendation() {
       width: 130,
       render: (val) => {
         if (val == null || val === '') return '-'
-        let color = '#000'
+        let color = 'var(--terminal-text)'
         if (val <= 10) color = '#cf1322'  // 前10名红色
         else if (val <= 30) color = '#fa8c16'  // 前30名橙色
         else if (val <= 50) color = '#1890ff'  // 前50名蓝色
@@ -389,7 +389,7 @@ function FundRecommendation() {
       width: 120,
       render: (val) => {
         if (val == null || val === '') return '-'
-        const color = val > 10 ? '#cf1322' : val > 5 ? '#fa8c16' : '#000'
+        const color = val > 10 ? '#cf1322' : val > 5 ? '#fa8c16' : 'var(--terminal-text)'
         return <strong style={{ color }}>{val?.toFixed(2)}%</strong>
       },
     },
@@ -430,6 +430,7 @@ function FundRecommendation() {
       key: 'action',
       width: 200,
       fixed: 'right',
+      className: 'terminal-theme-action-column',
       render: (_, record) => {
         const blacklistItem = isBlacklisted(record.fundCode)
         const isHolding = holdings.has(record.fundCode)
@@ -559,6 +560,7 @@ function FundRecommendation() {
             }
             return ''
           }}
+          className="terminal-theme-table"
         />
       </Card>
 

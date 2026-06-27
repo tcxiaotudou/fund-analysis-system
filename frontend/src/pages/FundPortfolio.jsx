@@ -294,7 +294,7 @@ function FundPortfolio() {
       render: (text, record) => (
         <div>
           <div>{text}</div>
-          <div style={{ fontSize: '12px', color: '#999' }}>{record.fundCode}</div>
+          <div style={{ fontSize: '12px', color: 'var(--terminal-dim)' }}>{record.fundCode}</div>
         </div>
       ),
     },
@@ -361,7 +361,7 @@ function FundPortfolio() {
       width: 130,
       render: (val) => {
         if (val == null || val === '') return '-'
-        let color = '#000'
+        let color = 'var(--terminal-text)'
         if (val <= 10) color = '#cf1322'
         else if (val <= 30) color = '#fa8c16'
         else if (val <= 50) color = '#1890ff'
@@ -379,7 +379,7 @@ function FundPortfolio() {
       width: 130,
       render: (val) => {
         if (val == null || val === '') return '-'
-        let color = '#000'
+        let color = 'var(--terminal-text)'
         if (val <= 10) color = '#cf1322'
         else if (val <= 30) color = '#fa8c16'
         else if (val <= 50) color = '#1890ff'
@@ -398,7 +398,7 @@ function FundPortfolio() {
       render: (val) => {
         if (val == null || val === '') return '-'
         const num = parseFloat(val)
-        let color = '#000'
+        let color = 'var(--terminal-text)'
         if (num < -30) color = '#cf1322'
         else if (num < -20) color = '#fa8c16'
         else if (num < -10) color = '#1890ff'
@@ -429,7 +429,7 @@ function FundPortfolio() {
       width: 120,
       render: (val) => {
         if (val == null || val === '') return '-'
-        const color = val > 10 ? '#cf1322' : val > 5 ? '#fa8c16' : '#000'
+        const color = val > 10 ? '#cf1322' : val > 5 ? '#fa8c16' : 'var(--terminal-text)'
         return <strong style={{ color }}>{val.toFixed(2)}%</strong>
       },
     },
@@ -456,6 +456,7 @@ function FundPortfolio() {
       key: 'action',
       width: 100,
       fixed: 'right',
+      className: 'terminal-theme-action-column',
       render: (_, record) => (
         <Button 
           type="link" 
@@ -494,7 +495,7 @@ function FundPortfolio() {
     if (rsi14 > 70) return { text: '超买，建议谨慎', color: '#cf1322' }
     if (rsi90 < 43) return { text: '中长期超卖', color: '#1890ff' }
     if (rsi90 > 57) return { text: '中长期超买', color: '#fa8c16' }
-    return { text: '中性区间', color: '#666' }
+    return { text: '中性区间', color: 'var(--terminal-dim)' }
   }
 
   return (
@@ -537,7 +538,7 @@ function FundPortfolio() {
                 <Statistic
                   title="14日 RSI"
                   value={rsiData.rsi14 != null ? rsiData.rsi14.toFixed(2) : 'N/A'}
-                  valueStyle={{ color: rsiData.rsi14 != null ? getRsiColor(rsiData.rsi14) : '#000' }}
+                  valueStyle={{ color: rsiData.rsi14 != null ? getRsiColor(rsiData.rsi14) : 'var(--terminal-text)' }}
                   suffix={rsiData.rsi14 != null ? '' : ''}
                 />
               </Col>
@@ -545,7 +546,7 @@ function FundPortfolio() {
                 <Statistic
                   title="90日 RSI"
                   value={rsiData.rsi90 != null ? rsiData.rsi90.toFixed(2) : 'N/A'}
-                  valueStyle={{ color: rsiData.rsi90 != null ? getRsiColor(rsiData.rsi90) : '#000' }}
+                  valueStyle={{ color: rsiData.rsi90 != null ? getRsiColor(rsiData.rsi90) : 'var(--terminal-text)' }}
                   suffix={rsiData.rsi90 != null ? '' : ''}
                 />
               </Col>
@@ -553,7 +554,7 @@ function FundPortfolio() {
                 <Statistic
                   title="14周 RSI"
                   value={rsiData.weeklyRsi14 != null ? rsiData.weeklyRsi14.toFixed(2) : 'N/A'}
-                  valueStyle={{ color: rsiData.weeklyRsi14 != null ? getRsiColor(rsiData.weeklyRsi14) : '#000' }}
+                  valueStyle={{ color: rsiData.weeklyRsi14 != null ? getRsiColor(rsiData.weeklyRsi14) : 'var(--terminal-text)' }}
                   suffix={rsiData.weeklyRsi14 != null ? '' : ''}
               />
             </Col>
@@ -729,6 +730,7 @@ function FundPortfolio() {
         <Table
           columns={columns}
           dataSource={holdingFunds}
+          className="terminal-theme-table"
           rowKey="fundCode"
           loading={loading}
           pagination={{
