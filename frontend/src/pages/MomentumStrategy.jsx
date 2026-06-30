@@ -11,7 +11,8 @@ import { momentumStrategyApi } from '../services/api'
 import {
   createMomentumBacktestSearchParams,
   getMomentumBacktestRangeFromSearchParams,
-  getMomentumVisibleRangeFromSearchParams,
+  getMomentumVisibleRangePreference,
+  saveMomentumVisibleRangeToStorage,
   upsertMomentumVisibleRangeSearchParams,
 } from '../utils/momentumBacktestRange'
 import {
@@ -53,7 +54,7 @@ function MomentumStrategy() {
     [searchParams],
   )
   const initialVisibleRangeState = useMemo(
-    () => getMomentumVisibleRangeFromSearchParams(searchParams),
+    () => getMomentumVisibleRangePreference(searchParams, window.localStorage),
     [searchParams],
   )
   const initialBacktestRange = initialBacktestState.range
@@ -140,11 +141,14 @@ function MomentumStrategy() {
 
   useEffect(() => {
     const nextState = getMomentumBacktestRangeFromSearchParams(searchParams)
-    const nextVisibleRangeState = getMomentumVisibleRangeFromSearchParams(searchParams)
+    const nextVisibleRangeState = getMomentumVisibleRangePreference(searchParams, window.localStorage)
     setUrlRangeError(nextState.error)
     setVisibleRangeError(nextVisibleRangeState.error)
     setActiveBacktestRange(nextState.range)
     setRequestedVisibleDateRange(nextVisibleRangeState.range)
+    if (nextVisibleRangeState.range) {
+      saveMomentumVisibleRangeToStorage(window.localStorage, nextVisibleRangeState.range)
+    }
     setBacktestStartDate(nextState.range ? dayjs(nextState.range.startDate) : null)
     setBacktestEndDate(nextState.range ? dayjs(nextState.range.endDate) : null)
     reloadStrategyData(nextState.range)
@@ -361,6 +365,7 @@ function MomentumStrategy() {
     const nextVisibleDateRange = isFullRange
       ? null
       : getMomentumVisibleDateRange(performanceData, nextDateRange)
+    saveMomentumVisibleRangeToStorage(window.localStorage, nextVisibleDateRange)
     setSearchParams(
       upsertMomentumVisibleRangeSearchParams(searchParams, nextVisibleDateRange),
       { replace: true },
