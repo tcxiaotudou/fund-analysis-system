@@ -3,15 +3,17 @@
  * 展示基于21日动量的ETF轮动策略交易记录
  */
 import React, { useState, useEffect, useMemo } from 'react'
-import { Alert, Card, Table, Tag, Button, Space, DatePicker, InputNumber, message, Modal, Slider, Row, Col } from 'antd'
+import { Alert, Card, Table, Tag, Button, Space, DatePicker, InputNumber, message, Modal, Slider, Segmented } from 'antd'
 import { ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
 import TerminalPage from '../components/TerminalPage'
 import { momentumStrategyApi } from '../services/api'
 import {
+  MOMENTUM_VISIBLE_RANGE_PRESET_OPTIONS,
   createMomentumBacktestSearchParams,
   getMomentumBacktestRangeFromSearchParams,
   getMomentumVisibleRangePreference,
+  saveMomentumVisibleRangePresetToStorage,
   saveMomentumVisibleRangeToStorage,
   upsertMomentumVisibleRangeSearchParams,
 } from '../utils/momentumBacktestRange'
@@ -21,7 +23,9 @@ import {
   buildMomentumChartData,
   filterMomentumTransactionsByVisibleDateRange,
   getMomentumDateRangePercentByDateRange,
+  getMomentumPerformanceDateByPercent,
   getMomentumVisibleDateRange,
+  getMomentumVisibleDateRangeByPreset,
   shouldRenderMomentumMarker,
 } from '../utils/momentumChartData'
 import {
@@ -75,6 +79,7 @@ function MomentumStrategy() {
   const [initialCapital, setInitialCapital] = useState(100000)
   const [activeBacktestRange, setActiveBacktestRange] = useState(initialBacktestRange)
   const [requestedVisibleDateRange, setRequestedVisibleDateRange] = useState(initialVisibleRangeState.range)
+  const [selectedVisibleRangePreset, setSelectedVisibleRangePreset] = useState(initialVisibleRangeState.preset)
   // 时间范围选择器状态（0-100的百分比）
   const [dateRange, setDateRange] = useState([0, 100])
 
@@ -146,6 +151,7 @@ function MomentumStrategy() {
     setVisibleRangeError(nextVisibleRangeState.error)
     setActiveBacktestRange(nextState.range)
     setRequestedVisibleDateRange(nextVisibleRangeState.range)
+    setSelectedVisibleRangePreset(nextVisibleRangeState.preset)
     if (nextVisibleRangeState.range) {
       saveMomentumVisibleRangeToStorage(window.localStorage, nextVisibleRangeState.range)
     }
@@ -156,6 +162,23 @@ function MomentumStrategy() {
 
   useEffect(() => {
     if (performanceData.length === 0) {
+      return
+    }
+
+    if (selectedVisibleRangePreset) {
+      const nextVisibleDateRange = getMomentumVisibleDateRangeByPreset(
+        performanceData,
+        selectedVisibleRangePreset,
+      )
+      const nextDateRange = getMomentumDateRangePercentByDateRange(performanceData, nextVisibleDateRange)
+      if (!nextDateRange) {
+        setDateRange([0, 100])
+        setVisibleRangeError('动量策略快捷时间范围不在当前收益曲线内')
+        return
+      }
+
+      setDateRange(nextDateRange)
+      setVisibleRangeError(null)
       return
     }
 
@@ -172,7 +195,8 @@ function MomentumStrategy() {
     }
 
     setDateRange(nextDateRange)
-  }, [performanceData, requestedVisibleDateRange])
+    setVisibleRangeError(null)
+  }, [performanceData, requestedVisibleDateRange, selectedVisibleRangePreset])
 
   /**
    * 执行回测
@@ -365,6 +389,8 @@ function MomentumStrategy() {
     const nextVisibleDateRange = isFullRange
       ? null
       : getMomentumVisibleDateRange(performanceData, nextDateRange)
+    setRequestedVisibleDateRange(nextVisibleDateRange)
+    setSelectedVisibleRangePreset(null)
     saveMomentumVisibleRangeToStorage(window.localStorage, nextVisibleDateRange)
     setSearchParams(
       upsertMomentumVisibleRangeSearchParams(searchParams, nextVisibleDateRange),
@@ -380,6 +406,26 @@ function MomentumStrategy() {
   // 拖动完成后把当前可视时间范围保存到地址栏。
   const handleDateRangeChangeComplete = (nextDateRange) => {
     persistVisibleDateRange(nextDateRange)
+  }
+
+  // 选择快捷范围后保存快捷项本身，刷新页面时再基于最新交易日动态计算。
+  const handleVisibleRangePresetChange = (preset) => {
+    const nextVisibleDateRange = getMomentumVisibleDateRangeByPreset(performanceData, preset)
+    const nextDateRange = getMomentumDateRangePercentByDateRange(performanceData, nextVisibleDateRange)
+    if (!nextDateRange) {
+      setVisibleRangeError('动量策略快捷时间范围不在当前收益曲线内')
+      return
+    }
+
+    setDateRange(nextDateRange)
+    setRequestedVisibleDateRange(null)
+    setSelectedVisibleRangePreset(preset)
+    setVisibleRangeError(null)
+    saveMomentumVisibleRangePresetToStorage(window.localStorage, preset)
+    setSearchParams(
+      upsertMomentumVisibleRangeSearchParams(searchParams, null),
+      { replace: true },
+    )
   }
 
   // 重置为完整收益曲线，同时清除地址栏中的可视时间范围。
@@ -591,36 +637,37 @@ function MomentumStrategy() {
         {performanceData.length > 0 ? (
           <>
             {/* 时间范围选择器 */}
-            <div className="terminal-section-gap">
-              <Row gutter={16} align="middle">
-                <Col xs={24} sm={4} lg={2}>
-                  <span className="terminal-muted-text terminal-small-text">时间范围:</span>
-                </Col>
-                <Col xs={24} sm={16} lg={20}>
-                  <Slider
-                    range
-                    value={dateRange}
-                    onChange={handleDateRangeChange}
-                    onChangeComplete={handleDateRangeChangeComplete}
-                    marks={sliderMarks}
-                    tooltip={{
-                      formatter: (value) => {
-                        if (sortedPerformanceData.length === 0) return ''
-                        const index = Math.floor((value / 100) * sortedPerformanceData.length)
-                        return formatDate(sortedPerformanceData[Math.min(index, sortedPerformanceData.length - 1)].date)
-                      }
-                    }}
-                  />
-                </Col>
-                <Col xs={24} sm={4} lg={2}>
-                  <Button 
-                    size="small" 
-                    onClick={handleResetDateRange}
-                  >
-                    重置
-                  </Button>
-                </Col>
-              </Row>
+            <div className="momentum-range-controls terminal-section-gap">
+              <div className="momentum-range-toolbar">
+                <span className="terminal-muted-text terminal-small-text">时间范围:</span>
+                <Segmented
+                  className="momentum-range-presets"
+                  size="small"
+                  value={selectedVisibleRangePreset}
+                  options={MOMENTUM_VISIBLE_RANGE_PRESET_OPTIONS}
+                  onChange={handleVisibleRangePresetChange}
+                />
+                <Button
+                  size="small"
+                  onClick={handleResetDateRange}
+                >
+                  重置
+                </Button>
+              </div>
+              <Slider
+                className="momentum-range-slider"
+                range
+                value={dateRange}
+                onChange={handleDateRangeChange}
+                onChangeComplete={handleDateRangeChangeComplete}
+                marks={sliderMarks}
+                tooltip={{
+                  formatter: (value) => {
+                    const date = getMomentumPerformanceDateByPercent(sortedPerformanceData, value)
+                    return date ? formatDate(date) : ''
+                  }
+                }}
+              />
             </div>
 
             {/* 图表 */}

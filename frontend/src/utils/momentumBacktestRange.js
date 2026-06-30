@@ -4,6 +4,34 @@ const VIEW_START_DATE_PARAM = 'viewStartDate'
 const VIEW_END_DATE_PARAM = 'viewEndDate'
 const VISIBLE_RANGE_STORAGE_KEY = 'momentumStrategy.visibleDateRange'
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+const VISIBLE_RANGE_STORAGE_TYPES = {
+  RANGE: 'range',
+  PRESET: 'preset',
+}
+
+export const MOMENTUM_VISIBLE_RANGE_PRESETS = Object.freeze({
+  THIS_YEAR: 'thisYear',
+  LAST_YEAR: 'lastYear',
+  LAST_THREE_YEARS: 'lastThreeYears',
+  LAST_FIVE_YEARS: 'lastFiveYears',
+})
+
+export const MOMENTUM_VISIBLE_RANGE_PRESET_OPTIONS = [
+  { label: '今年', value: MOMENTUM_VISIBLE_RANGE_PRESETS.THIS_YEAR },
+  { label: '最近一年', value: MOMENTUM_VISIBLE_RANGE_PRESETS.LAST_YEAR },
+  { label: '最近三年', value: MOMENTUM_VISIBLE_RANGE_PRESETS.LAST_THREE_YEARS },
+  { label: '最近五年', value: MOMENTUM_VISIBLE_RANGE_PRESETS.LAST_FIVE_YEARS },
+]
+
+// 判断浏览器保存的快捷时间范围是否属于当前支持的选项。
+function isMomentumVisibleRangePreset(value) {
+  return Object.values(MOMENTUM_VISIBLE_RANGE_PRESETS).includes(value)
+}
+
+// 统一返回页面可直接消费的可视范围偏好结构。
+function createMomentumVisibleRangeState({ range = null, preset = null, error = null } = {}) {
+  return { range, preset, error }
+}
 
 // 解析一组日期值，并返回显式错误信息。
 function getMomentumDateRangeFromValues(startDate, endDate, label, sourceLabel = ' URL 参数') {
@@ -76,28 +104,51 @@ export function upsertMomentumVisibleRangeSearchParams(searchParams, range) {
 export function getMomentumVisibleRangeFromStorage(storage) {
   const savedValue = storage.getItem(VISIBLE_RANGE_STORAGE_KEY)
   if (!savedValue) {
-    return { range: null, error: null }
+    return createMomentumVisibleRangeState()
   }
 
   let parsedValue
   try {
     parsedValue = JSON.parse(savedValue)
   } catch (error) {
-    return { range: null, error: '浏览器保存的动量策略可视时间范围格式错误' }
+    return createMomentumVisibleRangeState({
+      error: '浏览器保存的动量策略可视时间范围格式错误',
+    })
   }
 
-  return getMomentumDateRangeFromValues(
-    parsedValue?.startDate,
-    parsedValue?.endDate,
-    '浏览器保存的动量策略可视时间范围',
-    '保存值',
-  )
+  if (parsedValue?.type === VISIBLE_RANGE_STORAGE_TYPES.PRESET) {
+    if (!isMomentumVisibleRangePreset(parsedValue.preset)) {
+      return createMomentumVisibleRangeState({
+        error: '浏览器保存的动量策略快捷时间范围格式错误',
+      })
+    }
+
+    return createMomentumVisibleRangeState({ preset: parsedValue.preset })
+  }
+
+  if (
+    parsedValue?.type === VISIBLE_RANGE_STORAGE_TYPES.RANGE
+    || Object.prototype.hasOwnProperty.call(parsedValue || {}, 'startDate')
+    || Object.prototype.hasOwnProperty.call(parsedValue || {}, 'endDate')
+  ) {
+    const savedRangeState = getMomentumDateRangeFromValues(
+      parsedValue?.startDate,
+      parsedValue?.endDate,
+      '浏览器保存的动量策略可视时间范围',
+      '保存值',
+    )
+    return createMomentumVisibleRangeState(savedRangeState)
+  }
+
+  return createMomentumVisibleRangeState({
+    error: '浏览器保存的动量策略可视时间范围格式错误',
+  })
 }
 
 export function getMomentumVisibleRangePreference(searchParams, storage) {
   const urlState = getMomentumVisibleRangeFromSearchParams(searchParams)
   if (urlState.range || urlState.error) {
-    return urlState
+    return createMomentumVisibleRangeState(urlState)
   }
 
   return getMomentumVisibleRangeFromStorage(storage)
@@ -110,7 +161,19 @@ export function saveMomentumVisibleRangeToStorage(storage, range) {
   }
 
   storage.setItem(VISIBLE_RANGE_STORAGE_KEY, JSON.stringify({
+    type: VISIBLE_RANGE_STORAGE_TYPES.RANGE,
     startDate: range.startDate,
     endDate: range.endDate,
+  }))
+}
+
+export function saveMomentumVisibleRangePresetToStorage(storage, preset) {
+  if (!isMomentumVisibleRangePreset(preset)) {
+    throw new Error('未知的动量策略快捷时间范围')
+  }
+
+  storage.setItem(VISIBLE_RANGE_STORAGE_KEY, JSON.stringify({
+    type: VISIBLE_RANGE_STORAGE_TYPES.PRESET,
+    preset,
   }))
 }

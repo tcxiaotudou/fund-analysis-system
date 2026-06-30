@@ -2129,6 +2129,30 @@ body {
   border-color: var(--terminal-cyan);
 }
 
+.momentum-range-controls {
+  padding-bottom: 8px;
+}
+
+.momentum-range-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.momentum-range-presets {
+  max-width: 100%;
+}
+
+.momentum-range-presets .ant-segmented-item-label,
+.momentum-range-slider .ant-slider-mark-text {
+  white-space: nowrap;
+}
+
+.momentum-range-slider.ant-slider {
+  margin: 16px 44px 30px;
+}
+
 .terminal-page .ant-alert {
   border-color: rgba(51, 65, 85, 0.72);
   background: rgba(15, 23, 42, 0.95);
