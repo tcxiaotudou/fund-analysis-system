@@ -168,14 +168,14 @@ public class SystemConfigService {
     public void saveFundRecommendationConfigs(Map<String, String> configMap) {
         String conditionId = configMap.get("conditionId");
         if (conditionId == null || conditionId.trim().isEmpty()) {
-            throw new BadRequestException("基金推荐 condition_id 不能为空");
+            throw new BadRequestException("组合Id不能为空");
         }
 
         saveOrUpdateConfig(
                 FUND_RECOMMENDATION_CONDITION_ID_KEY,
                 conditionId.trim(),
                 "fund",
-                "基金推荐条件ID"
+                "组合Id"
         );
         logger.info("批量保存基金推荐配置成功");
     }
@@ -200,7 +200,7 @@ public class SystemConfigService {
     public String getFundRecommendationConditionId() {
         String conditionId = getConfigValue(FUND_RECOMMENDATION_CONDITION_ID_KEY);
         if (conditionId == null || conditionId.trim().isEmpty()) {
-            throw new BadRequestException("未配置基金推荐 condition_id，请先在基金推荐页面保存配置");
+            throw new BadRequestException("未配置组合Id，请先在系统配置页面保存配置");
         }
         return conditionId.trim();
     }

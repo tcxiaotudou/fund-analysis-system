@@ -10,36 +10,46 @@ import { systemConfigApi } from '../services/api'
 
 function SystemConfig() {
   const [form] = Form.useForm()
+  // 配置保存状态
   const [loading, setLoading] = useState(false)
+  // 配置加载状态
   const [loadingData, setLoadingData] = useState(false)
+  // 邮件发送状态
   const [sendingEmail, setSendingEmail] = useState(false)
 
   /**
-   * 加载配置
+   * 加载系统配置
    */
   const loadConfig = async () => {
     try {
       setLoadingData(true)
-      const response = await systemConfigApi.getEmailConfig()
-      
-      if (response.code === 0) {
-        const config = response.data || {}
-        
-        // 将配置填充到表单，密码字段保持空（用于提示用户"不修改则留空"）
-        const formValues = {
-          emailEnabled: config.emailEnabled === 'true' || config.emailEnabled === '1' || config.emailEnabled === true,
-          emailRecipients: config.emailRecipients || '',
-          emailHost: config.emailHost || 'smtp.qq.com',
-          emailPort: config.emailPort || 587,
-          emailUsername: config.emailUsername || '',
-          emailPassword: config.emailPassword,
-          emailSchedule: config.emailSchedule || '12:00,14:50'
-        }
-        form.setFieldsValue(formValues)
-        message.success('配置加载成功')
-      } else {
-        message.error(response.message || '加载配置失败')
+      const [emailResponse, fundRecommendationResponse] = await Promise.all([
+        systemConfigApi.getEmailConfig(),
+        systemConfigApi.getFundRecommendationConfig(),
+      ])
+
+      if (emailResponse.code !== 0) {
+        throw new Error(emailResponse.message || '加载邮件配置失败')
       }
+      if (fundRecommendationResponse.code !== 0) {
+        throw new Error(fundRecommendationResponse.message || '加载基金推荐配置失败')
+      }
+
+      const emailConfig = emailResponse.data || {}
+      const fundRecommendationConfig = fundRecommendationResponse.data || {}
+
+      // 邮箱授权码不回填，避免保存时误覆盖原授权码。
+      form.setFieldsValue({
+        conditionId: fundRecommendationConfig.conditionId || '',
+        emailEnabled: emailConfig.emailEnabled === 'true' || emailConfig.emailEnabled === '1' || emailConfig.emailEnabled === true,
+        emailRecipients: emailConfig.emailRecipients || '',
+        emailHost: emailConfig.emailHost || 'smtp.qq.com',
+        emailPort: emailConfig.emailPort || 587,
+        emailUsername: emailConfig.emailUsername || '',
+        emailPassword: '',
+        emailSchedule: emailConfig.emailSchedule || '12:00,14:50',
+      })
+      message.success('配置加载成功')
     } catch (error) {
       console.error('加载配置异常:', error)
       message.error('加载配置失败: ' + (error.normalizedMessage || error.message || '网络错误'))
@@ -57,26 +67,39 @@ function SystemConfig() {
   }, [])
 
   /**
-   * 提交邮件配置
+   * 提交系统配置
    */
-  const submitEmailConfig = async (values) => {
+  const submitSystemConfig = async (values) => {
     try {
       setLoading(true)
-      
-      // 转换emailEnabled为字符串
-      const configData = {
-        ...values,
+
+      // 拆分不同配置接口需要的字段，避免无关字段进入后端。
+      const emailConfigData = {
         emailEnabled: values.emailEnabled ? 'true' : 'false',
-        emailPort: String(values.emailPort)
+        emailRecipients: values.emailRecipients,
+        emailHost: values.emailHost,
+        emailPort: String(values.emailPort),
+        emailUsername: values.emailUsername,
+        emailPassword: values.emailPassword || '',
+        emailSchedule: values.emailSchedule,
       }
-      
-      const response = await systemConfigApi.saveEmailConfig(configData)
-      
-      if (response.code === 0) {
-        message.success('配置保存成功，定时任务已更新')
-      } else {
-        message.error(response.message || '保存失败')
+      const fundRecommendationConfigData = {
+        conditionId: values.conditionId.trim(),
       }
+
+      const [emailResponse, fundRecommendationResponse] = await Promise.all([
+        systemConfigApi.saveEmailConfig(emailConfigData),
+        systemConfigApi.saveFundRecommendationConfig(fundRecommendationConfigData),
+      ])
+
+      if (emailResponse.code !== 0) {
+        throw new Error(emailResponse.message || '邮件配置保存失败')
+      }
+      if (fundRecommendationResponse.code !== 0) {
+        throw new Error(fundRecommendationResponse.message || '组合Id保存失败')
+      }
+
+      message.success('配置保存成功，定时任务已更新')
     } catch (error) {
       console.error('保存配置失败:', error)
       message.error('保存失败: ' + (error.normalizedMessage || error.message))
@@ -86,17 +109,17 @@ function SystemConfig() {
   }
 
   /**
-   * 保存配置
+   * 保存系统配置
    */
   const handleSave = async () => {
     try {
       const values = await form.validateFields()
       Modal.confirm({
-        title: '确认保存邮件配置？',
-        content: '保存后会立即更新邮件定时任务；邮箱授权码留空时不会修改原授权码。',
+        title: '确认保存系统配置？',
+        content: '保存后会立即更新邮件定时任务；组合Id会用于基金推荐数据刷新；邮箱授权码留空时不会修改原授权码。',
         okText: '保存配置',
         cancelText: '取消',
-        onOk: () => submitEmailConfig(values),
+        onOk: () => submitSystemConfig(values),
       })
     } catch (error) {
       if (!error?.errorFields) {
@@ -112,11 +135,11 @@ function SystemConfig() {
     try {
       setSendingEmail(true)
       message.loading({ content: '正在发送邮件...', key: 'sendEmail', duration: 0 })
-      
+
       const response = await systemConfigApi.sendEmailNow()
-      
+
       message.destroy('sendEmail')
-      
+
       if (response.code === 0) {
         message.success('邮件发送成功！请查收邮箱')
       } else {
@@ -147,18 +170,30 @@ function SystemConfig() {
   return (
     <TerminalPage
       title="系统配置"
-      subtitle="邮件日报、SMTP 和定时发送参数"
+      subtitle="组合Id、邮件日报、SMTP 和定时发送参数"
       status={<span>{loadingData ? '配置加载中' : '配置控制台'}</span>}
     >
 
-      <Card title="邮件发送配置">
+      <Card title="系统参数配置">
         <Form
           form={form}
           layout="vertical"
         >
+          {/* 基金推荐配置 */}
+          <Divider orientation="left">基金推荐配置</Divider>
+
+          <Form.Item
+            name="conditionId"
+            label="组合Id"
+            rules={[{ required: true, message: '请输入组合Id' }]}
+            extra="对应第三方基金推荐接口 condition_id，用于指定基金推荐筛选组合。"
+          >
+            <Input placeholder="例如：2374632" />
+          </Form.Item>
+
           {/* 邮件配置 */}
           <Divider orientation="left">邮件配置</Divider>
-          
+
           <Form.Item
             name="emailEnabled"
             label="启用邮件发送"
@@ -220,22 +255,22 @@ function SystemConfig() {
           {/* 保存按钮 */}
           <Form.Item>
             <Space className="terminal-toolbar" wrap>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 icon={<SaveOutlined />}
                 onClick={handleSave}
                 loading={loading}
               >
                 保存配置
               </Button>
-              <Button 
+              <Button
                 icon={<ReloadOutlined />}
                 onClick={loadConfig}
                 loading={loadingData}
               >
                 重新加载
               </Button>
-              <Button 
+              <Button
                 type="default"
                 icon={<SendOutlined />}
                 onClick={handleSendNow}
@@ -255,6 +290,11 @@ function SystemConfig() {
       {/* 配置说明 */}
       <Card title="配置说明">
         <div className="terminal-copy-block">
+          <h3>基金推荐配置：</h3>
+          <ul>
+            <li><strong>组合Id：</strong>用于第三方基金推荐接口的筛选条件，对应原 condition_id。</li>
+          </ul>
+
           <h3>邮件配置：</h3>
           <ul>
             <li><strong>启用邮件发送：</strong>开启后系统会定期发送分析报告到指定邮箱</li>

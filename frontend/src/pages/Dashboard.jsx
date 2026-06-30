@@ -1,56 +1,24 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, Button, Modal, Space, Spin, Tag, message } from 'antd'
+import { Alert, Button, Modal, Spin, Tag, message } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
-import DashboardActionConsole from '../components/dashboard/DashboardActionConsole'
 import DecisionSummary from '../components/dashboard/DecisionSummary'
 import MarketOverviewWorkbench from '../components/dashboard/MarketOverviewWorkbench'
 import SignalTables, { FundRecommendationPanel } from '../components/dashboard/SignalTables'
-import { adminApi, dashboardApi, systemConfigApi } from '../services/api'
+import { adminApi, dashboardApi } from '../services/api'
 import {
   EMPTY_DASHBOARD_DECISION,
   getDashboardStatusColor,
-  getOperationRoute,
   normalizeDashboardDecision,
 } from '../utils/dashboardDecision'
 
 // 后台刷新状态轮询间隔。
 const REFRESH_STATUS_POLL_INTERVAL = 3000
 
-// 后台刷新标签颜色映射。
-const REFRESH_STATUS_COLORS = {
-  running: 'processing',
-  success: 'success',
-  error: 'error',
-  idle: 'default',
-}
-
 // 判断后台刷新是否仍在运行。
 const isRefreshRunning = (status) => status?.status === 'running'
 
-// 获取后台刷新提示类型。
-const getRefreshAlertType = (status) => {
-  if (status?.status === 'error') return 'error'
-  if (status?.status === 'success') return 'success'
-  return 'info'
-}
-
-// 获取后台刷新时间说明。
-const getRefreshStatusDescription = (status) => {
-  if (!status) return ''
-  const parts = []
-  if (status.startedAt) {
-    parts.push(`开始：${status.startedAt}`)
-  }
-  if (status.finishedAt) {
-    parts.push(`结束：${status.finishedAt}`)
-  }
-  return parts.join('；')
-}
-
 // 决策驾驶舱页面。
 function Dashboard() {
-  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [startingRefresh, setStartingRefresh] = useState(false)
   const [refreshStatus, setRefreshStatus] = useState(null)
@@ -138,36 +106,6 @@ function Dashboard() {
     })
   }, [runRefreshAll])
 
-  // 执行操作队列中的路由或API动作。
-  const handleRunOperation = useCallback(async (operation) => {
-    const route = getOperationRoute(operation)
-    if (route) {
-      navigate(route)
-      return
-    }
-    if (operation.action === 'sendEmailNow') {
-      Modal.confirm({
-        title: '确认发送今日投资分析日报？',
-        content: '该操作会立即向系统配置的收件人发送真实邮件。',
-        okText: '发送日报',
-        cancelText: '取消',
-        onOk: async () => {
-          try {
-            const response = await systemConfigApi.sendEmailNow()
-            if (response.code !== 0) {
-              throw new Error(response.message || '日报发送失败')
-            }
-            message.success('日报发送成功')
-          } catch (error) {
-            message.error(error.normalizedMessage || error.message || '日报发送失败')
-          }
-        },
-      })
-      return
-    }
-    message.error('未知操作类型')
-  }, [navigate])
-
   useEffect(() => {
     loadDashboard()
     loadBackgroundRefreshStatus()
@@ -229,21 +167,6 @@ function Dashboard() {
         </Button>
       </header>
 
-      {refreshStatus && refreshStatus.status !== 'idle' && (
-        <Alert
-          type={getRefreshAlertType(refreshStatus)}
-          showIcon
-          className="dashboard-alert refresh-status-alert"
-          message={
-            <Space size={8} wrap>
-              <span>{refreshStatus.message}</span>
-              <Tag color={REFRESH_STATUS_COLORS[refreshStatus.status] || 'default'}>{refreshStatus.status}</Tag>
-            </Space>
-          }
-          description={getRefreshStatusDescription(refreshStatus)}
-        />
-      )}
-
       {dashboard.dataStatus.moduleErrors.length > 0 && (
         <Alert
           type="warning"
@@ -254,7 +177,7 @@ function Dashboard() {
         />
       )}
 
-      <main className="terminal-board">
+      <main className="terminal-board terminal-board-market-overview">
         <section className="terminal-column terminal-column-left">
           <DecisionSummary decisions={dashboard.decisions} />
           <MarketOverviewWorkbench
@@ -271,10 +194,6 @@ function Dashboard() {
         </section>
 
         <section className="terminal-column terminal-column-right">
-          <DashboardActionConsole
-            operations={dashboard.operations}
-            onRunOperation={handleRunOperation}
-          />
           <FundRecommendationPanel fundRecommendations={dashboard.fundRecommendations} />
         </section>
       </main>

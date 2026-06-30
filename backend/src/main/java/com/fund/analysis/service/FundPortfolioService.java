@@ -328,6 +328,7 @@ public class FundPortfolioService {
         if (rsiValues.isEmpty()) {
             throw new DataUnavailableException("组合RSI历史数据不足");
         }
+        List<String> rsiDates = PortfolioPriceAligner.alignDatesToRsiValues(dates, rsiValues.size());
 
         String fundCodes = holdingFunds.stream()
                 .map(FundInfo::getFundCode)
@@ -338,7 +339,7 @@ public class FundPortfolioService {
 
         int startIndex = Math.max(0, rsiValues.size() - days);
         for (int i = startIndex; i < rsiValues.size(); i++) {
-            String dataDate = dates != null && i < dates.size() ? dates.get(i) : "";
+            String dataDate = rsiDates.get(i);
             BigDecimal rsi14 = rsiValues.get(i);
 
             FundPortfolioRsiHistory history = new FundPortfolioRsiHistory();

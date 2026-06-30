@@ -4,9 +4,9 @@
  */
 import React, { useState, useEffect } from 'react'
 import { Card, Table, Tag, Button, Space, Tooltip, Modal, Input, message } from 'antd'
-import { ReloadOutlined, SaveOutlined, StarOutlined, StarFilled, StopOutlined } from '@ant-design/icons'
+import { ReloadOutlined, StarOutlined, StarFilled, StopOutlined } from '@ant-design/icons'
 import TerminalPage from '../components/TerminalPage'
-import { fundApi, systemConfigApi } from '../services/api'
+import { fundApi } from '../services/api'
 
 const { TextArea } = Input
 
@@ -25,12 +25,6 @@ function FundRecommendation() {
   const [excludeReason, setExcludeReason] = useState('')
   // 已持有基金代码集合
   const [holdings, setHoldings] = useState(new Set())
-  // 基金推荐条件ID
-  const [conditionId, setConditionId] = useState('')
-  // 基金推荐配置加载状态
-  const [configLoading, setConfigLoading] = useState(false)
-  // 基金推荐配置保存状态
-  const [savingConfig, setSavingConfig] = useState(false)
   // 第三方推荐数据刷新状态
   const [refreshingRemote, setRefreshingRemote] = useState(false)
   // 第三方推荐数据刷新阶段
@@ -73,26 +67,6 @@ function FundRecommendation() {
       console.error('加载基金推荐数据失败:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  /**
-   * 加载基金推荐配置
-   */
-  const loadRecommendationConfig = async () => {
-    try {
-      setConfigLoading(true)
-      const response = await systemConfigApi.getFundRecommendationConfig()
-      if (response.code === 0) {
-        setConditionId(response.data?.conditionId || '')
-      } else {
-        message.error(response.message || '加载基金推荐配置失败')
-      }
-    } catch (error) {
-      console.error('加载基金推荐配置失败:', error)
-      message.error('加载基金推荐配置失败: ' + (error.normalizedMessage || error.message || '网络错误'))
-    } finally {
-      setConfigLoading(false)
     }
   }
 
@@ -206,52 +180,12 @@ function FundRecommendation() {
   }
 
   /**
-   * 保存基金推荐条件ID
-   */
-  const handleSaveConditionId = async () => {
-    const nextConditionId = conditionId.trim()
-    if (!nextConditionId) {
-      message.warning('请输入 condition_id')
-      return false
-    }
-
-    try {
-      setSavingConfig(true)
-      const response = await systemConfigApi.saveFundRecommendationConfig({
-        conditionId: nextConditionId,
-      })
-
-      if (response.code === 0) {
-        setConditionId(nextConditionId)
-        message.success('基金推荐配置已保存')
-        return true
-      }
-
-      message.error(response.message || '保存基金推荐配置失败')
-      return false
-    } catch (error) {
-      console.error('保存基金推荐配置失败:', error)
-      message.error('保存基金推荐配置失败: ' + (error.normalizedMessage || error.message || '网络错误'))
-      return false
-    } finally {
-      setSavingConfig(false)
-    }
-  }
-
-  /**
-   * 保存条件ID并重新获取最新基金推荐
+   * 使用系统配置重新获取最新基金推荐
    */
   const runRefreshRecommendations = async () => {
-    setRefreshStage('保存推荐配置中...')
-    const saved = await handleSaveConditionId()
-    if (!saved) {
-      setRefreshStage('')
-      return
-    }
-
     try {
       setRefreshingRemote(true)
-      setRefreshStage('正在从第三方数据源获取最新推荐...')
+      setRefreshStage('正在使用系统配置中的组合Id获取最新推荐...')
       setData([])
       const response = await fundApi.refreshRecommendations()
 
@@ -274,17 +208,12 @@ function FundRecommendation() {
   }
 
   /**
-   * 确认后保存配置并重新获取最新基金推荐
+   * 确认后重新获取最新基金推荐
    */
   const handleRefreshRecommendations = () => {
-    const nextConditionId = conditionId.trim()
-    if (!nextConditionId) {
-      message.warning('请输入 condition_id')
-      return
-    }
     Modal.confirm({
       title: '确认重新获取基金推荐？',
-      content: '系统会先保存当前 condition_id，然后调用第三方基金数据源重新生成推荐列表。',
+      content: '系统会使用系统配置中的组合Id调用第三方基金数据源重新生成推荐列表。',
       okText: '重新获取',
       cancelText: '取消',
       onOk: runRefreshRecommendations,
@@ -294,7 +223,6 @@ function FundRecommendation() {
   useEffect(() => {
     loadData()
     loadBlacklist()
-    loadRecommendationConfig()
   }, [])
 
   /**
@@ -502,33 +430,12 @@ function FundRecommendation() {
       <Card title="基金推荐列表">
         {/* 操作栏 */}
         <Space className="terminal-toolbar" wrap>
-          <div style={{ display: 'inline-flex', maxWidth: '100%' }}>
-            <span className="terminal-input-addon">
-              condition_id
-            </span>
-            <Input
-              placeholder="请输入 condition_id"
-              value={conditionId}
-              onChange={(event) => setConditionId(event.target.value)}
-              disabled={configLoading || savingConfig || refreshingRemote}
-              style={{ width: 220, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
-            />
-          </div>
           {refreshStage && <Tag color={refreshingRemote ? 'processing' : 'success'}>{refreshStage}</Tag>}
-          <Button
-            icon={<SaveOutlined />}
-            onClick={handleSaveConditionId}
-            loading={savingConfig}
-            disabled={configLoading || refreshingRemote}
-          >
-            保存配置
-          </Button>
           <Button 
             type="primary" 
             icon={<ReloadOutlined />}
             onClick={handleRefreshRecommendations}
             loading={refreshingRemote}
-            disabled={configLoading || savingConfig}
           >
             重新获取最新数据
           </Button>
@@ -568,13 +475,28 @@ function FundRecommendation() {
       <Card title="筛选标准说明">
         <div className="terminal-copy-block">
           <h3>本推荐列表的筛选标准：</h3>
-          <ul>
-            <li><strong>数据来源：</strong>第三方基金数据API</li>
-            <li><strong>condition_id：</strong>第三方基金筛选条件 ID，用于指定本次推荐采用哪组筛选条件</li>
-            <li><strong>基金经理去重：</strong>同一基金经理只保留一只基金</li>
-            <li><strong>排序依据：</strong>按<span style={{ color: '#cf1322', fontWeight: 'bold' }}>卡玛比率排名</span>从优到劣排序（排名越小越好）</li>
-            <li><strong>数量限制：</strong>展示前12只基金</li>
-          </ul>
+          <dl className="terminal-definition-list">
+            <div>
+              <dt>数据来源</dt>
+              <dd>第三方基金数据 API</dd>
+            </div>
+            <div>
+              <dt>组合Id</dt>
+              <dd>在系统配置中维护，对应第三方基金筛选条件 condition_id。</dd>
+            </div>
+            <div>
+              <dt>基金经理去重</dt>
+              <dd>同一基金经理只保留一只基金。</dd>
+            </div>
+            <div>
+              <dt>排序依据</dt>
+              <dd>按<span style={{ color: '#cf1322', fontWeight: 'bold' }}>卡玛比率排名</span>从优到劣排序，排名越小越好。</dd>
+            </div>
+            <div>
+              <dt>数量限制</dt>
+              <dd>展示前 12 只基金。</dd>
+            </div>
+          </dl>
 
           <h3 className="terminal-field-offset-xl">关键指标说明：</h3>
           <ul>
@@ -585,7 +507,7 @@ function FundRecommendation() {
           </ul>
 
           <div className="terminal-info-box terminal-info-box-cyan terminal-field-offset-lg">
-            <strong>💡 为什么使用卡玛比率排序？</strong>
+            <strong>为什么使用卡玛比率排序？</strong>
             <p className="terminal-inline-note-space">
               卡玛比率综合考虑了收益和风险（最大回撤），比单纯的收益率排序更能反映基金的长期投资价值。
               卡玛比率高的基金意味着在控制回撤的前提下获得了较好的收益，更适合长期持有。
@@ -593,7 +515,7 @@ function FundRecommendation() {
           </div>
 
           <div className="terminal-info-box terminal-info-box-amber terminal-field-offset-lg">
-            <strong>⚠️ 免责声明：</strong>
+            <strong>免责声明：</strong>
             <p className="terminal-inline-note-space">
               本推荐仅基于历史数据筛选，不构成投资建议。
               历史业绩不代表未来表现，投资需谨慎。

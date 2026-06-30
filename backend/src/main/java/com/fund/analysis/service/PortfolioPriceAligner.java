@@ -67,6 +67,28 @@ class PortfolioPriceAligner {
     }
 
     /**
+     * 将 RSI 结果按尾部价格日期对齐。
+     *
+     * @param dates 价格日期列表
+     * @param rsiValueCount RSI 结果数量
+     * @return 与 RSI 结果一一对应的日期列表
+     */
+    static List<String> alignDatesToRsiValues(List<String> dates, int rsiValueCount) {
+        if (dates == null || dates.isEmpty()) {
+            throw new DataUnavailableException("价格日期为空，无法对齐组合RSI日期");
+        }
+        if (rsiValueCount < 0 || rsiValueCount > dates.size()) {
+            throw new DataUnavailableException("组合RSI数量与价格日期数量不一致");
+        }
+        if (rsiValueCount == 0) {
+            return new ArrayList<>();
+        }
+
+        int startIndex = dates.size() - rsiValueCount;
+        return new ArrayList<>(dates.subList(startIndex, dates.size()));
+    }
+
+    /**
      * 单只基金的日期价格序列
      */
     static class FundPriceSeries {

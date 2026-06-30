@@ -30,11 +30,11 @@ function FundPortfolio() {
     try {
       setLoading(true)
       const response = await portfolioApi.getHoldingFunds()
-      
+
       if (response.code === 0) {
         const funds = response.data || []
         setHoldingFunds(funds)
-        
+
         // 初始化权重数据
         const initialWeights = {}
         funds.forEach(fund => {
@@ -59,7 +59,7 @@ function FundPortfolio() {
     try {
       setRsiLoading(true)
       const response = await portfolioApi.getPortfolioRsi()
-      
+
       if (response.code === 0) {
         setRsiData(response.data)
       } else {
@@ -80,7 +80,7 @@ function FundPortfolio() {
     try {
       setRsiHistoryLoading(true)
       const response = await portfolioApi.getPortfolioRsiHistory(60)
-      
+
       if (response.code === 0) {
         // 按日期排序
         const sortedData = (response.data || []).sort((a, b) => {
@@ -142,7 +142,7 @@ function FundPortfolio() {
   const handleRemoveHolding = async (fundCode) => {
     try {
       const response = await fundApi.updateHoldingStatus(fundCode, 0)
-      
+
       if (response.code === 0) {
         message.success('已取消持有')
         await refreshPortfolioData()
@@ -179,7 +179,7 @@ function FundPortfolio() {
 
     try {
       const response = await fundApi.addHoldingFund(fundCode.trim(), fundName.trim())
-      
+
       if (response.code === 0) {
         message.success('基金已添加')
         setAddModalVisible(false)
@@ -256,7 +256,7 @@ function FundPortfolio() {
 
       setSavingWeights(true)
       const response = await portfolioApi.updateWeights(weights)
-      
+
       if (response.code === 0) {
         message.success('权重保存成功')
         setEditingWeights(false)
@@ -304,8 +304,8 @@ function FundPortfolio() {
           权重 (%)
           {editingWeights && (
             <Tooltip title={`总和: ${getTotalWeight().toFixed(2)}%`}>
-              <span style={{ 
-                marginLeft: 8, 
+              <span style={{
+                marginLeft: 8,
                 color: Math.abs(getTotalWeight() - 100) < 0.01 ? '#52c41a' : '#ff4d4f',
                 fontWeight: 'bold'
               }}>
@@ -458,8 +458,8 @@ function FundPortfolio() {
       fixed: 'right',
       className: 'terminal-theme-action-column',
       render: (_, record) => (
-        <Button 
-          type="link" 
+        <Button
+          type="link"
           size="small"
           danger
           icon={<DeleteOutlined />}
@@ -498,6 +498,11 @@ function FundPortfolio() {
     return { text: '中性区间', color: 'var(--terminal-dim)' }
   }
 
+  // 图表最后一个 RSI 点的日期。
+  const latestRsiHistoryDate = rsiHistoryData.length > 0
+    ? rsiHistoryData[rsiHistoryData.length - 1]?.date
+    : null
+
   return (
     <TerminalPage
       title="基金组合"
@@ -506,7 +511,7 @@ function FundPortfolio() {
     >
 
       {/* 组合 RSI 指标 */}
-      <Card 
+      <Card
         title={
           <span>
             <LineChartOutlined style={{ marginRight: 8 }} />
@@ -514,8 +519,8 @@ function FundPortfolio() {
           </span>
         }
         extra={
-          <Button 
-            type="link" 
+          <Button
+            type="link"
             icon={<ReloadOutlined spin={rsiLoading} />}
             onClick={refreshPortfolioRsi}
             loading={rsiLoading}
@@ -568,7 +573,7 @@ function FundPortfolio() {
               </div>
             )}
             <div className="terminal-small-text terminal-field-offset">
-              基金数量: {rsiData.fundCount || 0} | 
+              基金数量: {rsiData.fundCount || 0} |
               更新时间: {rsiData.updateTime ? new Date(rsiData.updateTime).toLocaleString('zh-CN') : '-'}
             </div>
           </>
@@ -580,7 +585,7 @@ function FundPortfolio() {
       </Card>
 
       {/* 组合 RSI 历史趋势 */}
-      <Card 
+      <Card
         title={
           <span>
             <LineChartOutlined style={{ marginRight: 8 }} />
@@ -588,8 +593,8 @@ function FundPortfolio() {
           </span>
         }
         extra={
-          <Button 
-            type="link" 
+          <Button
+            type="link"
             icon={<ReloadOutlined spin={rsiHistoryLoading} />}
             onClick={loadPortfolioRsiHistory}
             loading={rsiHistoryLoading}
@@ -606,69 +611,77 @@ function FundPortfolio() {
             </Spin>
           </div>
         ) : rsiHistoryData.length > 0 ? (
-          <div className="terminal-chart-box" style={{ height: 400 }}>
-            <ResponsiveContainer>
-              <LineChart
-                data={rsiHistoryData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fontSize: 12 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                />
-                <YAxis 
-                  domain={[0, 100]}
-                  ticks={[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]}
-                  tick={{ fontSize: 12 }}
-                />
-                <RechartsTooltip 
-                  formatter={(value) => [value.toFixed(2), 'RSI']}
-                  labelStyle={{ color: '#e2e8f0' }}
-                />
-                <Legend />
-                
-                {/* 关键水平线 - 虚线标注 */}
-                <ReferenceLine 
-                  y={30} 
-                  stroke="#52c41a" 
-                  strokeDasharray="5 5"
-                  label={{ value: '超卖 (30)', position: 'right', fill: '#52c41a', fontSize: 12 }}
-                />
-                <ReferenceLine 
-                  y={40} 
-                  stroke="#1890ff" 
-                  strokeDasharray="5 5"
-                  label={{ value: '低位 (40)', position: 'right', fill: '#1890ff', fontSize: 12 }}
-                />
-                <ReferenceLine 
-                  y={60} 
-                  stroke="#fa8c16" 
-                  strokeDasharray="5 5"
-                  label={{ value: '高位 (60)', position: 'right', fill: '#fa8c16', fontSize: 12 }}
-                />
-                <ReferenceLine 
-                  y={70} 
-                  stroke="#cf1322" 
-                  strokeDasharray="5 5"
-                  label={{ value: '超买 (70)', position: 'right', fill: '#cf1322', fontSize: 12 }}
-                />
-                
-                {/* RSI 曲线 */}
-                <Line 
-                  type="monotone" 
-                  dataKey="rsi" 
-                  stroke="#1890ff" 
-                  strokeWidth={2}
-                  dot={false}
-                  name="14日 RSI"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <>
+            <div className="terminal-chart-box" style={{ height: 400 }}>
+              <ResponsiveContainer>
+                <LineChart
+                  data={rsiHistoryData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    ticks={[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <RechartsTooltip
+                    formatter={(value) => [value.toFixed(2), 'RSI']}
+                    labelStyle={{ color: '#e2e8f0' }}
+                  />
+                  <Legend />
+
+                  {/* 关键水平线 - 虚线标注 */}
+                  <ReferenceLine
+                    y={30}
+                    stroke="#52c41a"
+                    strokeDasharray="5 5"
+                    label={{ value: '超卖 (30)', position: 'right', fill: '#52c41a', fontSize: 12 }}
+                  />
+                  <ReferenceLine
+                    y={40}
+                    stroke="#1890ff"
+                    strokeDasharray="5 5"
+                    label={{ value: '低位 (40)', position: 'right', fill: '#1890ff', fontSize: 12 }}
+                  />
+                  <ReferenceLine
+                    y={60}
+                    stroke="#fa8c16"
+                    strokeDasharray="5 5"
+                    label={{ value: '高位 (60)', position: 'right', fill: '#fa8c16', fontSize: 12 }}
+                  />
+                  <ReferenceLine
+                    y={70}
+                    stroke="#cf1322"
+                    strokeDasharray="5 5"
+                    label={{ value: '超买 (70)', position: 'right', fill: '#cf1322', fontSize: 12 }}
+                  />
+
+                  {/* RSI 曲线 */}
+                  <Line
+                    type="monotone"
+                    dataKey="rsi"
+                    stroke="#1890ff"
+                    strokeWidth={2}
+                    dot={false}
+                    name="14日 RSI"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="terminal-info-box terminal-field-offset-lg">
+              <strong>图表更新说明：</strong>
+              <p className="terminal-inline-note-space">
+                最新点：{latestRsiHistoryDate || '-'}。组合 RSI 历史按全部持仓基金的共同净值日期计算；若 QDII 或个别基金净值披露延迟，图表日期会晚于系统刷新时间。
+              </p>
+            </div>
+          </>
         ) : (
           <div className="terminal-empty-state">
             暂无历史数据，请先添加持有基金
@@ -680,8 +693,8 @@ function FundPortfolio() {
       <Card>
         {/* 操作栏 */}
         <Space className="terminal-toolbar" wrap>
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             icon={<ReloadOutlined />}
             onClick={refreshPortfolioData}
             loading={loading || rsiLoading || rsiHistoryLoading}
@@ -689,8 +702,8 @@ function FundPortfolio() {
           >
             刷新数据
           </Button>
-          <Button 
-            type="default" 
+          <Button
+            type="default"
             icon={<PlusOutlined />}
             onClick={showAddModal}
             disabled={editingWeights}
@@ -698,8 +711,8 @@ function FundPortfolio() {
             添加基金
           </Button>
           {!editingWeights ? (
-            <Button 
-              type="default" 
+            <Button
+              type="default"
               icon={<EditOutlined />}
               onClick={startEditWeights}
               disabled={holdingFunds.length === 0}
@@ -708,15 +721,15 @@ function FundPortfolio() {
             </Button>
           ) : (
             <>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 icon={<SaveOutlined />}
                 onClick={saveWeights}
                 loading={savingWeights}
               >
                 保存权重
               </Button>
-              <Button 
+              <Button
                 onClick={cancelEditWeights}
                 disabled={savingWeights}
               >

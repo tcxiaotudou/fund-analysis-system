@@ -13,6 +13,7 @@ import {
   getMomentumBacktestRangeFromSearchParams,
 } from '../utils/momentumBacktestRange'
 import {
+  calculateMomentumPerformanceSummary,
   buildMomentumChartData,
   shouldRenderMomentumMarker,
 } from '../utils/momentumChartData'
@@ -20,6 +21,10 @@ import {
   getDateRangeError,
   getPositiveNumberError,
 } from '../utils/backtestValidation'
+import {
+  formatCurrency,
+  formatPercent,
+} from '../utils/formatters'
 import dayjs from 'dayjs'
 import {
   ComposedChart,
@@ -289,6 +294,11 @@ function MomentumStrategy() {
     () => buildMomentumChartData(performanceData, dateRange, data),
     [performanceData, dateRange, data],
   )
+  // 根据完整收益曲线计算回测摘要。
+  const performanceSummary = useMemo(
+    () => calculateMomentumPerformanceSummary(performanceData),
+    [performanceData],
+  )
   const hasBuyPoints = chartData.some(d => d.buyValue !== null)
   const hasSellPoints = chartData.some(d => d.sellValue !== null)
 
@@ -304,11 +314,6 @@ function MomentumStrategy() {
   // 格式化日期显示
   const formatDate = (dateStr) => {
     return dayjs(dateStr).format('YYYY-MM-DD')
-  }
-
-  // 格式化金额
-  const formatCurrency = (value) => {
-    return `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   }
 
   // 计算排序后的性能数据（用于 Slider marks）
@@ -451,6 +456,24 @@ function MomentumStrategy() {
             <span style={{ color: '#999' }}>累计卖出：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {totalSellQuantity.toLocaleString()}
+            </span>
+          </div>
+          <div className="terminal-stat-chip">
+            <span style={{ color: '#999' }}>开始时间：</span>
+            <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
+              {performanceSummary.startDate || '-'}
+            </span>
+          </div>
+          <div className="terminal-stat-chip">
+            <span style={{ color: '#999' }}>结束时间：</span>
+            <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
+              {performanceSummary.endDate || '-'}
+            </span>
+          </div>
+          <div className="terminal-stat-chip terminal-stat-chip-danger">
+            <span style={{ color: '#ff4d4f' }}>最大回撤：</span>
+            <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#ff4d4f', marginLeft: '8px' }}>
+              {formatPercent(performanceSummary.maxDrawdown)}
             </span>
           </div>
         </Space>
