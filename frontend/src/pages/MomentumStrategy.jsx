@@ -11,10 +11,16 @@ import { momentumStrategyApi } from '../services/api'
 import {
   createMomentumBacktestSearchParams,
   getMomentumBacktestRangeFromSearchParams,
+  getMomentumVisibleRangeFromSearchParams,
+  upsertMomentumVisibleRangeSearchParams,
 } from '../utils/momentumBacktestRange'
 import {
+  calculateMomentumTransactionSummary,
   calculateMomentumPerformanceSummary,
   buildMomentumChartData,
+  filterMomentumTransactionsByVisibleDateRange,
+  getMomentumDateRangePercentByDateRange,
+  getMomentumVisibleDateRange,
   shouldRenderMomentumMarker,
 } from '../utils/momentumChartData'
 import {
@@ -46,8 +52,13 @@ function MomentumStrategy() {
     () => getMomentumBacktestRangeFromSearchParams(searchParams),
     [searchParams],
   )
+  const initialVisibleRangeState = useMemo(
+    () => getMomentumVisibleRangeFromSearchParams(searchParams),
+    [searchParams],
+  )
   const initialBacktestRange = initialBacktestState.range
   const [urlRangeError, setUrlRangeError] = useState(initialBacktestState.error)
+  const [visibleRangeError, setVisibleRangeError] = useState(initialVisibleRangeState.error)
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState([])
   const [performanceData, setPerformanceData] = useState([])
@@ -62,6 +73,7 @@ function MomentumStrategy() {
   ))
   const [initialCapital, setInitialCapital] = useState(100000)
   const [activeBacktestRange, setActiveBacktestRange] = useState(initialBacktestRange)
+  const [requestedVisibleDateRange, setRequestedVisibleDateRange] = useState(initialVisibleRangeState.range)
   // 时间范围选择器状态（0-100的百分比）
   const [dateRange, setDateRange] = useState([0, 100])
 
@@ -104,10 +116,6 @@ function MomentumStrategy() {
       if (response.code === 0) {
         const perfData = response.data || []
         setPerformanceData(perfData)
-        // 如果有数据，重置时间范围选择器
-        if (perfData.length > 0) {
-          setDateRange([0, 100])
-        }
         return true
       } else {
         message.error(response.message || '加载收益曲线数据失败')
@@ -132,12 +140,35 @@ function MomentumStrategy() {
 
   useEffect(() => {
     const nextState = getMomentumBacktestRangeFromSearchParams(searchParams)
+    const nextVisibleRangeState = getMomentumVisibleRangeFromSearchParams(searchParams)
     setUrlRangeError(nextState.error)
+    setVisibleRangeError(nextVisibleRangeState.error)
     setActiveBacktestRange(nextState.range)
+    setRequestedVisibleDateRange(nextVisibleRangeState.range)
     setBacktestStartDate(nextState.range ? dayjs(nextState.range.startDate) : null)
     setBacktestEndDate(nextState.range ? dayjs(nextState.range.endDate) : null)
     reloadStrategyData(nextState.range)
   }, [searchParams])
+
+  useEffect(() => {
+    if (performanceData.length === 0) {
+      return
+    }
+
+    if (!requestedVisibleDateRange) {
+      setDateRange([0, 100])
+      return
+    }
+
+    const nextDateRange = getMomentumDateRangePercentByDateRange(performanceData, requestedVisibleDateRange)
+    if (!nextDateRange) {
+      setDateRange([0, 100])
+      setVisibleRangeError('动量策略可视时间范围不在当前收益曲线内')
+      return
+    }
+
+    setDateRange(nextDateRange)
+  }, [performanceData, requestedVisibleDateRange])
 
   /**
    * 执行回测
@@ -277,27 +308,35 @@ function MomentumStrategy() {
     },
   ]
 
-  // 计算统计信息
-  const buyCount = data.filter(item => item.type === 'buy').length
-  const sellCount = data.filter(item => item.type === 'sell').length
-  const totalBuyQuantity = data
-    .filter(item => item.type === 'buy')
-    .reduce((sum, item) => sum + (item.quantity || 0), 0)
-  const totalSellQuantity = Math.abs(
-    data
-      .filter(item => item.type === 'sell')
-      .reduce((sum, item) => sum + (item.quantity || 0), 0)
+  // 当前滑块对应的实际日期边界。
+  const visibleDateRange = useMemo(
+    () => getMomentumVisibleDateRange(performanceData, dateRange),
+    [performanceData, dateRange],
+  )
+  // 当前可视日期边界内的交易记录，曲线缺失时保留原交易表行为。
+  const visibleTransactions = useMemo(
+    () => (
+      visibleDateRange
+        ? filterMomentumTransactionsByVisibleDateRange(data, visibleDateRange)
+        : data
+    ),
+    [data, visibleDateRange],
+  )
+  // 计算当前可视时间范围的交易统计信息。
+  const transactionSummary = useMemo(
+    () => calculateMomentumTransactionSummary(visibleTransactions),
+    [visibleTransactions],
   )
 
   // 处理图表数据：资金曲线和买卖点必须共用同一份每日绩效数据源
   const chartData = useMemo(
-    () => buildMomentumChartData(performanceData, dateRange, data),
-    [performanceData, dateRange, data],
+    () => buildMomentumChartData(performanceData, dateRange, visibleTransactions),
+    [performanceData, dateRange, visibleTransactions],
   )
-  // 根据完整收益曲线计算回测摘要。
+  // 根据当前可视收益曲线计算回测摘要。
   const performanceSummary = useMemo(
-    () => calculateMomentumPerformanceSummary(performanceData),
-    [performanceData],
+    () => calculateMomentumPerformanceSummary(chartData),
+    [chartData],
   )
   const hasBuyPoints = chartData.some(d => d.buyValue !== null)
   const hasSellPoints = chartData.some(d => d.sellValue !== null)
@@ -314,6 +353,35 @@ function MomentumStrategy() {
   // 格式化日期显示
   const formatDate = (dateStr) => {
     return dayjs(dateStr).format('YYYY-MM-DD')
+  }
+
+  // 将当前可视日期边界写入地址栏，用于刷新页面后恢复滑块状态。
+  const persistVisibleDateRange = (nextDateRange) => {
+    const isFullRange = nextDateRange[0] <= 0 && nextDateRange[1] >= 100
+    const nextVisibleDateRange = isFullRange
+      ? null
+      : getMomentumVisibleDateRange(performanceData, nextDateRange)
+    setSearchParams(
+      upsertMomentumVisibleRangeSearchParams(searchParams, nextVisibleDateRange),
+      { replace: true },
+    )
+  }
+
+  // 响应滑块拖动并即时刷新页面上的统计、曲线和交易表。
+  const handleDateRangeChange = (nextDateRange) => {
+    setDateRange(nextDateRange)
+  }
+
+  // 拖动完成后把当前可视时间范围保存到地址栏。
+  const handleDateRangeChangeComplete = (nextDateRange) => {
+    persistVisibleDateRange(nextDateRange)
+  }
+
+  // 重置为完整收益曲线，同时清除地址栏中的可视时间范围。
+  const handleResetDateRange = () => {
+    const fullDateRange = [0, 100]
+    setDateRange(fullDateRange)
+    persistVisibleDateRange(fullDateRange)
   }
 
   // 计算排序后的性能数据（用于 Slider marks）
@@ -413,7 +481,7 @@ function MomentumStrategy() {
     <TerminalPage
       title="21日动量策略"
       subtitle="ETF 轮动交易记录、资金曲线和回测区间"
-      status={<span>交易 {data.length} / 买入 {buyCount} / 卖出 {sellCount}</span>}
+      status={<span>交易 {transactionSummary.totalCount} / 买入 {transactionSummary.buyCount} / 卖出 {transactionSummary.sellCount}</span>}
     >
       {urlRangeError && (
         <Alert
@@ -424,6 +492,15 @@ function MomentumStrategy() {
           className="terminal-section-gap"
         />
       )}
+      {visibleRangeError && (
+        <Alert
+          type="error"
+          showIcon
+          message="可视时间范围参数错误"
+          description={visibleRangeError}
+          className="terminal-section-gap"
+        />
+      )}
 
       {/* 统计信息卡片 */}
       <Card className="terminal-section-gap">
@@ -431,31 +508,43 @@ function MomentumStrategy() {
           <div className="terminal-stat-chip">
             <span style={{ color: '#999' }}>总交易次数：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
-              {data.length}
+              {transactionSummary.totalCount}
             </span>
           </div>
           <div className="terminal-stat-chip">
             <span style={{ color: '#52c41a' }}>买入次数：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#52c41a', marginLeft: '8px' }}>
-              {buyCount}
+              {transactionSummary.buyCount}
             </span>
           </div>
           <div className="terminal-stat-chip">
             <span style={{ color: '#ff4d4f' }}>卖出次数：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#ff4d4f', marginLeft: '8px' }}>
-              {sellCount}
+              {transactionSummary.sellCount}
             </span>
           </div>
           <div className="terminal-stat-chip">
             <span style={{ color: '#999' }}>累计买入：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
-              {totalBuyQuantity.toLocaleString()}
+              {transactionSummary.totalBuyQuantity.toLocaleString()}
             </span>
           </div>
           <div className="terminal-stat-chip">
             <span style={{ color: '#999' }}>累计卖出：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
-              {totalSellQuantity.toLocaleString()}
+              {transactionSummary.totalSellQuantity.toLocaleString()}
+            </span>
+          </div>
+          <div className="terminal-stat-chip">
+            <span style={{ color: '#999' }}>收益率：</span>
+            <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
+              {formatPercent(performanceSummary.totalReturn)}
+            </span>
+          </div>
+          <div className="terminal-stat-chip">
+            <span style={{ color: '#999' }}>年化收益率：</span>
+            <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
+              {formatPercent(performanceSummary.annualizedReturn)}
             </span>
           </div>
           <div className="terminal-stat-chip">
@@ -506,7 +595,8 @@ function MomentumStrategy() {
                   <Slider
                     range
                     value={dateRange}
-                    onChange={setDateRange}
+                    onChange={handleDateRangeChange}
+                    onChangeComplete={handleDateRangeChangeComplete}
                     marks={sliderMarks}
                     tooltip={{
                       formatter: (value) => {
@@ -520,7 +610,7 @@ function MomentumStrategy() {
                 <Col xs={24} sm={4} lg={2}>
                   <Button 
                     size="small" 
-                    onClick={() => setDateRange([0, 100])}
+                    onClick={handleResetDateRange}
                   >
                     重置
                   </Button>
@@ -652,7 +742,7 @@ function MomentumStrategy() {
         {/* 数据表格 */}
         <Table
           columns={columns}
-          dataSource={data}
+          dataSource={visibleTransactions}
           rowKey={(record) => `${record.date}-${record.code}-${record.type}-${record.quantity}-${record.price}`}
           loading={loading}
           scroll={{ x: 1000 }}

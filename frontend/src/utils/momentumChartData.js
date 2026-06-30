@@ -1,5 +1,117 @@
 import dayjs from 'dayjs'
 
+// 按交易日升序排列动量策略每日绩效数据。
+function sortMomentumPerformanceData(performanceData) {
+  return [...performanceData].sort((a, b) => {
+    const dateA = dayjs(a.date)
+    const dateB = dayjs(b.date)
+    if (dateA.isBefore(dateB)) return -1
+    if (dateA.isAfter(dateB)) return 1
+    return 0
+  })
+}
+
+// 根据百分比滑块区间截取当前可视的每日绩效数据。
+export function getMomentumVisiblePerformanceData(performanceData, dateRange) {
+  if (!performanceData || performanceData.length === 0) {
+    return []
+  }
+
+  const sortedData = sortMomentumPerformanceData(performanceData)
+  const totalLength = sortedData.length
+  const startIndex = Math.floor((dateRange[0] / 100) * totalLength)
+  const endIndex = Math.ceil((dateRange[1] / 100) * totalLength)
+
+  return sortedData.slice(startIndex, endIndex)
+}
+
+// 根据百分比滑块区间换算当前可视的实际日期边界。
+export function getMomentumVisibleDateRange(performanceData, dateRange) {
+  const visibleData = getMomentumVisiblePerformanceData(performanceData, dateRange)
+  if (visibleData.length === 0) {
+    return null
+  }
+
+  return {
+    startDate: visibleData[0].date,
+    endDate: visibleData[visibleData.length - 1].date,
+  }
+}
+
+// 将 URL 中保存的实际日期边界还原为 Slider 使用的百分比区间。
+export function getMomentumDateRangePercentByDateRange(performanceData, visibleDateRange) {
+  if (!performanceData || performanceData.length === 0 || !visibleDateRange) {
+    return null
+  }
+
+  const sortedData = sortMomentumPerformanceData(performanceData)
+  const startIndex = sortedData.findIndex(item => item.date === visibleDateRange.startDate)
+  const endIndex = sortedData.findIndex(item => item.date === visibleDateRange.endDate)
+  if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
+    return null
+  }
+
+  const totalLength = sortedData.length
+  return [
+    (startIndex / totalLength) * 100,
+    ((endIndex + 1) / totalLength) * 100,
+  ]
+}
+
+// 只保留当前可视日期边界内的动量策略交易记录。
+export function filterMomentumTransactionsByVisibleDateRange(transactions, visibleDateRange) {
+  if (!transactions || transactions.length === 0 || !visibleDateRange) {
+    return []
+  }
+
+  return transactions.filter(item => (
+    item.date >= visibleDateRange.startDate && item.date <= visibleDateRange.endDate
+  ))
+}
+
+// 汇总当前交易记录列表的买卖次数和数量。
+export function calculateMomentumTransactionSummary(transactions) {
+  const safeTransactions = transactions || []
+  const buyTransactions = safeTransactions.filter(item => item.type === 'buy')
+  const sellTransactions = safeTransactions.filter(item => item.type === 'sell')
+  const totalBuyQuantity = buyTransactions.reduce((sum, item) => sum + (item.quantity || 0), 0)
+  const totalSellQuantity = Math.abs(
+    sellTransactions.reduce((sum, item) => sum + (item.quantity || 0), 0)
+  )
+
+  return {
+    totalCount: safeTransactions.length,
+    buyCount: buyTransactions.length,
+    sellCount: sellTransactions.length,
+    totalBuyQuantity,
+    totalSellQuantity,
+  }
+}
+
+// 根据起止资产值和自然日间隔计算当前区间收益率。
+function calculateMomentumReturnMetrics(startDate, endDate, startValue, endValue) {
+  const startTotalValue = Number(startValue)
+  const endTotalValue = Number(endValue)
+  if (!Number.isFinite(startTotalValue) || !Number.isFinite(endTotalValue) || startTotalValue <= 0) {
+    return {
+      totalReturn: null,
+      annualizedReturn: null,
+    }
+  }
+
+  const totalReturn = ((endTotalValue - startTotalValue) / startTotalValue) * 100
+  const totalDays = dayjs(endDate).diff(dayjs(startDate), 'day')
+  const valueRatio = endTotalValue / startTotalValue
+  const annualizedReturn = totalDays > 0 && valueRatio > 0
+    ? (Math.pow(valueRatio, 365 / totalDays) - 1) * 100
+    : null
+
+  return {
+    totalReturn,
+    annualizedReturn,
+  }
+}
+
 // 根据收益曲线计算回测摘要。
 export function calculateMomentumPerformanceSummary(performanceData) {
   if (!performanceData || performanceData.length === 0) {
@@ -8,16 +120,12 @@ export function calculateMomentumPerformanceSummary(performanceData) {
       endDate: null,
       maxDrawdown: null,
       maxDrawdownDate: null,
+      totalReturn: null,
+      annualizedReturn: null,
     }
   }
 
-  const sortedData = [...performanceData].sort((a, b) => {
-    const dateA = dayjs(a.date)
-    const dateB = dayjs(b.date)
-    if (dateA.isBefore(dateB)) return -1
-    if (dateA.isAfter(dateB)) return 1
-    return 0
-  })
+  const sortedData = sortMomentumPerformanceData(performanceData)
 
   let peakValue = null
   let maxDrawdown = 0
@@ -39,11 +147,20 @@ export function calculateMomentumPerformanceSummary(performanceData) {
     }
   })
 
+  const returnMetrics = calculateMomentumReturnMetrics(
+    sortedData[0].date,
+    sortedData[sortedData.length - 1].date,
+    sortedData[0].totalValue,
+    sortedData[sortedData.length - 1].totalValue,
+  )
+
   return {
     startDate: sortedData[0].date,
     endDate: sortedData[sortedData.length - 1].date,
     maxDrawdown,
     maxDrawdownDate,
+    totalReturn: returnMetrics.totalReturn,
+    annualizedReturn: returnMetrics.annualizedReturn,
   }
 }
 
@@ -52,18 +169,7 @@ export function buildMomentumChartData(performanceData, dateRange, transactions)
     return []
   }
 
-  const sortedData = [...performanceData].sort((a, b) => {
-    const dateA = dayjs(a.date)
-    const dateB = dayjs(b.date)
-    if (dateA.isBefore(dateB)) return -1
-    if (dateA.isAfter(dateB)) return 1
-    return 0
-  })
-  const totalLength = sortedData.length
-  const startIndex = Math.floor((dateRange[0] / 100) * totalLength)
-  const endIndex = Math.ceil((dateRange[1] / 100) * totalLength)
-
-  const filteredData = sortedData.slice(startIndex, endIndex).map(item => ({
+  const filteredData = getMomentumVisiblePerformanceData(performanceData, dateRange).map(item => ({
     date: item.date,
     dateValue: dayjs(item.date).valueOf(),
     totalValue: item.totalValue ? parseFloat(item.totalValue) : 0,
