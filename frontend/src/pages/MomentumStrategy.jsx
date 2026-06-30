@@ -347,11 +347,12 @@ function MomentumStrategy() {
       
       return (
         <div style={{
-          backgroundColor: 'rgba(15, 23, 42, 0.96)',
-          border: '1px solid #334155',
+          backgroundColor: '#ffffff',
+          border: '1px solid #dbe4ee',
           borderRadius: '4px',
+          color: '#182536',
           padding: '10px',
-          boxShadow: '0 18px 40px rgba(2,6,23,0.45)',
+          boxShadow: '0 18px 42px rgba(24, 37, 54, 0.14)',
           minWidth: '200px'
         }}>
           <p style={{ margin: 0, fontWeight: 'bold' }}>{formatDate(data.date)}</p>
@@ -362,13 +363,13 @@ function MomentumStrategy() {
             收益率: {data.returnRate ? data.returnRate.toFixed(2) : '0.00'}%
           </p>
           {data.holdingEtfName && (
-            <p style={{ margin: '5px 0', color: '#94a3b8' }}>
+            <p style={{ margin: '5px 0', color: '#53657a' }}>
               持仓: {data.holdingEtfCode} {data.holdingEtfName}
             </p>
           )}
           {/* 显示买卖操作信息 */}
           {(data.buyInfo || data.sellInfo) && (
-            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #334155' }}>
+            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #dbe4ee' }}>
               {data.buyInfo && (
                 <div style={{ marginBottom: data.sellInfo ? '8px' : '0' }}>
                   <p style={{ margin: '3px 0', color: '#52c41a', fontWeight: 'bold' }}>

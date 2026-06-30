@@ -398,7 +398,7 @@ function RsiBacktest() {
                                label={{ value: `买入线(${buyThreshold})`, position: 'right', fill: '#52c41a', fontSize: 11 }} />
                 <ReferenceLine y={sellThreshold} stroke="#ff4d4f" strokeDasharray="5 5"
                                label={{ value: `卖出线(${sellThreshold})`, position: 'right', fill: '#ff4d4f', fontSize: 11 }} />
-                <Area type="monotone" dataKey="rsi" stroke="#1890ff" fill="#22d3ee" fillOpacity={0.12}
+                <Area type="monotone" dataKey="rsi" stroke="#2563eb" fill="#087f8c" fillOpacity={0.12}
                       strokeWidth={1.5} name="RSI" />
                 <Scatter dataKey="buyRsi" fill="#52c41a" name="买入RSI"
                          shape={props => {

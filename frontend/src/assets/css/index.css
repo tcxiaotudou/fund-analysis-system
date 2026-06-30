@@ -13,7 +13,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #020617;
+  background-color: #eef3f8;
 }
 
 #root {
@@ -714,56 +714,56 @@ body {
 /* 终端驾驶舱主题 */
 .app-layout-terminal,
 .app-layout-terminal .ant-layout {
-  background: #020617;
+  background: #eef3f8;
 }
 
 .app-layout-terminal .app-header {
-  background: #06111f;
-  border-bottom: 1px solid #1e293b;
+  background: #f8fafc;
+  border-bottom: 1px solid #dbe4ee;
   box-shadow: none;
-  color: #cbd5e1;
+  color: #243244;
 }
 
 .app-layout-terminal .app-header h1 {
-  color: #e2e8f0;
+  color: #182536;
   letter-spacing: 0;
 }
 
 .app-layout-terminal .app-sider {
-  background: #020617 !important;
-  border-right: 1px solid #1e293b;
+  background: #f8fafc !important;
+  border-right: 1px solid #dbe4ee;
 }
 
 .app-layout-terminal .app-logo {
-  color: #22d3ee;
-  background: #06111f;
-  border-bottom-color: #1e293b;
+  color: #087f8c;
+  background: #f8fafc;
+  border-bottom-color: #dbe4ee;
 }
 
 .app-layout-terminal .app-sider .ant-layout-sider-trigger {
-  background: #06111f;
-  color: #94a3b8;
-  border-right-color: #1e293b;
+  background: #f8fafc;
+  color: #53657a;
+  border-right-color: #dbe4ee;
 }
 
 .app-layout-terminal .ant-menu-dark {
-  background: #020617;
+  background: #f8fafc;
 }
 
 .terminal-dashboard {
-  --terminal-bg: #020617;
-  --terminal-panel: rgba(15, 23, 42, 0.88);
-  --terminal-panel-strong: #0f172a;
-  --terminal-border: #1e293b;
-  --terminal-border-strong: #334155;
-  --terminal-text: #e2e8f0;
-  --terminal-muted: #94a3b8;
-  --terminal-dim: #64748b;
-  --terminal-cyan: #22d3ee;
-  --terminal-blue: #38bdf8;
-  --terminal-green: #22c55e;
-  --terminal-amber: #f59e0b;
-  --terminal-red: #f43f5e;
+  --terminal-bg: #eef3f8;
+  --terminal-panel: #ffffff;
+  --terminal-panel-strong: #f8fafc;
+  --terminal-border: #dbe4ee;
+  --terminal-border-strong: #b9c7d8;
+  --terminal-text: #182536;
+  --terminal-muted: #53657a;
+  --terminal-dim: #718196;
+  --terminal-cyan: #087f8c;
+  --terminal-blue: #2563eb;
+  --terminal-green: #15803d;
+  --terminal-amber: #b45309;
+  --terminal-red: #be123c;
   height: calc(100vh - 84px);
   min-height: 620px;
   display: flex;
@@ -2268,6 +2268,393 @@ body .ant-message .ant-message-notice-content {
   background: #0f172a !important;
   color: #e2e8f0 !important;
   box-shadow: 0 18px 40px rgba(2, 6, 23, 0.45);
+}
+
+/* 终端浅色工作台主题覆盖层 */
+.app-layout-terminal .ant-menu-dark,
+.app-layout-terminal .ant-menu-dark .ant-menu-sub,
+.app-layout-terminal .ant-menu-dark .ant-menu-item {
+  background: #f8fafc;
+  color: #53657a;
+}
+
+.app-layout-terminal .ant-menu-dark .ant-menu-item-group-title {
+  color: #718196;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.app-layout-terminal .ant-menu-dark .ant-menu-item .anticon {
+  color: #718196;
+}
+
+.app-layout-terminal .ant-menu-dark .ant-menu-item:hover,
+.app-layout-terminal .ant-menu-dark .ant-menu-item-active {
+  background: #edf6f8 !important;
+  color: #087f8c !important;
+}
+
+.app-layout-terminal .ant-menu-dark .ant-menu-item:hover .anticon,
+.app-layout-terminal .ant-menu-dark .ant-menu-item-active .anticon,
+.app-layout-terminal .ant-menu-dark .ant-menu-item-selected .anticon {
+  color: #087f8c;
+}
+
+.app-layout-terminal .ant-menu-dark .ant-menu-item-selected {
+  background: #dff3f5 !important;
+  color: #075f69 !important;
+}
+
+.dashboard-command-bar {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 10px 26px rgba(24, 37, 54, 0.08);
+}
+
+.terminal-live-dot {
+  box-shadow: 0 0 0 3px rgba(8, 127, 140, 0.12);
+}
+
+.dashboard-command-bar .ant-btn {
+  border-color: rgba(8, 127, 140, 0.34);
+  background: rgba(8, 127, 140, 0.08);
+  color: #075f69;
+}
+
+.dashboard-command-bar .ant-btn:hover,
+.dashboard-command-bar .ant-btn:focus {
+  border-color: rgba(8, 127, 140, 0.56) !important;
+  background: rgba(8, 127, 140, 0.12) !important;
+  color: #054b53 !important;
+}
+
+.terminal-panel,
+.terminal-page .ant-card {
+  background: var(--terminal-panel);
+  box-shadow: 0 10px 26px rgba(24, 37, 54, 0.08);
+}
+
+.terminal-dashboard .decision-card,
+.terminal-metric-section,
+.terminal-valuation-card,
+.terminal-signal-card,
+.terminal-ma-card,
+.terminal-action-button,
+.terminal-settings-button,
+.terminal-fund-card,
+.terminal-stat-chip,
+.terminal-info-box,
+.terminal-input-addon {
+  border-color: var(--terminal-border);
+  background: #f8fafc;
+}
+
+.terminal-dashboard .decision-card-success,
+.terminal-signal-card-extreme,
+.terminal-ma-card-buy,
+.terminal-info-box-green {
+  border-color: rgba(21, 128, 61, 0.24);
+  background: rgba(22, 163, 74, 0.08);
+}
+
+.terminal-dashboard .decision-card-warning,
+.terminal-info-box-amber {
+  border-color: rgba(180, 83, 9, 0.26);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.terminal-dashboard .decision-card-danger,
+.terminal-ma-card-sell,
+.terminal-info-box-red {
+  border-color: rgba(190, 18, 60, 0.22);
+  background: rgba(225, 29, 72, 0.08);
+}
+
+.terminal-info-box-cyan,
+.terminal-action-button-primary,
+.terminal-action-icon {
+  border-color: rgba(8, 127, 140, 0.22);
+  background: rgba(8, 127, 140, 0.08);
+}
+
+.terminal-signal-card:hover,
+.terminal-action-button:hover {
+  border-color: rgba(8, 127, 140, 0.34);
+  background: #eef9fa;
+}
+
+.terminal-meter-track,
+.terminal-input-addon {
+  background: #edf3f8;
+}
+
+.terminal-empty {
+  background: #f8fafc;
+}
+
+.terminal-dashboard .ant-alert,
+.terminal-page .ant-alert {
+  border-color: rgba(185, 199, 216, 0.9);
+  background: #ffffff;
+  color: var(--terminal-text);
+}
+
+.terminal-page .ant-table-wrapper {
+  border-color: var(--terminal-border);
+  background: #ffffff;
+}
+
+.terminal-page .ant-table-thead > tr > th {
+  border-bottom-color: var(--terminal-border);
+  background: #eef4fb !important;
+  color: var(--terminal-muted);
+}
+
+.terminal-page .ant-table-tbody > tr > td {
+  border-bottom-color: #edf2f7;
+  background: #ffffff;
+  color: var(--terminal-text);
+}
+
+.terminal-page .ant-table-tbody > tr.ant-table-row:hover > td {
+  background: #f4f9fc !important;
+}
+
+.terminal-page .ant-table-cell-fix-left,
+.terminal-page .ant-table-cell-fix-right,
+.terminal-page .terminal-theme-table .terminal-theme-action-column,
+.terminal-page .terminal-theme-table .terminal-theme-action-column.ant-table-cell-fix-right {
+  background: var(--terminal-panel-strong) !important;
+  color: var(--terminal-text);
+}
+
+.terminal-page .ant-table-column-sort {
+  background: rgba(8, 127, 140, 0.08) !important;
+}
+
+.terminal-page .ant-table-placeholder .ant-table-cell,
+.terminal-page .ant-table-placeholder {
+  background: #ffffff !important;
+  color: var(--terminal-dim);
+}
+
+.terminal-page .ant-pagination-item,
+.terminal-page .ant-pagination-prev .ant-pagination-item-link,
+.terminal-page .ant-pagination-next .ant-pagination-item-link {
+  border-color: var(--terminal-border);
+  background: #ffffff;
+}
+
+.terminal-page .ant-pagination-item-active {
+  border-color: rgba(8, 127, 140, 0.54);
+  background: rgba(8, 127, 140, 0.08);
+}
+
+.terminal-page .ant-input,
+.terminal-page .ant-input-number,
+.terminal-page .ant-picker,
+.terminal-page .ant-select-selector,
+.terminal-page .ant-input-affix-wrapper,
+.ant-modal .ant-input,
+.ant-modal .ant-input-number,
+.ant-modal .ant-picker,
+.ant-modal .ant-select-selector,
+.ant-modal .ant-input-affix-wrapper {
+  border-color: var(--terminal-border-strong) !important;
+  background: #ffffff !important;
+  color: var(--terminal-text) !important;
+}
+
+.terminal-page .ant-input:hover,
+.terminal-page .ant-input:focus,
+.terminal-page .ant-input-number:hover,
+.terminal-page .ant-input-number-focused,
+.terminal-page .ant-picker:hover,
+.terminal-page .ant-picker-focused,
+.terminal-page .ant-select-selector:hover {
+  border-color: rgba(8, 127, 140, 0.62) !important;
+  box-shadow: 0 0 0 2px rgba(8, 127, 140, 0.1) !important;
+}
+
+.terminal-page .ant-btn-default,
+.ant-modal .ant-btn-default {
+  border-color: var(--terminal-border-strong);
+  background: #ffffff;
+  color: var(--terminal-text);
+}
+
+.terminal-page .ant-btn-default:hover,
+.terminal-page .ant-btn-default:focus,
+.ant-modal .ant-btn-default:hover,
+.ant-modal .ant-btn-default:focus {
+  border-color: rgba(8, 127, 140, 0.48) !important;
+  background: rgba(8, 127, 140, 0.08) !important;
+  color: #075f69 !important;
+}
+
+.terminal-page .ant-btn-primary {
+  border-color: #087f8c;
+  background: #087f8c;
+  color: #ffffff;
+}
+
+.terminal-page .ant-btn-primary:hover,
+.terminal-page .ant-btn-primary:focus {
+  border-color: #075f69 !important;
+  background: #075f69 !important;
+}
+
+.terminal-page .terminal-success-button {
+  border-color: #15803d;
+  background: #15803d;
+  color: #ffffff;
+}
+
+.terminal-page .terminal-success-button:hover,
+.terminal-page .terminal-success-button:focus {
+  border-color: #166534 !important;
+  background: #166534 !important;
+  color: #ffffff !important;
+}
+
+.terminal-page .ant-slider-rail {
+  background: #dbe4ee;
+}
+
+.terminal-page .ant-slider-dot {
+  border-color: var(--terminal-border-strong);
+  background: #ffffff;
+}
+
+.terminal-page .ant-tag-default {
+  border-color: var(--terminal-border);
+  background: #f8fafc;
+  color: var(--terminal-muted);
+}
+
+.terminal-page .recharts-cartesian-grid line {
+  stroke: rgba(148, 163, 184, 0.42);
+}
+
+.terminal-page .recharts-default-tooltip {
+  border-color: var(--terminal-border-strong) !important;
+  background: #ffffff !important;
+  color: var(--terminal-text) !important;
+}
+
+.terminal-page .buy-row td {
+  background: rgba(22, 163, 74, 0.08) !important;
+}
+
+.terminal-page .sell-row td {
+  background: rgba(225, 29, 72, 0.08) !important;
+}
+
+.terminal-page .blacklisted-row td {
+  background: #eef2f6 !important;
+  color: var(--terminal-dim);
+}
+
+.terminal-page .holding-row td {
+  background: rgba(8, 127, 140, 0.08) !important;
+}
+
+.ant-modal .ant-modal-content,
+.ant-modal .ant-modal-header {
+  background: #ffffff;
+  color: #182536;
+}
+
+.ant-modal .ant-modal-title,
+.ant-modal .ant-modal-confirm-title,
+.ant-modal .ant-modal-confirm-content,
+.ant-modal p,
+.ant-modal label {
+  color: #182536;
+}
+
+.ant-modal .ant-modal-close {
+  color: #718196;
+}
+
+.ant-modal .ant-btn-default,
+.ant-modal .ant-input,
+.ant-modal .ant-input-number,
+.ant-modal .ant-picker,
+.ant-modal .ant-select-selector,
+.ant-modal .ant-input-affix-wrapper {
+  border-color: #b9c7d8 !important;
+}
+
+.ant-modal .ant-input:hover,
+.ant-modal .ant-input:focus,
+.ant-modal .ant-input-number:hover,
+.ant-modal .ant-input-number-focused,
+.ant-modal .ant-picker:hover,
+.ant-modal .ant-picker-focused,
+.ant-modal .ant-select-selector:hover {
+  border-color: rgba(8, 127, 140, 0.62) !important;
+  box-shadow: 0 0 0 2px rgba(8, 127, 140, 0.1) !important;
+}
+
+.ant-modal .ant-input::placeholder,
+.ant-modal .ant-picker-input > input::placeholder,
+.ant-modal .ant-select-selection-placeholder {
+  color: #718196 !important;
+}
+
+.ant-modal .ant-input-number-input,
+.ant-modal .ant-picker-input > input,
+.ant-modal .ant-select-selection-search-input,
+.ant-modal .ant-input-password input,
+.ant-modal textarea {
+  color: #182536 !important;
+}
+
+.ant-select-dropdown,
+.ant-picker-dropdown .ant-picker-panel-container,
+.ant-dropdown .ant-dropdown-menu,
+.ant-table-filter-dropdown {
+  border: 1px solid #dbe4ee;
+  background: #ffffff;
+  color: #182536;
+  box-shadow: 0 18px 42px rgba(24, 37, 54, 0.14);
+}
+
+.ant-select-dropdown .ant-select-item,
+.ant-picker-dropdown .ant-picker-content th,
+.ant-picker-dropdown .ant-picker-cell,
+.ant-dropdown .ant-dropdown-menu-item,
+.ant-table-filter-dropdown {
+  color: #53657a;
+}
+
+.ant-select-dropdown .ant-select-item-option-active,
+.ant-select-dropdown .ant-select-item-option-selected,
+.ant-dropdown .ant-dropdown-menu-item:hover,
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner,
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-start .ant-picker-cell-inner,
+.ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-end .ant-picker-cell-inner {
+  background: rgba(8, 127, 140, 0.12) !important;
+  color: #075f69 !important;
+}
+
+.ant-picker-dropdown .ant-picker-header,
+.ant-picker-dropdown .ant-picker-footer {
+  border-color: #dbe4ee;
+  color: #182536;
+}
+
+.ant-picker-dropdown .ant-picker-header button,
+.ant-picker-dropdown .ant-picker-now a,
+.ant-table-filter-dropdown .ant-dropdown-menu-title-content {
+  color: #087f8c;
+}
+
+body .ant-message .ant-message-notice-content {
+  border: 1px solid #dbe4ee;
+  background: #ffffff !important;
+  color: #182536 !important;
+  box-shadow: 0 18px 42px rgba(24, 37, 54, 0.14);
 }
 
 @keyframes terminal-pulse {
