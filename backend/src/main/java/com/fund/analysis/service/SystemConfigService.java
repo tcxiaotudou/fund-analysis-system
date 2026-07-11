@@ -105,7 +105,7 @@ public class SystemConfigService {
             systemConfigMapper.insert(config);
         }
         
-        logger.info("保存配置成功: {} = {}", configKey, configValue);
+        logger.info("保存配置成功: {}", configKey);
     }
 
     /**
@@ -141,8 +141,9 @@ public class SystemConfigService {
         }
         
         // 邮箱密码/授权码
-        if (configMap.containsKey("emailPassword") && !configMap.get("emailPassword").isEmpty()) {
-            saveOrUpdateConfig("email_password", configMap.get("emailPassword"), "email", "邮箱授权码");
+        String emailPassword = configMap.get("emailPassword");
+        if (emailPassword != null && !emailPassword.trim().isEmpty()) {
+            saveOrUpdateConfig("email_password", emailPassword, "email", "邮箱授权码");
         }
         
         // 邮件发送时间配置
@@ -224,7 +225,7 @@ public class SystemConfigService {
         for (SystemConfig config : configs) {
             String key = config.getConfigKey();
             String value = config.getConfigValue();
-            logger.debug("读取配置: {} = {}", key, key.equals("email_password") ? "******" : value);
+            logger.debug("读取配置: {}", key);
             
             // 转换为前端使用的key格式（驼峰命名）
             if (key.equals("email_enabled")) {
@@ -238,7 +239,7 @@ public class SystemConfigService {
             } else if (key.equals("email_username")) {
                 configMap.put("emailUsername", value);
             } else if (key.equals("email_password")) {
-                configMap.put("emailPassword", value);
+                configMap.put("emailPassword", "");
             } else if (key.equals("email_schedule")) {
                 configMap.put("emailSchedule", value);
             }

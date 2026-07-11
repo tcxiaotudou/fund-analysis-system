@@ -22,8 +22,9 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         
-        // 允许所有来源（生产环境应该指定具体域名）
-        config.addAllowedOriginPattern("*");
+        // 仅允许本地开发来源；生产环境由 Nginx 同源转发，无需 CORS
+        config.addAllowedOriginPattern("http://localhost:*");
+        config.addAllowedOriginPattern("http://127.0.0.1:*");
         
         // 允许所有请求头
         config.addAllowedHeader("*");
@@ -38,4 +39,3 @@ public class CorsConfig {
         return new CorsFilter(source);
     }
 }
-

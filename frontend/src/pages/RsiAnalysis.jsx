@@ -3,8 +3,9 @@
  * 展示ETF的RSI技术指标分析
  */
 import React, { useState, useEffect, useMemo } from 'react'
-import { Card, Table, Tag, Input, Button, Space, Spin, message } from 'antd'
+import { Alert, Card, Table, Tag, Input, Button, Space, message } from 'antd'
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Link } from 'react-router-dom'
 import TerminalPage from '../components/TerminalPage'
 import { rsiApi } from '../services/api'
 
@@ -13,6 +14,7 @@ function RsiAnalysis() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState([])
   const [searchText, setSearchText] = useState('')
+  const [pageError, setPageError] = useState(null)
 
   // 搜索框只过滤 ETF 名称，避免 AntD 单列 filteredValue 触发表格配置告警。
   const filteredData = useMemo(() => {
@@ -29,14 +31,20 @@ function RsiAnalysis() {
   const loadData = async () => {
     try {
       setLoading(true)
+      setPageError(null)
       const response = await rsiApi.getEtfSignals()
-      
-      if (response.code === 0) {
-        setData(response.data || [])
+
+      if (response.code !== 0) {
+        console.error('ETF 机会服务返回失败:', response.code, response.message)
+        throw new Error(`ETF 机会加载失败（服务返回 ${response.code}）`)
       }
+
+      setData(response.data || [])
     } catch (error) {
       console.error('加载RSI数据失败:', error)
-      message.error(error.normalizedMessage || '加载RSI数据失败')
+      const errorMessage = error.normalizedMessage || error.message || 'ETF 机会加载失败'
+      setPageError(errorMessage)
+      message.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -51,23 +59,23 @@ function RsiAnalysis() {
    */
   const columns = [
     {
-      title: 'ETF名称',
+      title: 'ETF',
       dataIndex: 'name',
       key: 'name',
     },
     {
-      title: 'ETF代码',
+      title: '代码',
       dataIndex: 'code',
       key: 'code',
     },
     {
-      title: 'RSI周期',
+      title: '观察周期',
       dataIndex: 'period',
       key: 'period',
       render: (val) => `${val}日`,
     },
     {
-      title: '当前RSI',
+      title: '当前 RSI',
       dataIndex: 'currentRsi',
       key: 'currentRsi',
       render: (val) => {
@@ -81,39 +89,39 @@ function RsiAnalysis() {
       sorter: (a, b) => a.currentRsi - b.currentRsi,
     },
     {
-      title: 'RSI最高值',
+      title: '阶段高点',
       dataIndex: 'highRsi',
       key: 'highRsi',
       render: (val) => val?.toFixed(2),
     },
     {
-      title: 'RSI最低值',
+      title: '阶段低点',
       dataIndex: 'lowRsi',
       key: 'lowRsi',
       render: (val) => val?.toFixed(2),
     },
     {
-      title: 'RSI区间',
+      title: '当前位置',
       dataIndex: 'interval',
       key: 'interval',
       ellipsis: true,
     },
     {
-      title: '买入信号',
+      title: '低位信号',
       key: 'isBuySignal',
       render: (_, record) => (
-        record.isBuySignal ? 
-          <Tag color="success">是</Tag> : 
-          <Tag>否</Tag>
+        record.isBuySignal ?
+          <Tag color="success">值得关注</Tag> :
+          <Tag>继续观察</Tag>
       ),
       filters: [
-        { text: '是', value: true },
-        { text: '否', value: false },
+        { text: '值得关注', value: true },
+        { text: '继续观察', value: false },
       ],
       onFilter: (value, record) => record.isBuySignal === value,
     },
     {
-      title: '分析信息',
+      title: '信号说明',
       dataIndex: 'message',
       key: 'message',
       ellipsis: true,
@@ -123,20 +131,29 @@ function RsiAnalysis() {
       dataIndex: 'dataTime',
       key: 'dataTime',
     },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_, record) => (
+        <Link to={`/rsi-backtest?etfCode=${encodeURIComponent(record.code)}`}>
+          历史模拟
+        </Link>
+      ),
+    },
   ]
 
   return (
     <TerminalPage
-      title="RSI技术指标分析"
-      subtitle="ETF 相对强弱指标信号扫描"
-      status={<span>记录数：{data.length}</span>}
+      title="ETF 机会"
+      subtitle="用 RSI 观察价格是否进入短期低位"
+      status={<span>共 {data.length} 个标的</span>}
     >
 
       <Card>
         {/* 搜索和操作栏 */}
         <Space className="terminal-toolbar" wrap>
           <Input
-            placeholder="搜索ETF名称"
+            placeholder="搜索 ETF 名称"
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -149,41 +166,55 @@ function RsiAnalysis() {
             onClick={loadData}
             loading={loading}
           >
-            刷新数据
+            更新机会
           </Button>
         </Space>
 
         {/* 数据表格 */}
-      <Table
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="code"
-          loading={loading}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条记录`,
-          }}
-          locale={{ emptyText: loading ? '数据加载中...' : '当前没有 RSI 信号数据' }}
-          scroll={{ x: 1200 }}
-        />
+        {pageError ? (
+          <Alert
+            type="error"
+            showIcon
+            message="ETF 机会加载失败"
+            description={pageError}
+            action={(
+              <Button size="small" onClick={loadData} loading={loading}>
+                重试
+              </Button>
+            )}
+          />
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={filteredData}
+            rowKey="code"
+            loading={loading}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `共 ${total} 个标的`,
+            }}
+            locale={{ emptyText: loading ? '数据加载中...' : '暂时没有进入低位的 ETF' }}
+            scroll={{ x: 1300 }}
+          />
+        )}
       </Card>
 
       {/* 使用说明 */}
-      <Card title="RSI指标说明">
+      <Card title="如何看 RSI">
         <div className="terminal-copy-block">
-          <p><strong>RSI（相对强弱指标）</strong>是一种动量指标，用于衡量价格变动的速度和幅度。</p>
+          <p><strong>RSI（相对强弱指标）</strong>用于观察近期价格上涨和下跌的相对力度，数值介于 0—100。</p>
           <ul>
-            <li>RSI值介于0-100之间</li>
-            <li><strong>RSI &lt; 30：</strong>超卖区域，可能是买入机会</li>
-            <li><strong>30 ≤ RSI ≤ 70：</strong>正常区域</li>
-            <li><strong>RSI &gt; 70：</strong>超买区域，可能是卖出机会</li>
+            <li><strong>RSI &lt; 30：</strong>近期价格相对偏弱，可加入关注</li>
+            <li><strong>30 ≤ RSI ≤ 70：</strong>处于常见波动区间</li>
+            <li><strong>RSI &gt; 70：</strong>近期价格相对偏强，需留意波动</li>
           </ul>
-          <p><strong>买入信号条件：</strong></p>
+          <p><strong>页面中的低位信号：</strong></p>
           <ul>
-            <li>RSI ≤ 30，或</li>
-            <li>RSI最高值 ≥ 70 且 最高点到当前的最低值在38-43之间 且 当前RSI ≤ 43</li>
+            <li>当前 RSI ≤ 30，或</li>
+            <li>阶段高点 ≥ 70、回落低点在 38—43 之间，且当前 RSI ≤ 43</li>
           </ul>
+          <p>RSI 只反映一个观察维度，单一指标不能作为买卖依据；历史信号也不代表未来表现。</p>
         </div>
       </Card>
     </TerminalPage>

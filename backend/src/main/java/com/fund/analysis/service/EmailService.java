@@ -85,7 +85,7 @@ public class EmailService {
             String emailContent = buildEmailContent();
 
             // 发送邮件
-            String subject = "基金分析系统每日报告 - " + dateFormat.format(new Date());
+            String subject = "基金罗盘每日简报 - " + dateFormat.format(new Date());
             sendHtmlEmail(recipients, subject, emailContent);
 
             logger.info("每日报告邮件发送成功");
@@ -126,7 +126,7 @@ public class EmailService {
         html.append(".positive { color: #cf1322; font-weight: bold; }");
         html.append(".negative { color: #389e0d; font-weight: bold; }");
         html.append(".signal { background-color: #fff7e6; border-left: 4px solid #faad14; padding: 10px; margin: 10px 0; }");
-        html.append(".footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #999; font-size: 12px; text-align: center; }");
+        html.append(".footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px; text-align: center; }");
         html.append(".holding-row { background-color: #e6f7ff; border-left: 3px solid #1890ff !important; }");
         html.append(".holding-badge { display: inline-block; background-color: #1890ff; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 8px; }");
         html.append(".market-section { margin-bottom: 15px; }");
@@ -137,7 +137,7 @@ public class EmailService {
         html.append("<div class='container'>");
 
         // 标题
-        html.append("<h1>📊 基金分析系统每日报告</h1>");
+        html.append("<h1>📊 基金罗盘每日简报</h1>");
         html.append("<p style='color: #999;'>生成时间: ").append(dateFormat.format(new Date())).append("</p>");
 
         // 1. 市场概览（包含持有基金组合RSI）
@@ -158,8 +158,8 @@ public class EmailService {
 
         // 页脚
         html.append("<div class='footer'>");
-        html.append("<p>本邮件由基金分析系统自动生成</p>");
-        html.append("<p>如需取消订阅，请在系统配置中关闭邮件发送功能</p>");
+        html.append("<p>数据来自公开市场信息，仅供研究参考，不构成投资建议。</p>");
+        html.append("<p>历史指标与模拟结果不代表未来表现；如需停止接收，请在服务设置中关闭邮件简报。</p>");
         html.append("</div>");
 
         html.append("</div>");
@@ -228,13 +228,13 @@ public class EmailService {
                 html.append("</tr>");
             }
 
-            // 投资建议组
+            // 配置参考组
             if (market.getBalanceSuggestion() != null) {
                 html.append("<tr class='section-header'>");
-                html.append("<td colspan='3'>💡 投资建议</td>");
+                html.append("<td colspan='3'>💡 配置参考</td>");
                 html.append("</tr>");
                 html.append("<tr>");
-                html.append("<td>⚖️ 股债平衡建议</td>");
+                html.append("<td>⚖️ 股债比例参考</td>");
                 html.append("<td colspan='2'><strong>").append(market.getBalanceSuggestion()).append("</strong></td>");
                 html.append("</tr>");
             }
@@ -304,7 +304,7 @@ public class EmailService {
                 return;
             }
 
-            html.append("<h2>🔔 ETF RSI 买入信号</h2>");
+            html.append("<h2>🔔 ETF RSI 低位关注</h2>");
             html.append("<table>");
             html.append("<tr>");
             html.append("<th>ETF名称</th><th>当前RSI</th><th>区间</th><th>说明</th>");
@@ -316,7 +316,7 @@ public class EmailService {
                 html.append("<td>").append(signal.getName()).append("(").append(signal.getCode()).append(")</td>");
                 html.append("<td>").append(formatDecimal(signal.getCurrentRsi())).append("</td>");
                 html.append("<td>").append(signal.getInterval()).append("</td>");
-                html.append("<td>").append(signal.getMessage()).append("</td>");
+                html.append("<td>RSI 进入历史低位区间，请结合估值与趋势继续观察</td>");
                 html.append("</tr>");
             }
 
@@ -343,18 +343,18 @@ public class EmailService {
                 return;
             }
 
-            html.append("<h2>📈 MA策略信号 (双均线策略)</h2>");
+            html.append("<h2>📈 趋势变化（双均线观察）</h2>");
             
             // 买入信号
             if (buySignals != null && !buySignals.isEmpty()) {
-                html.append("<h3 style='color: #52c41a; margin-top: 20px;'>🟢 买入信号 (").append(buySignals.size()).append(")</h3>");
+                html.append("<h3 style='color: #52c41a; margin-top: 20px;'>🟢 趋势转强 (").append(buySignals.size()).append(")</h3>");
                 html.append("<table>");
                 html.append("<tr>");
                 html.append("<th>ETF名称</th>");
                 html.append("<th>当前价格</th>");
                 html.append("<th>10日均线</th>");
                 html.append("<th>30日均线</th>");
-                html.append("<th>信号说明</th>");
+                html.append("<th>趋势说明</th>");
                 html.append("<th>数据时间</th>");
                 html.append("</tr>");
 
@@ -364,7 +364,7 @@ public class EmailService {
                     html.append("<td><strong style='color: #cf1322;'>").append(formatDecimal(signal.getCurrentDaily())).append("</strong></td>");
                     html.append("<td>").append(formatDecimal(signal.getMa10())).append("</td>");
                     html.append("<td>").append(formatDecimal(signal.getMa30())).append("</td>");
-                    html.append("<td style='font-size: 13px;'>").append(signal.getSignalDescription()).append("</td>");
+                    html.append("<td style='font-size: 13px;'>10 日均线上穿 30 日均线</td>");
                     html.append("<td style='font-size: 12px;'>").append(signal.getDataTime()).append("</td>");
                     html.append("</tr>");
                 }
@@ -374,14 +374,14 @@ public class EmailService {
             
             // 卖出信号
             if (sellSignals != null && !sellSignals.isEmpty()) {
-                html.append("<h3 style='color: #ff4d4f; margin-top: 20px;'>🔴 卖出信号 (").append(sellSignals.size()).append(")</h3>");
+                html.append("<h3 style='color: #ff4d4f; margin-top: 20px;'>🔴 趋势转弱 (").append(sellSignals.size()).append(")</h3>");
                 html.append("<table>");
                 html.append("<tr>");
                 html.append("<th>ETF名称</th>");
                 html.append("<th>当前价格</th>");
                 html.append("<th>10日均线</th>");
                 html.append("<th>30日均线</th>");
-                html.append("<th>信号说明</th>");
+                html.append("<th>趋势说明</th>");
                 html.append("<th>数据时间</th>");
                 html.append("</tr>");
 
@@ -391,7 +391,7 @@ public class EmailService {
                     html.append("<td><strong style='color: #389e0d;'>").append(formatDecimal(signal.getCurrentDaily())).append("</strong></td>");
                     html.append("<td>").append(formatDecimal(signal.getMa10())).append("</td>");
                     html.append("<td>").append(formatDecimal(signal.getMa30())).append("</td>");
-                    html.append("<td style='font-size: 13px;'>").append(signal.getSignalDescription()).append("</td>");
+                    html.append("<td style='font-size: 13px;'>10 日均线下穿 30 日均线</td>");
                     html.append("<td style='font-size: 12px;'>").append(signal.getDataTime()).append("</td>");
                     html.append("</tr>");
                 }
@@ -402,9 +402,9 @@ public class EmailService {
             // 策略说明
             html.append("<div class='signal' style='margin-top: 15px;'>");
             html.append("<strong>📖 策略说明：</strong><br/>");
-            html.append("买入信号：10日均线上穿30日均线(金叉)<br/>");
-            html.append("卖出信号：10日均线下穿30日均线(死叉)<br/>");
-            html.append("<span style='color: #999; font-size: 12px;'>注：本策略仅供参考，不构成投资建议</span>");
+            html.append("趋势转强：10 日均线上穿 30 日均线<br/>");
+            html.append("趋势转弱：10 日均线下穿 30 日均线<br/>");
+            html.append("<span style='color: #666; font-size: 12px;'>均线变化仅用于研究市场趋势，不代表未来表现。</span>");
             html.append("</div>");
 
         } catch (Exception e) {
@@ -436,7 +436,7 @@ public class EmailService {
                 return;
             }
 
-            html.append("<h2>🎯 基金推荐</h2>");
+            html.append("<h2>🎯 基金优选</h2>");
             html.append("<table>");
             html.append("<tr>");
             html.append("<th>代码</th><th>名称</th><th>基金经理</th><th>任职年限</th>");
@@ -499,14 +499,14 @@ public class EmailService {
                 latestPerformance = performanceList.get(performanceList.size() - 1);
             }
             
-            html.append("<h2>🚀 21日动量策略</h2>");
+            html.append("<h2>🚀 21 日动量模拟</h2>");
             
             // 显示当前持仓和累计收益
             if (latestPerformance != null) {
                 html.append("<div class='signal' style='margin-bottom: 20px;'>");
                 
                 if (latestPerformance.getHoldingEtfName() != null && latestPerformance.getHoldingQuantity() != null) {
-                    html.append("当前持仓: <strong>").append(latestPerformance.getHoldingEtfName())
+                    html.append("模拟持仓: <strong>").append(latestPerformance.getHoldingEtfName())
                          .append("(").append(latestPerformance.getHoldingEtfCode()).append(")</strong> ")
                          .append("<strong>").append(latestPerformance.getHoldingQuantity()).append("</strong> 股");
                     
@@ -515,7 +515,7 @@ public class EmailService {
                     }
                     html.append("<br/>");
                 } else {
-                    html.append("当前持仓: <strong>空仓</strong><br/>");
+                    html.append("模拟持仓: <strong>空仓</strong><br/>");
                 }
                 
                 if (latestPerformance.getDate() != null) {
@@ -527,13 +527,13 @@ public class EmailService {
             
             // 显示最近的交易记录
             if (!recentTransactions.isEmpty()) {
-                html.append("<h3 style='color: #1890ff; margin-top: 20px;'>📋 最近交易记录 (").append(recentTransactions.size()).append(")</h3>");
+                html.append("<h3 style='color: #1890ff; margin-top: 20px;'>📋 最近模拟记录 (").append(recentTransactions.size()).append(")</h3>");
                 html.append("<table>");
                 html.append("<tr>");
-                html.append("<th>交易日期</th>");
+                html.append("<th>模拟日期</th>");
                 html.append("<th>ETF名称</th>");
-                html.append("<th>交易类型</th>");
-                html.append("<th>数量</th>");
+                html.append("<th>模拟类型</th>");
+                html.append("<th>模拟数量</th>");
                 html.append("<th>价格</th>");
                 html.append("<th>21日动量</th>");
                 html.append("</tr>");
@@ -549,10 +549,10 @@ public class EmailService {
                     String typeDisplay = "-";
                     String typeColor = "#333";
                     if ("buy".equals(transaction.getType())) {
-                        typeDisplay = "🟢 买入";
+                        typeDisplay = "🟢 模拟买入";
                         typeColor = "#52c41a";
                     } else if ("sell".equals(transaction.getType())) {
-                        typeDisplay = "🔴 卖出";
+                        typeDisplay = "🔴 模拟卖出";
                         typeColor = "#ff4d4f";
                     }
                     html.append("<td><strong style='color: ").append(typeColor).append(";'>").append(typeDisplay).append("</strong></td>");
@@ -594,9 +594,9 @@ public class EmailService {
                 // 策略说明
                 html.append("<div class='signal' style='margin-top: 15px;'>");
                 html.append("<strong>📖 策略说明：</strong><br/>");
-                html.append("21日动量策略：每天选择21日动量最强的ETF持有，当动量最强的ETF发生变化时进行调仓<br/>");
-                html.append("策略目标：捕捉市场趋势，通过动量轮动获取超额收益<br/>");
-                html.append("<span style='color: #999; font-size: 12px;'>注：本策略仅供参考，不构成投资建议</span>");
+                html.append("21 日动量模拟：按历史数据选择阶段动量领先的 ETF，并在领先标的变化时模拟调仓<br/>");
+                html.append("用于观察轮动规则在历史样本中的表现，不承诺或预测未来收益。<br/>");
+                html.append("<span style='color: #666; font-size: 12px;'>模拟结果仅供研究，不构成投资建议。</span>");
                 html.append("</div>");
             }
             
@@ -638,7 +638,7 @@ public class EmailService {
         // 发送邮件
         mailSender.send(message);
         
-        logger.info("邮件发送成功，收件人: {}", recipients);
+        logger.info("邮件发送成功，收件人数: {}", recipientArray.length);
     }
 
     /**
@@ -701,10 +701,10 @@ public class EmailService {
         if (value == null || value.isEmpty()) return "无数据";
         try {
             double rsi = Double.parseDouble(value);
-            if (rsi >= 70) return "超买区域，注意风险";
-            if (rsi >= 50) return "偏强区域";
-            if (rsi >= 30) return "中性区域";
-            return "超卖区域，可能是机会";
+            if (rsi >= 70) return "处于历史高位区间，留意波动";
+            if (rsi >= 50) return "偏强区间";
+            if (rsi >= 30) return "中性区间";
+            return "处于历史低位区间";
         } catch (Exception e) {
             return value;
         }
@@ -717,9 +717,9 @@ public class EmailService {
             // 移除可能的百分号
             String numStr = value.replace("%", "").trim();
             double val = Double.parseDouble(numStr);
-            if (val >= 3) return "高估区域，谨慎投资";
-            if (val >= 1) return "合理区域";
-            return "低估区域，可以考虑加仓";
+            if (val >= 3) return "风险溢价较高";
+            if (val >= 1) return "风险溢价中等";
+            return "风险溢价较低";
         } catch (Exception e) {
             return value;
         }

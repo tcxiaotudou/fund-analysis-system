@@ -20,10 +20,22 @@ public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<Result<Void>> handleBadRequestException(BadRequestException e) {
+        logger.warn("业务参数校验失败: {}", e.getMessage(), e);
+        return build(e.getStatus(), e.getMessage());
+    }
+
+    @ExceptionHandler(ExternalApiException.class)
+    public ResponseEntity<Result<Void>> handleExternalApiException(ExternalApiException e) {
+        logger.warn("外部数据服务调用失败", e);
+        return build(e.getStatus(), "第三方错误");
+    }
+
     @ExceptionHandler(AppException.class)
     public ResponseEntity<Result<Void>> handleAppException(AppException e) {
-        logger.warn("请求处理失败: {}", e.getMessage(), e);
-        return build(e.getStatus(), e.getMessage());
+        logger.warn("业务处理失败", e);
+        return build(e.getStatus(), "服务暂时不可用，请稍后重试");
     }
 
     @ExceptionHandler({
@@ -37,13 +49,13 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<Result<Void>> handleBadRequest(Exception e) {
         logger.warn("请求参数错误: {}", e.getMessage(), e);
-        return build(HttpStatus.BAD_REQUEST, "请求参数错误: " + e.getMessage());
+        return build(HttpStatus.BAD_REQUEST, "请求参数有误，请检查后重试");
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Result<Void>> handleException(Exception e) {
         logger.error("系统内部错误", e);
-        return build(HttpStatus.INTERNAL_SERVER_ERROR, "系统内部错误: " + e.getMessage());
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "服务暂时不可用，请稍后重试");
     }
 
     private ResponseEntity<Result<Void>> build(HttpStatus status, String message) {

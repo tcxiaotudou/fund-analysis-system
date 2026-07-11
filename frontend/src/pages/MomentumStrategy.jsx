@@ -64,10 +64,12 @@ function MomentumStrategy() {
   const initialBacktestRange = initialBacktestState.range
   const [urlRangeError, setUrlRangeError] = useState(initialBacktestState.error)
   const [visibleRangeError, setVisibleRangeError] = useState(initialVisibleRangeState.error)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [data, setData] = useState([])
+  const [transactionsError, setTransactionsError] = useState(null)
   const [performanceData, setPerformanceData] = useState([])
-  const [performanceLoading, setPerformanceLoading] = useState(false)
+  const [performanceLoading, setPerformanceLoading] = useState(true)
+  const [performanceError, setPerformanceError] = useState(null)
   const [backtestLoading, setBacktestLoading] = useState(false)
   const [backtestModalVisible, setBacktestModalVisible] = useState(false)
   const [backtestStartDate, setBacktestStartDate] = useState(() => (
@@ -89,6 +91,7 @@ function MomentumStrategy() {
   const loadData = async (range = activeBacktestRange) => {
     try {
       setLoading(true)
+      setTransactionsError(null)
       const response = range
         ? await momentumStrategyApi.getTransactionsByRange(range.startDate, range.endDate)
         : await momentumStrategyApi.getTransactions()
@@ -97,12 +100,17 @@ function MomentumStrategy() {
         setData(response.data || [])
         return true
       } else {
-        message.error(response.message || '加载数据失败')
+        console.error('轮动模拟记录服务返回失败:', response.code, response.message)
+        const errorMessage = `加载模拟记录失败（服务返回 ${response.code}）`
+        setTransactionsError(errorMessage)
+        message.error(errorMessage)
         return false
       }
     } catch (error) {
       console.error('加载交易记录失败:', error)
-      message.error('加载交易记录失败')
+      const errorMessage = '加载模拟记录失败，请检查网络后重试'
+      setTransactionsError(errorMessage)
+      message.error(errorMessage)
       return false
     } finally {
       setLoading(false)
@@ -115,6 +123,7 @@ function MomentumStrategy() {
   const loadPerformanceData = async (range = activeBacktestRange) => {
     try {
       setPerformanceLoading(true)
+      setPerformanceError(null)
       const response = range
         ? await momentumStrategyApi.getPerformanceByRange(range.startDate, range.endDate)
         : await momentumStrategyApi.getPerformance()
@@ -124,12 +133,17 @@ function MomentumStrategy() {
         setPerformanceData(perfData)
         return true
       } else {
-        message.error(response.message || '加载收益曲线数据失败')
+        console.error('轮动模拟资产曲线服务返回失败:', response.code, response.message)
+        const errorMessage = `加载模拟资产曲线失败（服务返回 ${response.code}）`
+        setPerformanceError(errorMessage)
+        message.error(errorMessage)
         return false
       }
     } catch (error) {
       console.error('加载收益曲线数据失败:', error)
-      message.error('加载收益曲线数据失败')
+      const errorMessage = '加载模拟资产曲线失败，请检查网络后重试'
+      setPerformanceError(errorMessage)
+      message.error(errorMessage)
       return false
     } finally {
       setPerformanceLoading(false)
@@ -173,7 +187,7 @@ function MomentumStrategy() {
       const nextDateRange = getMomentumDateRangePercentByDateRange(performanceData, nextVisibleDateRange)
       if (!nextDateRange) {
         setDateRange([0, 100])
-        setVisibleRangeError('动量策略快捷时间范围不在当前收益曲线内')
+        setVisibleRangeError('动量策略快捷时间范围不在当前模拟资产曲线内')
         return
       }
 
@@ -190,7 +204,7 @@ function MomentumStrategy() {
     const nextDateRange = getMomentumDateRangePercentByDateRange(performanceData, requestedVisibleDateRange)
     if (!nextDateRange) {
       setDateRange([0, 100])
-      setVisibleRangeError('动量策略可视时间范围不在当前收益曲线内')
+      setVisibleRangeError('动量策略可视时间范围不在当前模拟资产曲线内')
       return
     }
 
@@ -203,10 +217,10 @@ function MomentumStrategy() {
    */
   const handleRunBacktest = async () => {
     if (!backtestStartDate || !backtestEndDate) {
-      message.warning('请选择回测日期范围')
+      message.warning('请选择模拟日期范围')
       return
     }
-    const dateRangeError = getDateRangeError(backtestStartDate, backtestEndDate, '请选择回测日期范围')
+    const dateRangeError = getDateRangeError(backtestStartDate, backtestEndDate, '请选择模拟日期范围')
     if (dateRangeError) {
       message.warning(dateRangeError)
       return
@@ -235,16 +249,17 @@ function MomentumStrategy() {
         setSearchParams(createMomentumBacktestSearchParams(backtestRange), { replace: true })
         const refreshed = await reloadStrategyData(backtestRange)
         if (refreshed) {
-          message.success('回测完成，数据已刷新！')
+          message.success('区间模拟完成，数据已更新！')
         } else {
-          message.warning('回测完成，但刷新最新数据失败')
+          message.warning('区间模拟完成，但更新数据失败')
         }
       } else {
-        message.error(response.message || '执行回测失败')
+        console.error('轮动区间模拟服务返回失败:', response.code, response.message)
+        message.error(`区间模拟失败（服务返回 ${response.code}）`)
       }
     } catch (error) {
       console.error('执行回测失败:', error)
-      message.error('执行回测失败')
+      message.error('区间模拟失败')
     } finally {
       setBacktestLoading(false)
     }
@@ -282,15 +297,15 @@ function MomentumStrategy() {
       width: 100,
       render: (type) => {
         if (type === 'buy') {
-          return <Tag color="success">买入</Tag>
+          return <Tag color="success">模拟买入</Tag>
         } else if (type === 'sell') {
-          return <Tag color="error">卖出</Tag>
+          return <Tag color="error">模拟卖出</Tag>
         }
         return <Tag>{type}</Tag>
       },
       filters: [
-        { text: '买入', value: 'buy' },
-        { text: '卖出', value: 'sell' },
+        { text: '模拟买入', value: 'buy' },
+        { text: '模拟卖出', value: 'sell' },
       ],
       onFilter: (value, record) => record.type === value,
     },
@@ -413,7 +428,7 @@ function MomentumStrategy() {
     const nextVisibleDateRange = getMomentumVisibleDateRangeByPreset(performanceData, preset)
     const nextDateRange = getMomentumDateRangePercentByDateRange(performanceData, nextVisibleDateRange)
     if (!nextDateRange) {
-      setVisibleRangeError('动量策略快捷时间范围不在当前收益曲线内')
+      setVisibleRangeError('动量策略快捷时间范围不在当前模拟资产曲线内')
       return
     }
 
@@ -481,14 +496,14 @@ function MomentumStrategy() {
         }}>
           <p style={{ margin: 0, fontWeight: 'bold' }}>{formatDate(data.date)}</p>
           <p style={{ margin: '5px 0', color: '#1890ff' }}>
-            资产总值: {formatCurrency(data.totalValue || 0)}
+            模拟资产: {formatCurrency(data.totalValue || 0)}
           </p>
           <p style={{ margin: '5px 0', color: (data.returnRate || 0) >= 0 ? '#52c41a' : '#ff4d4f' }}>
-            收益率: {data.returnRate ? data.returnRate.toFixed(2) : '0.00'}%
+            模拟收益率: {data.returnRate ? data.returnRate.toFixed(2) : '0.00'}%
           </p>
           {data.holdingEtfName && (
             <p style={{ margin: '5px 0', color: '#53657a' }}>
-              持仓: {data.holdingEtfCode} {data.holdingEtfName}
+              模拟持仓: {data.holdingEtfCode} {data.holdingEtfName}
             </p>
           )}
           {/* 显示买卖操作信息 */}
@@ -497,7 +512,7 @@ function MomentumStrategy() {
               {data.buyInfo && (
                 <div style={{ marginBottom: data.sellInfo ? '8px' : '0' }}>
                   <p style={{ margin: '3px 0', color: '#52c41a', fontWeight: 'bold' }}>
-                    买入操作{data.buyInfo.multiple ? ` (${data.buyInfo.count}笔)` : ''}：
+                    模拟买入{data.buyInfo.multiple ? ` (${data.buyInfo.count}笔)` : ''}：
                   </p>
                   <p style={{ margin: '2px 0', fontSize: '12px' }}>
                     {data.buyInfo.code} {data.buyInfo.name}
@@ -510,7 +525,7 @@ function MomentumStrategy() {
               {data.sellInfo && (
                 <div>
                   <p style={{ margin: '3px 0', color: '#ff4d4f', fontWeight: 'bold' }}>
-                    卖出操作{data.sellInfo.multiple ? ` (${data.sellInfo.count}笔)` : ''}：
+                    模拟卖出{data.sellInfo.multiple ? ` (${data.sellInfo.count}笔)` : ''}：
                   </p>
                   <p style={{ margin: '2px 0', fontSize: '12px' }}>
                     {data.sellInfo.code} {data.sellInfo.name}
@@ -530,16 +545,16 @@ function MomentumStrategy() {
 
   return (
     <TerminalPage
-      title="21日动量策略"
-      subtitle="ETF 轮动交易记录、资金曲线和回测区间"
-      status={<span>交易 {transactionSummary.totalCount} / 买入 {transactionSummary.buyCount} / 卖出 {transactionSummary.sellCount}</span>}
+      title="轮动策略"
+      subtitle="21 日动量轮动的模拟记录、模拟资产曲线与区间试算"
+      status={<span>{transactionsError ? '模拟记录暂不可用' : `模拟 ${transactionSummary.totalCount} / 买入 ${transactionSummary.buyCount} / 卖出 ${transactionSummary.sellCount}`}</span>}
     >
       {urlRangeError && (
         <Alert
           type="error"
           showIcon
-          message="回测区间参数错误"
-          description={urlRangeError}
+          message="模拟区间参数错误"
+          description={urlRangeError.replace('回测', '模拟')}
           className="terminal-section-gap"
         />
       )}
@@ -554,74 +569,76 @@ function MomentumStrategy() {
       )}
 
       {/* 统计信息卡片 */}
+      {!transactionsError && !performanceError && (
       <Card className="terminal-section-gap">
         <Space className="terminal-stat-strip" size="middle" wrap>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#999' }}>总交易次数：</span>
+            <span style={{ color: '#666' }}>模拟交易次数：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {transactionSummary.totalCount}
             </span>
           </div>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#52c41a' }}>买入次数：</span>
+            <span style={{ color: '#52c41a' }}>模拟买入次数：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#52c41a', marginLeft: '8px' }}>
               {transactionSummary.buyCount}
             </span>
           </div>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#ff4d4f' }}>卖出次数：</span>
+            <span style={{ color: '#ff4d4f' }}>模拟卖出次数：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#ff4d4f', marginLeft: '8px' }}>
               {transactionSummary.sellCount}
             </span>
           </div>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#999' }}>累计买入：</span>
+            <span style={{ color: '#666' }}>累计模拟买入：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {transactionSummary.totalBuyQuantity.toLocaleString()}
             </span>
           </div>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#999' }}>累计卖出：</span>
+            <span style={{ color: '#666' }}>累计模拟卖出：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {transactionSummary.totalSellQuantity.toLocaleString()}
             </span>
           </div>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#999' }}>收益率：</span>
+            <span style={{ color: '#666' }}>模拟收益率：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {formatPercent(performanceSummary.totalReturn)}
             </span>
           </div>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#999' }}>年化收益率：</span>
+            <span style={{ color: '#666' }}>模拟年化收益率：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {formatPercent(performanceSummary.annualizedReturn)}
             </span>
           </div>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#999' }}>开始时间：</span>
+            <span style={{ color: '#666' }}>模拟开始日期：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {performanceSummary.startDate || '-'}
             </span>
           </div>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#999' }}>结束时间：</span>
+            <span style={{ color: '#666' }}>模拟结束日期：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {performanceSummary.endDate || '-'}
             </span>
           </div>
           <div className="terminal-stat-chip terminal-stat-chip-danger">
-            <span style={{ color: '#ff4d4f' }}>最大回撤：</span>
+            <span style={{ color: '#ff4d4f' }}>历史最大回撤：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#ff4d4f', marginLeft: '8px' }}>
               {formatPercent(performanceSummary.maxDrawdown)}
             </span>
           </div>
         </Space>
       </Card>
+      )}
 
       {/* 资金曲线图表 */}
       <Card 
-        title="资金曲线" 
+        title="模拟资产曲线"
         className="terminal-section-gap"
         extra={
           <Button 
@@ -630,11 +647,23 @@ function MomentumStrategy() {
             loading={performanceLoading}
             size="small"
           >
-            刷新曲线
+            更新曲线
           </Button>
         }
       >
-        {performanceData.length > 0 ? (
+        {performanceError ? (
+          <Alert
+            type="error"
+            showIcon
+            message="模拟资产曲线加载失败"
+            description={performanceError}
+            action={(
+              <Button size="small" onClick={() => loadPerformanceData()} loading={performanceLoading}>
+                重试
+              </Button>
+            )}
+          />
+        ) : performanceData.length > 0 ? (
           <>
             {/* 时间范围选择器 */}
             <div className="momentum-range-controls terminal-section-gap">
@@ -691,7 +720,7 @@ function MomentumStrategy() {
                   />
                   <YAxis 
                     yAxisId="left"
-                    label={{ value: '资产总值 (¥)', angle: -90, position: 'insideLeft' }}
+                    label={{ value: '模拟资产 (¥)', angle: -90, position: 'insideLeft' }}
                     tickFormatter={(value) => (value / 10000).toFixed(1) + '万'}
                   />
                   <Tooltip content={<CustomTooltip />} />
@@ -703,7 +732,7 @@ function MomentumStrategy() {
                     stroke="#1890ff"
                     strokeWidth={2}
                     dot={false}
-                    name="资产总值"
+                    name="模拟资产"
                     activeDot={{ r: 6 }}
                     connectNulls={false}
                     isAnimationActive={false}
@@ -714,7 +743,7 @@ function MomentumStrategy() {
                       yAxisId="left"
                       dataKey="buyValue"
                       fill="#52c41a"
-                      name="买入点"
+                      name="模拟买入点"
                       shape={renderTradeMarker('buyValue', '#52c41a')}
                     />
                   )}
@@ -724,7 +753,7 @@ function MomentumStrategy() {
                       yAxisId="left"
                       dataKey="sellValue"
                       fill="#ff4d4f"
-                      name="卖出点"
+                      name="模拟卖出点"
                       shape={renderTradeMarker('sellValue', '#ff4d4f')}
                     />
                   )}
@@ -748,7 +777,7 @@ function MomentumStrategy() {
                     backgroundColor: '#52c41a',
                     marginRight: '8px'
                   }}></span>
-                  买入点
+                  模拟买入点
                 </span>
                 <span>
                   <span style={{ 
@@ -759,14 +788,14 @@ function MomentumStrategy() {
                     backgroundColor: '#ff4d4f',
                     marginRight: '8px'
                   }}></span>
-                  卖出点
+                  模拟卖出点
                 </span>
               </Space>
             </div>
           </>
         ) : (
           <div className="terminal-empty-state">
-            {performanceLoading ? '加载中...' : '暂无收益曲线数据，请先执行回测'}
+            {performanceLoading ? '加载中...' : '暂无模拟资产曲线数据，请先运行区间模拟'}
           </div>
         )}
       </Card>
@@ -780,48 +809,67 @@ function MomentumStrategy() {
             onClick={() => loadData()}
             loading={loading}
           >
-            刷新数据
+            更新记录
           </Button>
           <Button 
             type="default" 
             icon={<PlayCircleOutlined />}
             onClick={() => setBacktestModalVisible(true)}
           >
-            执行回测
+            运行区间模拟
           </Button>
         </Space>
 
         {/* 数据表格 */}
-        <Table
-          columns={columns}
-          dataSource={visibleTransactions}
-          rowKey={(record) => `${record.date}-${record.code}-${record.type}-${record.quantity}-${record.price}`}
-          loading={loading}
-          scroll={{ x: 1000 }}
-          pagination={{
-            pageSize: 20,
-            showTotal: (total) => `共 ${total} 条交易记录`,
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100'],
-          }}
-          locale={{ emptyText: loading ? '数据加载中...' : '当前没有动量交易记录' }}
-        />
+        {transactionsError ? (
+          <Alert
+            type="error"
+            showIcon
+            message="模拟记录加载失败"
+            description={transactionsError}
+            action={(
+              <Button size="small" onClick={() => loadData()} loading={loading}>
+                重试
+              </Button>
+            )}
+          />
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={visibleTransactions}
+            rowKey={(record) => `${record.date}-${record.code}-${record.type}-${record.quantity}-${record.price}`}
+            loading={loading}
+            scroll={{ x: 1000 }}
+            pagination={{
+              pageSize: 20,
+              showTotal: (total) => `共 ${total} 条模拟记录`,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+            }}
+            locale={{ emptyText: loading ? '数据加载中...' : '当前没有轮动模拟记录' }}
+          />
+        )}
       </Card>
 
       {/* 回测对话框 */}
       <Modal
-        title="执行回测"
+        title="运行区间模拟"
         open={backtestModalVisible}
         onOk={handleRunBacktest}
         onCancel={() => setBacktestModalVisible(false)}
         confirmLoading={backtestLoading}
-        okText="执行回测"
+        okText="开始模拟"
         cancelText="取消"
       >
         <div style={{ padding: '20px 0' }}>
           <div className="terminal-section-gap">
-            <label className="terminal-field-label">回测日期范围：</label>
+            <div className="terminal-field-label">模拟日期范围：</div>
+            <div className="terminal-range-labels">
+              <label htmlFor="momentum-simulation-start-date" className="terminal-field-label">开始日期</label>
+              <label htmlFor="momentum-simulation-end-date" className="terminal-field-label">结束日期</label>
+            </div>
             <RangePicker
+              id={{ start: 'momentum-simulation-start-date', end: 'momentum-simulation-end-date' }}
               className="terminal-full-width"
               value={[backtestStartDate, backtestEndDate]}
               onChange={(dates) => {
@@ -836,8 +884,9 @@ function MomentumStrategy() {
             />
           </div>
           <div>
-            <label className="terminal-field-label">初始资金：</label>
+            <label htmlFor="momentum-initial-capital" className="terminal-field-label">初始模拟资金：</label>
             <InputNumber
+              id="momentum-initial-capital"
               className="terminal-full-width"
               value={initialCapital}
               onChange={(value) => setInitialCapital(value || 100000)}
@@ -849,54 +898,40 @@ function MomentumStrategy() {
           </div>
           <div className="terminal-info-box terminal-info-box-cyan terminal-field-offset-lg">
             <p className="terminal-small-text">
-              <strong>提示：</strong>回测功能由Java后端直接执行，无需额外工具。
-              <br />
-              选择日期范围和初始资金后，点击"执行回测"即可开始。
-              <br />
-              回测可能需要几分钟时间，请耐心等待。
+              <strong>提示：</strong>区间模拟基于历史数据，运行可能需要几分钟，请耐心等待。
             </p>
           </div>
         </div>
       </Modal>
 
       {/* 策略说明 */}
-      <Card title="21日动量策略说明">
+      <Card title="轮动策略如何工作">
         <div className="terminal-copy-block">
           <p>
-            <strong>21日动量策略</strong>是一种基于动量的ETF轮动策略，
-            通过计算各ETF的21日收益率（动量），选择动量最强的ETF进行投资。
+            <strong>21 日动量轮动规则</strong>比较固定 ETF 范围内的 21 日历史涨跌幅，
+            并用历史数据模拟持有动量相对较强的标的。
           </p>
           
-          <h3>策略原理：</h3>
+          <h3>规则概览：</h3>
           <ul>
-            <li><strong>动量计算：</strong>21日动量 = (当前价格 - 21天前价格) / 21天前价格</li>
-            <li><strong>选股逻辑：</strong>每日选择21日动量最强的ETF进行投资</li>
-            <li><strong>调仓规则：</strong>当动量最强的ETF发生变化时，卖出当前持有，买入新的最强ETF</li>
-            <li><strong>当前固定投资范围：</strong>黄金ETF(518880)、纳指ETF(513100)、创业板ETF(159915)，与 ETF 管理页的监控列表不是同一组配置</li>
+            <li><strong>动量计算：</strong>21 日动量 =（当前价格 - 21 天前价格）/ 21 天前价格</li>
+            <li><strong>标的选择：</strong>每日比较范围内 ETF 的 21 日动量</li>
+            <li><strong>轮动规则：</strong>领先标的变化时，模拟卖出原持仓并模拟买入新的领先标的</li>
+            <li><strong>当前固定范围：</strong>黄金 ETF（518880）、纳指 ETF（513100）、创业板 ETF（159915），与 ETF 管理页的监控列表不是同一组配置</li>
           </ul>
 
-          <h3>策略优势：</h3>
-          <ol>
-            <li><strong>趋势跟踪：</strong>动量指标能够捕捉价格趋势，选择表现最好的ETF</li>
-            <li><strong>轮动机制：</strong>自动在不同ETF之间切换，捕捉各阶段的机会</li>
-            <li><strong>简单有效：</strong>策略逻辑简单，易于理解和执行</li>
-            <li><strong>风险分散：</strong>在多个ETF之间轮动，降低单一资产风险</li>
-          </ol>
-
-          <h3>使用建议：</h3>
+          <h3>适用场景与局限：</h3>
           <ul>
-            <li>回测历史数据以评估策略表现</li>
-            <li>关注交易频率，避免过度交易</li>
-            <li>结合市场环境调整策略参数</li>
-            <li>注意交易成本和滑点影响</li>
+            <li>趋势较持续时，动量可帮助观察标的之间的相对强弱</li>
+            <li>动量来自历史价格，存在滞后，不能预测下一阶段表现</li>
+            <li>震荡期领先标的可能频繁变化，产生较多模拟交易</li>
+            <li>固定范围较小，轮动不等于风险分散，也不能作为买卖依据</li>
           </ul>
 
           <div className="terminal-info-box terminal-info-box-amber terminal-field-offset-lg">
-            <strong>⚠️ 风险提示：</strong>
+            <strong>风险提示：</strong>
             <p className="terminal-inline-note-space">
-              动量策略在趋势明显的市场中表现较好，但在震荡市场中可能产生频繁交易。
-              本策略仅供参考，不构成投资建议。请结合自身风险承受能力，谨慎决策。
-              投资有风险，入市需谨慎。
+              历史模拟结果不代表未来表现，未计入手续费、滑点、分红与最小交易单位，仅用于理解规则。
             </p>
           </div>
         </div>

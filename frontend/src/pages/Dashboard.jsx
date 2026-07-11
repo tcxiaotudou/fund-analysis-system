@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, Button, Modal, Spin, Tag, message } from 'antd'
+import { Alert, Button, Modal, Spin, message } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import DecisionSummary from '../components/dashboard/DecisionSummary'
 import MarketOverviewWorkbench from '../components/dashboard/MarketOverviewWorkbench'
@@ -7,7 +7,6 @@ import SignalTables, { FundRecommendationPanel } from '../components/dashboard/S
 import { adminApi, dashboardApi } from '../services/api'
 import {
   EMPTY_DASHBOARD_DECISION,
-  getDashboardStatusColor,
   normalizeDashboardDecision,
 } from '../utils/dashboardDecision'
 
@@ -25,6 +24,7 @@ function Dashboard() {
   const [dashboard, setDashboard] = useState(EMPTY_DASHBOARD_DECISION)
   const [pageError, setPageError] = useState(null)
   const refreshStatusRef = useRef(null)
+  const refreshStatusRequestInFlightRef = useRef(false)
 
   // 加载首页聚合数据。
   const loadDashboard = useCallback(async (showGlobalLoading = true) => {
@@ -67,6 +67,10 @@ function Dashboard() {
 
   // 加载后台刷新状态。
   const loadBackgroundRefreshStatus = useCallback(async (notifyFinish = false) => {
+    if (refreshStatusRequestInFlightRef.current) {
+      return
+    }
+    refreshStatusRequestInFlightRef.current = true
     try {
       const response = await adminApi.getBackgroundRefreshStatus()
       if (response.code !== 0) {
@@ -75,6 +79,8 @@ function Dashboard() {
       await applyRefreshStatus(response.data, notifyFinish)
     } catch (error) {
       message.error(error.normalizedMessage || error.message || '后台刷新状态获取失败')
+    } finally {
+      refreshStatusRequestInFlightRef.current = false
     }
   }, [applyRefreshStatus])
 
@@ -140,31 +146,34 @@ function Dashboard() {
 
   return (
     <div className="decision-dashboard terminal-dashboard">
-      <header className="dashboard-command-bar">
-        <div className="terminal-brand">
-          <span className="terminal-live-dot" />
-          <div>
-            <h1>QUANT TERMINAL v2.0</h1>
-            <p>基金和ETF投资策略分析系统</p>
+      <header className="dashboard-hero">
+        <div className="dashboard-hero-copy">
+          <h1>把复杂指标，变成今天看得懂的选择</h1>
+          <p>先看机会、风险和仓位参考，再决定要不要深入研究。</p>
+        </div>
+        <div className="dashboard-hero-controls">
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            onClick={handleRefreshAll}
+            loading={startingRefresh}
+            disabled={isRefreshRunning(refreshStatus)}
+          >
+            {isRefreshRunning(refreshStatus) ? '后台刷新中' : '刷新数据'}
+          </Button>
+          <div className="dashboard-data-meta" aria-label="首页数据状态">
+            <span className="dashboard-data-state">
+              <i className={`dashboard-status-dot dashboard-status-dot-${dashboard.dataStatus.status}`} aria-hidden="true" />
+              {dashboard.dataStatus.message}
+            </span>
+            {dashboard.updateTime && <span>更新于 {dashboard.updateTime}</span>}
+            {refreshStatus && refreshStatus.status !== 'idle' && (
+              <span className={`dashboard-refresh-state dashboard-refresh-state-${refreshStatus.status}`}>
+                后台：{refreshStatus.message}
+              </span>
+            )}
           </div>
         </div>
-        <div className="terminal-status-strip">
-          <Tag color={getDashboardStatusColor(dashboard.dataStatus.status)}>状态：{dashboard.dataStatus.message}</Tag>
-          {dashboard.updateTime && <span>数据同步：{dashboard.updateTime}</span>}
-          {refreshStatus && refreshStatus.status !== 'idle' && (
-            <span className={`terminal-refresh-state terminal-refresh-state-${refreshStatus.status}`}>
-              {refreshStatus.message}
-            </span>
-          )}
-        </div>
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={handleRefreshAll}
-          loading={startingRefresh}
-          disabled={isRefreshRunning(refreshStatus)}
-        >
-          {isRefreshRunning(refreshStatus) ? '后台刷新中' : '刷新数据'}
-        </Button>
       </header>
 
       {dashboard.dataStatus.moduleErrors.length > 0 && (
@@ -177,27 +186,24 @@ function Dashboard() {
         />
       )}
 
-      <main className="terminal-board terminal-board-market-overview">
-        <section className="terminal-column terminal-column-left">
-          <DecisionSummary decisions={dashboard.decisions} />
+      <DecisionSummary decisions={dashboard.decisions} />
+
+      <main className="dashboard-workspace">
+        <section className="dashboard-workspace-primary">
           <MarketOverviewWorkbench
             metrics={dashboard.metrics}
             indexValuations={dashboard.indexValuations}
           />
         </section>
 
-        <section className="terminal-column terminal-column-center">
+        <aside className="dashboard-workspace-secondary">
           <SignalTables
             etfOpportunities={dashboard.etfOpportunities}
             maSignals={dashboard.maSignals}
           />
-        </section>
-
-        <section className="terminal-column terminal-column-right">
           <FundRecommendationPanel fundRecommendations={dashboard.fundRecommendations} />
-        </section>
+        </aside>
       </main>
-
     </div>
   )
 }

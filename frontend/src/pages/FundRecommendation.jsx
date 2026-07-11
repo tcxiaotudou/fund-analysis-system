@@ -2,21 +2,28 @@
  * 基金推荐页面
  * 展示优质基金推荐列表
  */
-import React, { useState, useEffect } from 'react'
-import { Card, Table, Tag, Button, Space, Tooltip, Modal, Input, message } from 'antd'
+import React, { useState, useEffect, useRef } from 'react'
+import { Alert, Card, Table, Tag, Button, Space, Tooltip, Modal, Input, message } from 'antd'
 import { ReloadOutlined, StarOutlined, StarFilled, StopOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import TerminalPage from '../components/TerminalPage'
 import { fundApi } from '../services/api'
 
 const { TextArea } = Input
 
 function FundRecommendation() {
+  const navigate = useNavigate()
+  const recommendationRequestIdRef = useRef(0)
   // 推荐列表加载状态
   const [loading, setLoading] = useState(false)
+  // 页面加载错误
+  const [pageError, setPageError] = useState('')
   // 推荐列表数据
   const [data, setData] = useState([])
   // 基金黑名单数据
   const [blacklist, setBlacklist] = useState([])
+  // 暂不关注状态加载提示
+  const [blacklistWarning, setBlacklistWarning] = useState('')
   // 排除弹窗显示状态
   const [excludeModalVisible, setExcludeModalVisible] = useState(false)
   // 当前操作基金
@@ -51,22 +58,33 @@ function FundRecommendation() {
    * 加载基金推荐数据
    */
   const loadData = async () => {
+    const requestId = ++recommendationRequestIdRef.current
     try {
       setLoading(true)
-      // 先清空数据，确保不会累加
-      setData([])
+      setRefreshingRemote(false)
+      setRefreshStage('')
+      setPageError('')
       
       const response = await fundApi.getRecommendations()
+      if (requestId !== recommendationRequestIdRef.current) return
 
       if (response.code === 0) {
         // 创建全新的数组，避免引用问题
         const newData = [...(response.data || [])]
         applyRecommendationData(newData)
+      } else {
+        console.error('加载基金优选服务返回失败:', response)
+        setPageError(`基金优选暂时无法读取（错误码：${response.code}），请稍后重试。`)
       }
     } catch (error) {
       console.error('加载基金推荐数据失败:', error)
+      if (requestId === recommendationRequestIdRef.current) {
+        setPageError('基金优选暂时无法读取，请检查网络连接后重试。')
+      }
     } finally {
-      setLoading(false)
+      if (requestId === recommendationRequestIdRef.current) {
+        setLoading(false)
+      }
     }
   }
 
@@ -75,12 +93,17 @@ function FundRecommendation() {
    */
   const loadBlacklist = async () => {
     try {
+      setBlacklistWarning('')
       const response = await fundApi.getBlacklist()
       if (response.code === 0) {
         setBlacklist(response.data || [])
+      } else {
+        console.error('加载暂不关注名单服务返回失败:', response)
+        setBlacklistWarning(`部分关注状态暂时无法读取（错误码：${response.code}），请重试。`)
       }
     } catch (error) {
       console.error('加载黑名单数据失败:', error)
+      setBlacklistWarning('部分关注状态暂时无法读取，请检查网络连接后重试。')
     }
   }
 
@@ -105,7 +128,7 @@ function FundRecommendation() {
    */
   const handleExclude = async () => {
     if (!excludeReason.trim()) {
-      message.warning('请填写排除原因')
+      message.warning('请填写暂不关注原因')
       return
     }
 
@@ -117,17 +140,18 @@ function FundRecommendation() {
       })
 
       if (response.code === 0) {
-        message.success('基金已排除')
+        message.success('已暂不关注')
         setExcludeModalVisible(false)
         setCurrentFund(null)
         setExcludeReason('')
         await loadBlacklist()
       } else {
-        message.error(response.message || '排除失败')
+        console.error('暂不关注基金服务返回失败:', response)
+        message.error(`暂不关注失败（错误码：${response.code}）`)
       }
     } catch (error) {
       console.error('排除基金失败:', error)
-      message.error('排除失败')
+      message.error('暂不关注失败，请稍后重试')
     }
   }
 
@@ -139,14 +163,15 @@ function FundRecommendation() {
       const response = await fundApi.removeFromBlacklist(fundCode)
       
       if (response.code === 0) {
-        message.success('已取消排除')
+        message.success('已恢复关注')
         await loadBlacklist()
       } else {
-        message.error(response.message || '取消排除失败')
+        console.error('恢复关注基金服务返回失败:', response)
+        message.error(`恢复关注失败（错误码：${response.code}）`)
       }
     } catch (error) {
       console.error('取消排除失败:', error)
-      message.error('取消排除失败')
+      message.error('恢复关注失败，请稍后重试')
     }
   }
 
@@ -158,7 +183,7 @@ function FundRecommendation() {
       const response = await fundApi.updateHoldingStatus(fundCode, currentIsHolding ? 0 : 1)
       
       if (response.code === 0) {
-        message.success(currentIsHolding ? '已取消持有' : '已标记为持有')
+        message.success(currentIsHolding ? '已移出组合' : '已加入组合')
         // 更新本地状态
         const newHoldings = new Set(holdings)
         if (currentIsHolding) {
@@ -171,11 +196,12 @@ function FundRecommendation() {
         // 重新加载数据以确保同步
         await loadData()
       } else {
-        message.error(response.message || '操作失败')
+        console.error('更新组合基金服务返回失败:', response)
+        message.error(`${currentIsHolding ? '移出组合' : '加入组合'}失败（错误码：${response.code}）`)
       }
     } catch (error) {
       console.error('更新持有状态失败:', error)
-      message.error('操作失败')
+      message.error(`${currentIsHolding ? '移出组合' : '加入组合'}失败，请稍后重试`)
     }
   }
 
@@ -183,27 +209,42 @@ function FundRecommendation() {
    * 使用系统配置重新获取最新基金推荐
    */
   const runRefreshRecommendations = async () => {
+    const requestId = ++recommendationRequestIdRef.current
     try {
       setRefreshingRemote(true)
-      setRefreshStage('正在使用系统配置中的组合Id获取最新推荐...')
-      setData([])
+      setLoading(false)
+      setPageError('')
+      setRefreshStage('正在根据已保存的筛选条件从数据源筛选基金...')
       const response = await fundApi.refreshRecommendations()
+      if (requestId !== recommendationRequestIdRef.current) return
 
       if (response.code === 0) {
         const newData = [...(response.data || [])]
         applyRecommendationData(newData)
         await loadBlacklist()
-        setRefreshStage(`已获取 ${newData.length} 条推荐数据`)
-        message.success('基金推荐数据已重新获取')
+        if (requestId !== recommendationRequestIdRef.current) return
+        setRefreshStage(`已筛选 ${newData.length} 只基金`)
+        message.success('基金优选已更新')
       } else {
-        message.error(response.message || '重新获取基金推荐数据失败')
+        console.error('重新筛选基金服务返回失败:', response)
+        setRefreshStage('')
+        setPageError(`基金优选重新筛选失败（错误码：${response.code}），请稍后重试。`)
       }
     } catch (error) {
       console.error('重新获取基金推荐数据失败:', error)
-      message.error('重新获取基金推荐数据失败: ' + (error.normalizedMessage || error.message || '网络错误'))
+      if (requestId === recommendationRequestIdRef.current) {
+        setRefreshStage('')
+        setPageError('基金优选重新筛选失败，请检查数据源连接后重试。')
+      }
     } finally {
-      setRefreshingRemote(false)
-      setTimeout(() => setRefreshStage(''), 3000)
+      if (requestId === recommendationRequestIdRef.current) {
+        setRefreshingRemote(false)
+        setTimeout(() => {
+          if (requestId === recommendationRequestIdRef.current) {
+            setRefreshStage('')
+          }
+        }, 3000)
+      }
     }
   }
 
@@ -212,9 +253,9 @@ function FundRecommendation() {
    */
   const handleRefreshRecommendations = () => {
     Modal.confirm({
-      title: '确认重新获取基金推荐？',
-      content: '系统会使用系统配置中的组合Id调用第三方基金数据源重新生成推荐列表。',
-      okText: '重新获取',
+      title: '确认重新筛选基金？',
+      content: '将按已保存的筛选条件从数据源重新生成基金优选名单。',
+      okText: '重新筛选',
       cancelText: '取消',
       onOk: runRefreshRecommendations,
     })
@@ -366,8 +407,8 @@ function FundRecommendation() {
         if (blacklistItem) {
           return (
             <Space size="small" direction="vertical" className="terminal-full-width">
-              <Tooltip title={`排除原因: ${blacklistItem.excludeReason}`}>
-                <Tag color="red" icon={<StopOutlined />} style={{ margin: 0 }}>已排除</Tag>
+              <Tooltip title={`原因：${blacklistItem.excludeReason}`}>
+                <Tag color="red" icon={<StopOutlined />} style={{ margin: 0 }}>暂不关注</Tag>
               </Tooltip>
               <Button 
                 type="link" 
@@ -375,7 +416,7 @@ function FundRecommendation() {
                 onClick={() => handleCancelExclude(record.fundCode)}
                 style={{ padding: 0, height: 'auto' }}
               >
-                取消排除
+                恢复关注
               </Button>
             </Space>
           )
@@ -389,7 +430,7 @@ function FundRecommendation() {
               icon={isHolding ? <StarFilled /> : <StarOutlined />}
               onClick={() => handleToggleHolding(record.fundCode, isHolding)}
             >
-              {isHolding ? '已持有' : '标记持有'}
+              {isHolding ? '移出组合' : '加入组合'}
             </Button>
             <Button 
               type="link" 
@@ -397,7 +438,7 @@ function FundRecommendation() {
               danger
               onClick={() => showExcludeModal(record)}
             >
-              排除
+              暂不关注
             </Button>
           </Space>
         )
@@ -407,12 +448,14 @@ function FundRecommendation() {
 
   return (
     <TerminalPage
-      title="基金推荐"
-      subtitle="第三方筛选条件、推荐列表和持有/排除状态"
+      title="基金优选"
+      subtitle="按长期收益、回撤与基金经理维度整理候选名单"
       status={
-        data.length > 0 && data[0]?.dataTime ? (
+        pageError ? (
+          <span>数据不可用</span>
+        ) : data.length > 0 && data[0]?.dataTime ? (
           <span>
-            数据更新时间：{new Date(data[0].dataTime).toLocaleString('zh-CN', {
+            数据时间：{new Date(data[0].dataTime).toLocaleString('zh-CN', {
               year: 'numeric',
               month: '2-digit', 
               day: '2-digit',
@@ -422,12 +465,39 @@ function FundRecommendation() {
             })}
           </span>
         ) : (
-          <span>推荐数：{data.length}</span>
+          <span>共 {data.length} 只基金</span>
         )
+      }
+      actions={
+        <Button onClick={() => navigate('/fund-portfolio')}>
+          查看组合观察
+        </Button>
       }
     >
 
-      <Card title="基金推荐列表">
+      {pageError && (
+        <Alert
+          type="error"
+          showIcon
+          message="基金优选加载失败"
+          description={pageError}
+          action={<Button size="small" onClick={loadData}>重试</Button>}
+          className="terminal-section-gap"
+        />
+      )}
+
+      {blacklistWarning && (
+        <Alert
+          type="warning"
+          showIcon
+          message="部分关注状态加载失败"
+          description={blacklistWarning}
+          action={<Button size="small" onClick={loadBlacklist}>重试</Button>}
+          className="terminal-section-gap"
+        />
+      )}
+
+      <Card title="优选基金">
         {/* 操作栏 */}
         <Space className="terminal-toolbar" wrap>
           {refreshStage && <Tag color={refreshingRemote ? 'processing' : 'success'}>{refreshStage}</Tag>}
@@ -436,8 +506,9 @@ function FundRecommendation() {
             icon={<ReloadOutlined />}
             onClick={handleRefreshRecommendations}
             loading={refreshingRemote}
+            disabled={loading}
           >
-            重新获取最新数据
+            重新筛选
           </Button>
           <Button 
             icon={<ReloadOutlined />}
@@ -445,7 +516,7 @@ function FundRecommendation() {
             loading={loading}
             disabled={refreshingRemote}
           >
-            重新加载列表
+            重新载入
           </Button>
         </Space>
 
@@ -457,7 +528,13 @@ function FundRecommendation() {
           loading={loading || refreshingRemote}
           pagination={false}
           scroll={{ x: 1600 }}
-          locale={{ emptyText: (loading || refreshingRemote) ? '数据加载中...' : '当前没有基金推荐数据' }}
+          locale={{
+            emptyText: (loading || refreshingRemote)
+              ? '数据加载中...'
+              : pageError
+                ? '基金优选加载失败，请重试'
+                : '暂时没有符合条件的基金',
+          }}
           rowClassName={(record) => {
             if (isBlacklisted(record.fundCode)) {
               return 'blacklisted-row'
@@ -471,18 +548,18 @@ function FundRecommendation() {
         />
       </Card>
 
-      {/* 筛选标准说明 */}
-      <Card title="筛选标准说明">
+      {/* 优选规则说明 */}
+      <Card title="优选规则">
         <div className="terminal-copy-block">
-          <h3>本推荐列表的筛选标准：</h3>
+          <h3>候选名单的整理规则：</h3>
           <dl className="terminal-definition-list">
             <div>
               <dt>数据来源</dt>
-              <dd>第三方基金数据 API</dd>
+              <dd>公开基金数据源</dd>
             </div>
             <div>
-              <dt>组合Id</dt>
-              <dd>在系统配置中维护，对应第三方基金筛选条件 condition_id。</dd>
+              <dt>筛选条件</dt>
+              <dd>由服务设置中的筛选组合编号决定。</dd>
             </div>
             <div>
               <dt>基金经理去重</dt>
@@ -493,7 +570,7 @@ function FundRecommendation() {
               <dd>按<span style={{ color: '#cf1322', fontWeight: 'bold' }}>卡玛比率排名</span>从优到劣排序，排名越小越好。</dd>
             </div>
             <div>
-              <dt>数量限制</dt>
+              <dt>展示数量</dt>
               <dd>展示前 12 只基金。</dd>
             </div>
           </dl>
@@ -509,24 +586,23 @@ function FundRecommendation() {
           <div className="terminal-info-box terminal-info-box-cyan terminal-field-offset-lg">
             <strong>为什么使用卡玛比率排序？</strong>
             <p className="terminal-inline-note-space">
-              卡玛比率综合考虑了收益和风险（最大回撤），比单纯的收益率排序更能反映基金的长期投资价值。
-              卡玛比率高的基金意味着在控制回撤的前提下获得了较好的收益，更适合长期持有。
+              卡玛比率同时纳入收益与最大回撤，可用于比较候选基金在历史收益和回撤之间的相对表现。
             </p>
           </div>
 
           <div className="terminal-info-box terminal-info-box-amber terminal-field-offset-lg">
             <strong>免责声明：</strong>
             <p className="terminal-inline-note-space">
-              本推荐仅基于历史数据筛选，不构成投资建议。
+              本名单仅基于历史数据筛选，不构成投资建议。
               历史业绩不代表未来表现，投资需谨慎。
             </p>
           </div>
         </div>
       </Card>
 
-      {/* 排除对话框 */}
+      {/* 暂不关注对话框 */}
       <Modal
-        title="排除基金"
+        title="暂不关注此基金"
         open={excludeModalVisible}
         onOk={handleExclude}
         onCancel={() => {
@@ -534,7 +610,7 @@ function FundRecommendation() {
           setCurrentFund(null)
           setExcludeReason('')
         }}
-        okText="确认排除"
+        okText="暂不关注"
         cancelText="取消"
       >
         <div className="terminal-section-gap">
@@ -542,12 +618,17 @@ function FundRecommendation() {
           <p><strong>基金代码：</strong>{currentFund?.fundCode}</p>
         </div>
         <div>
-          <p className="terminal-field-label">
-            <strong style={{ color: 'red' }}>*</strong> 排除原因：
-          </p>
+          <label
+            htmlFor="fund-exclude-reason"
+            className="terminal-field-label"
+            style={{ display: 'block' }}
+          >
+            <strong style={{ color: 'red' }}>*</strong> 原因：
+          </label>
           <TextArea
+            id="fund-exclude-reason"
             rows={4}
-            placeholder="请填写排除该基金的原因（必填）"
+            placeholder="请填写暂不关注该基金的原因（必填）"
             value={excludeReason}
             onChange={(e) => setExcludeReason(e.target.value)}
             maxLength={500}

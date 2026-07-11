@@ -4,6 +4,7 @@ import {
   message, Row, Col, Statistic, Divider, Tooltip, Slider
 } from 'antd'
 import { PlayCircleOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
+import { useSearchParams } from 'react-router-dom'
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, ReferenceLine, Scatter, Area, Legend
@@ -25,9 +26,10 @@ const DEFAULT_SELL_THRESHOLD = 60
 const DEFAULT_FIXED_AMOUNT = 10000
 
 function RsiBacktest() {
+  const [searchParams] = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
-  const [etfCode, setEtfCode] = useState(DEFAULT_ETF)
+  const [etfCode, setEtfCode] = useState(() => searchParams.get('etfCode')?.trim() || DEFAULT_ETF)
   const [startDate, setStartDate] = useState(dayjs().subtract(5, 'year'))
   const [endDate, setEndDate] = useState(dayjs())
   const [initialCapital, setInitialCapital] = useState(DEFAULT_CAPITAL)
@@ -56,14 +58,14 @@ function RsiBacktest() {
       message.warning(initialCapitalError)
       return
     }
-    const fixedAmountError = getPositiveNumberError(fixedAmount, '每笔交易金额')
+    const fixedAmountError = getPositiveNumberError(fixedAmount, '每次模拟金额')
     if (fixedAmountError) {
       message.warning(fixedAmountError)
       return
     }
     const thresholdError = getRsiThresholdOrderError(buyThreshold, sellThreshold)
     if (thresholdError) {
-      message.warning(thresholdError)
+      message.warning('关注阈值必须低于止盈阈值')
       return
     }
 
@@ -83,12 +85,13 @@ function RsiBacktest() {
       if (response.code === 0) {
         setResult(response.data)
         setChartRange([0, 100])
-        message.success('回测完成！')
+        message.success('模拟完成！')
       } else {
-        message.error(response.message || '回测失败')
+        console.error('RSI 模拟服务返回失败:', response.code, response.message)
+        message.error(`模拟失败（服务返回 ${response.code}）`)
       }
     } catch (error) {
-      message.error('回测失败: ' + (error.message || '未知错误'))
+      message.error('模拟失败，数据源暂时不可用，请稍后重试')
     } finally {
       setLoading(false)
     }
@@ -132,9 +135,9 @@ function RsiBacktest() {
   const priceTooltipFormatter = (value, name) => {
     const labels = {
       price: '价格',
-      totalValue: '总资产',
-      buyPoint: '买入点',
-      sellPoint: '卖出点',
+      totalValue: '模拟总资产',
+      buyPoint: '模拟买入点',
+      sellPoint: '模拟卖出点',
     }
     if (name === 'buyPoint' || name === 'sellPoint') {
       return value != null ? [`¥${Number(value).toFixed(3)}`, labels[name]] : null
@@ -146,7 +149,7 @@ function RsiBacktest() {
   }
 
   const rsiTooltipFormatter = (value, name) => {
-    const labels = { rsi: 'RSI', buyRsi: '买入RSI', sellRsi: '卖出RSI' }
+    const labels = { rsi: 'RSI', buyRsi: '模拟买入 RSI', sellRsi: '模拟卖出 RSI' }
     return [Number(value).toFixed(2), labels[name] || name]
   }
 
@@ -154,7 +157,7 @@ function RsiBacktest() {
     { title: '日期', dataIndex: 'date', key: 'date', width: 110 },
     {
       title: '类型', dataIndex: 'type', key: 'type', width: 70,
-      render: type => <Tag color={type === 'BUY' ? 'success' : 'error'}>{type === 'BUY' ? '买入' : '卖出'}</Tag>,
+      render: type => <Tag color={type === 'BUY' ? 'success' : 'error'}>{type === 'BUY' ? '模拟买入' : '模拟卖出'}</Tag>,
     },
     {
       title: '价格', dataIndex: 'price', key: 'price', width: 90,
@@ -173,7 +176,7 @@ function RsiBacktest() {
       render: val => Number(val).toFixed(2),
     },
     {
-      title: '盈亏', dataIndex: 'profit', key: 'profit', width: 110,
+      title: '模拟盈亏', dataIndex: 'profit', key: 'profit', width: 110,
       render: (val, record) => {
         if (record.type === 'BUY') return '-'
         const v = Number(val)
@@ -185,19 +188,19 @@ function RsiBacktest() {
       },
     },
     {
-      title: '剩余持仓', dataIndex: 'holdingQuantityAfter', key: 'holdingQuantityAfter', width: 90,
+      title: '模拟剩余持仓', dataIndex: 'holdingQuantityAfter', key: 'holdingQuantityAfter', width: 110,
       render: val => val?.toLocaleString() || '0',
     },
     {
-      title: '持仓均价', dataIndex: 'avgCostAfter', key: 'avgCostAfter', width: 90,
+      title: '模拟持仓均价', dataIndex: 'avgCostAfter', key: 'avgCostAfter', width: 110,
       render: val => val && Number(val) > 0 ? `¥${Number(val).toFixed(3)}` : '-',
     },
     {
-      title: '剩余现金', dataIndex: 'cashAfter', key: 'cashAfter', width: 110,
+      title: '模拟剩余现金', dataIndex: 'cashAfter', key: 'cashAfter', width: 120,
       render: val => `¥${Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     },
     {
-      title: '总资产', dataIndex: 'totalValue', key: 'totalValue', width: 110,
+      title: '模拟总资产', dataIndex: 'totalValue', key: 'totalValue', width: 120,
       render: val => `¥${Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     },
     { title: '信号说明', dataIndex: 'signalDescription', key: 'signalDescription', ellipsis: true, width: 200 },
@@ -207,36 +210,37 @@ function RsiBacktest() {
 
   return (
     <TerminalPage
-      title="RSI策略回测"
-      subtitle="定额分批 RSI 买卖阈值回测"
-      status={<span>{result ? `回测标的：${result.etfName} (${result.etfCode})` : `默认标的：${etfCode}`}</span>}
+      title="RSI 策略模拟"
+      subtitle="用历史数据试算分批规则，不代表未来收益"
+      status={<span>{result ? `模拟标的：${result.etfName} (${result.etfCode})` : `默认标的：${etfCode}`}</span>}
     >
 
-      <Card title="回测参数设置" className="terminal-section-gap">
+      <Card title="设置模拟条件" className="terminal-section-gap">
         <Space direction="vertical" className="terminal-full-width" size="large">
           <Row gutter={16}>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div className="terminal-field-label">ETF编码：</div>
-                <Input placeholder="例如：sh512170" value={etfCode} onChange={e => setEtfCode(e.target.value)} />
+                <label htmlFor="rsi-etf-code" className="terminal-field-label">ETF 代码：</label>
+                <Input id="rsi-etf-code" placeholder="例如：sh512170" value={etfCode} onChange={e => setEtfCode(e.target.value)} />
               </div>
             </Col>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div className="terminal-field-label">开始时间：</div>
-                <DatePicker className="terminal-full-width" value={startDate} onChange={setStartDate} format="YYYY-MM-DD" />
+                <label htmlFor="rsi-start-date" className="terminal-field-label">开始日期：</label>
+                <DatePicker id="rsi-start-date" className="terminal-full-width" value={startDate} onChange={setStartDate} format="YYYY-MM-DD" />
               </div>
             </Col>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div className="terminal-field-label">结束时间：</div>
-                <DatePicker className="terminal-full-width" value={endDate} onChange={setEndDate} format="YYYY-MM-DD" />
+                <label htmlFor="rsi-end-date" className="terminal-field-label">结束日期：</label>
+                <DatePicker id="rsi-end-date" className="terminal-full-width" value={endDate} onChange={setEndDate} format="YYYY-MM-DD" />
               </div>
             </Col>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div className="terminal-field-label">初始资金：</div>
+                <label htmlFor="rsi-initial-capital" className="terminal-field-label">初始资金：</label>
                 <InputNumber
+                  id="rsi-initial-capital"
                   className="terminal-full-width" value={initialCapital} onChange={setInitialCapital}
                   min={1000} step={10000}
                   formatter={v => `¥ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
@@ -246,10 +250,11 @@ function RsiBacktest() {
             </Col>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <Tooltip title="每次触发买入/卖出信号时使用的固定金额，可连续多天操作">
-                  <div className="terminal-field-label">每笔交易金额：</div>
+                <Tooltip title="每次触发关注或止盈阈值时使用的固定模拟金额，可连续多天试算">
+                  <label htmlFor="rsi-fixed-amount" className="terminal-field-label">每次模拟金额：</label>
                 </Tooltip>
                 <InputNumber
+                  id="rsi-fixed-amount"
                   className="terminal-full-width" value={fixedAmount} onChange={setFixedAmount}
                   min={100} step={1000}
                   formatter={v => `¥ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
@@ -259,63 +264,63 @@ function RsiBacktest() {
             </Col>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div className="terminal-field-label">RSI周期：</div>
-                <InputNumber className="terminal-full-width" value={rsiPeriod} onChange={setRsiPeriod} min={2} max={100} />
+                <label htmlFor="rsi-period" className="terminal-field-label">RSI 周期：</label>
+                <InputNumber id="rsi-period" className="terminal-full-width" value={rsiPeriod} onChange={setRsiPeriod} min={2} max={100} />
               </div>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div className="terminal-field-label">买入阈值(RSI≤)：</div>
-                <InputNumber className="terminal-full-width" value={buyThreshold} onChange={setBuyThreshold} min={1} max={99} />
+                <label htmlFor="rsi-buy-threshold" className="terminal-field-label">关注阈值（RSI ≤）：</label>
+                <InputNumber id="rsi-buy-threshold" className="terminal-full-width" value={buyThreshold} onChange={setBuyThreshold} min={1} max={99} />
               </div>
             </Col>
             <Col xs={24} sm={12} lg={4}>
               <div>
-                <div className="terminal-field-label">卖出阈值(RSI≥)：</div>
-                <InputNumber className="terminal-full-width" value={sellThreshold} onChange={setSellThreshold} min={1} max={99} />
+                <label htmlFor="rsi-sell-threshold" className="terminal-field-label">止盈阈值（RSI ≥）：</label>
+                <InputNumber id="rsi-sell-threshold" className="terminal-full-width" value={sellThreshold} onChange={setSellThreshold} min={1} max={99} />
               </div>
             </Col>
           </Row>
           <Button type="primary" icon={<PlayCircleOutlined />} onClick={handleRunBacktest} loading={loading} size="large">
-            开始回测
+            开始模拟
           </Button>
         </Space>
       </Card>
 
       {result && (
         <>
-          <Card title={`回测结果：${result.etfName} (${result.etfCode})`} className="terminal-section-gap">
+          <Card title={`模拟结果：${result.etfName} (${result.etfCode})`} className="terminal-section-gap">
             <Row gutter={16}>
               <Col xs={12} sm={8} lg={4}>
                 <Statistic
-                  title="总收益率" value={result.totalReturnRate} precision={2} suffix="%"
+                  title="模拟总收益率" value={result.totalReturnRate} precision={2} suffix="%"
                   valueStyle={{ color: Number(result.totalReturnRate) >= 0 ? '#3f8600' : '#cf1322' }}
                   prefix={Number(result.totalReturnRate) >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                 />
               </Col>
               <Col xs={12} sm={8} lg={4}>
                 <Statistic
-                  title="年化收益率" value={result.annualizedReturnRate} precision={2} suffix="%"
+                  title="模拟年化收益率" value={result.annualizedReturnRate} precision={2} suffix="%"
                   valueStyle={{ color: Number(result.annualizedReturnRate) >= 0 ? '#3f8600' : '#cf1322' }}
                 />
               </Col>
               <Col xs={12} sm={8} lg={4}>
-                <Statistic title="初始资金" value={result.initialCapital} precision={2} prefix="¥" />
+                <Statistic title="初始模拟资金" value={result.initialCapital} precision={2} prefix="¥" />
               </Col>
               <Col xs={12} sm={8} lg={4}>
                 <Statistic
-                  title="最终总资产" value={result.finalCapital} precision={2} prefix="¥"
+                  title="模拟期末资产" value={result.finalCapital} precision={2} prefix="¥"
                   valueStyle={{ color: Number(result.finalCapital) >= Number(result.initialCapital) ? '#3f8600' : '#cf1322' }}
                 />
               </Col>
               <Col xs={12} sm={8} lg={4}>
-                <Statistic title="最大回撤" value={result.maxDrawdown} precision={2} suffix="%" valueStyle={{ color: '#cf1322' }} />
+                <Statistic title="历史最大回撤" value={result.maxDrawdown} precision={2} suffix="%" valueStyle={{ color: '#cf1322' }} />
               </Col>
               <Col xs={12} sm={8} lg={4}>
                 <Statistic
-                  title="卖出胜率" value={result.winRate} precision={2} suffix="%"
+                  title="模拟卖出胜率" value={result.winRate} precision={2} suffix="%"
                   valueStyle={{ color: Number(result.winRate) >= 50 ? '#3f8600' : '#cf1322' }}
                 />
               </Col>
@@ -323,27 +328,27 @@ function RsiBacktest() {
             <Divider />
             <Row gutter={16}>
               <Col xs={12} sm={8} lg={4}>
-                <Statistic title="交易次数" value={result.tradeCount} />
+                <Statistic title="模拟交易次数" value={result.tradeCount} />
               </Col>
               <Col xs={12} sm={8} lg={4}>
-                <Statistic title="买入次数" value={result.buyCount} valueStyle={{ color: '#52c41a' }} />
+                <Statistic title="模拟买入次数" value={result.buyCount} valueStyle={{ color: '#52c41a' }} />
               </Col>
               <Col xs={12} sm={8} lg={4}>
-                <Statistic title="卖出次数" value={result.sellCount} valueStyle={{ color: '#ff4d4f' }} />
+                <Statistic title="模拟卖出次数" value={result.sellCount} valueStyle={{ color: '#ff4d4f' }} />
               </Col>
               <Col xs={12} sm={8} lg={4}>
-                <Statistic title="累计投入" value={result.totalInvested} precision={2} prefix="¥" />
+                <Statistic title="模拟累计投入" value={result.totalInvested} precision={2} prefix="¥" />
               </Col>
               <Col xs={12} sm={8} lg={4}>
-                <Statistic title="剩余持仓" value={result.finalHoldingQuantity} suffix="份" />
+                <Statistic title="模拟剩余持仓" value={result.finalHoldingQuantity} suffix="份" />
               </Col>
               <Col xs={12} sm={8} lg={4}>
-                <Statistic title="持仓均价" value={result.averageCost} precision={3} prefix="¥" />
+                <Statistic title="模拟持仓均价" value={result.averageCost} precision={3} prefix="¥" />
               </Col>
             </Row>
           </Card>
 
-          <Card title="价格走势与买卖点" className="terminal-section-gap">
+          <Card title="历史走势与模拟点" className="terminal-section-gap">
             <div className="terminal-section-gap">
               <span className="terminal-muted-text" style={{ marginRight: 8 }}>时间范围缩放：</span>
               <Slider
@@ -364,19 +369,19 @@ function RsiBacktest() {
                 <YAxis yAxisId="price" orientation="left" tick={{ fontSize: 11 }} domain={['auto', 'auto']}
                        label={{ value: '价格', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }} />
                 <YAxis yAxisId="value" orientation="right" tick={{ fontSize: 11 }} domain={['auto', 'auto']}
-                       label={{ value: '总资产', angle: 90, position: 'insideRight', style: { fontSize: 12 } }} />
+                       label={{ value: '模拟总资产', angle: 90, position: 'insideRight', style: { fontSize: 12 } }} />
                 <RechartsTooltip formatter={priceTooltipFormatter} />
                 <Legend />
                 <Line yAxisId="price" type="monotone" dataKey="price" stroke="#1890ff" dot={false}
                       strokeWidth={1.5} name="价格" />
                 <Line yAxisId="value" type="monotone" dataKey="totalValue" stroke="#722ed1" dot={false}
-                      strokeWidth={1.5} name="总资产" strokeDasharray="5 5" />
-                <Scatter yAxisId="price" dataKey="buyPoint" fill="#52c41a" name="买入点"
+                      strokeWidth={1.5} name="模拟总资产" strokeDasharray="5 5" />
+                <Scatter yAxisId="price" dataKey="buyPoint" fill="#52c41a" name="模拟买入点"
                          shape={props => {
                            if (props.payload.buyPoint == null) return null
                            return <svg x={props.cx - 8} y={props.cy - 8}><polygon points="8,0 16,16 0,16" fill="#52c41a" /></svg>
                          }} />
-                <Scatter yAxisId="price" dataKey="sellPoint" fill="#ff4d4f" name="卖出点"
+                <Scatter yAxisId="price" dataKey="sellPoint" fill="#ff4d4f" name="模拟卖出点"
                          shape={props => {
                            if (props.payload.sellPoint == null) return null
                            return <svg x={props.cx - 8} y={props.cy - 2}><polygon points="8,16 16,0 0,0" fill="#ff4d4f" /></svg>
@@ -395,17 +400,17 @@ function RsiBacktest() {
                 <RechartsTooltip formatter={rsiTooltipFormatter} />
                 <Legend />
                 <ReferenceLine y={buyThreshold} stroke="#52c41a" strokeDasharray="5 5"
-                               label={{ value: `买入线(${buyThreshold})`, position: 'right', fill: '#52c41a', fontSize: 11 }} />
+                               label={{ value: `关注线(${buyThreshold})`, position: 'right', fill: '#52c41a', fontSize: 11 }} />
                 <ReferenceLine y={sellThreshold} stroke="#ff4d4f" strokeDasharray="5 5"
-                               label={{ value: `卖出线(${sellThreshold})`, position: 'right', fill: '#ff4d4f', fontSize: 11 }} />
+                               label={{ value: `止盈线(${sellThreshold})`, position: 'right', fill: '#ff4d4f', fontSize: 11 }} />
                 <Area type="monotone" dataKey="rsi" stroke="#2563eb" fill="#087f8c" fillOpacity={0.12}
                       strokeWidth={1.5} name="RSI" />
-                <Scatter dataKey="buyRsi" fill="#52c41a" name="买入RSI"
+                <Scatter dataKey="buyRsi" fill="#52c41a" name="模拟买入 RSI"
                          shape={props => {
                            if (props.payload.buyRsi == null) return null
                            return <svg x={props.cx - 6} y={props.cy - 6}><circle cx="6" cy="6" r="6" fill="#52c41a" /></svg>
                          }} />
-                <Scatter dataKey="sellRsi" fill="#ff4d4f" name="卖出RSI"
+                <Scatter dataKey="sellRsi" fill="#ff4d4f" name="模拟卖出 RSI"
                          shape={props => {
                            if (props.payload.sellRsi == null) return null
                            return <svg x={props.cx - 6} y={props.cy - 6}><circle cx="6" cy="6" r="6" fill="#ff4d4f" /></svg>
@@ -414,14 +419,14 @@ function RsiBacktest() {
             </ResponsiveContainer>
           </Card>
 
-          <Card title="交易记录" className="terminal-section-gap">
+          <Card title="模拟记录" className="terminal-section-gap">
             <Table
               columns={transactionColumns}
               dataSource={result.transactions || []}
               rowKey={(record) => `${record.date}-${record.type}-${record.price}-${record.quantity}-${record.amount}`}
               pagination={{
                 defaultPageSize: 20,
-                showTotal: total => `共 ${total} 条交易记录`,
+                showTotal: total => `共 ${total} 条模拟记录`,
                 showSizeChanger: true,
                 pageSizeOptions: ['10', '20', '50', '100', '200'],
               }}
@@ -430,27 +435,27 @@ function RsiBacktest() {
             />
           </Card>
 
-          <Card title="策略说明" className="terminal-section-gap">
+          <Card title="规则说明" className="terminal-section-gap">
             <div className="terminal-copy-block">
               <p>
-                <strong>RSI定额分批策略</strong>：每天检查RSI值，只要触发阈值就用固定金额买入或卖出，
-                可以连续多天操作，逐步建仓和减仓。
+                <strong>RSI 定额分批规则</strong>：每天检查 RSI 值，达到关注阈值时按固定金额模拟买入，
+                达到止盈阈值时按固定金额模拟卖出，可连续多天试算。
               </p>
-              <h3>当前回测参数：</h3>
+              <h3>当前模拟条件：</h3>
               <div className="terminal-info-box terminal-info-box-cyan">
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
-                  <li>RSI周期：<strong>{result.rsiPeriod}日</strong></li>
-                  <li>买入条件：当日RSI ≤ <strong>{Number(result.rsiBuyThreshold)}</strong> → 买入 <strong>¥{Number(result.fixedAmountPerTrade).toLocaleString()}</strong></li>
-                  <li>卖出条件：当日RSI ≥ <strong>{Number(result.rsiSellThreshold)}</strong> → 卖出 <strong>¥{Number(result.fixedAmountPerTrade).toLocaleString()}</strong></li>
-                  <li>连续触发：如果连续多天满足条件，每天都会执行一笔交易</li>
-                  <li>回测区间：<strong>{result.startDate}</strong> ~ <strong>{result.endDate}</strong></li>
+                  <li>RSI 周期：<strong>{result.rsiPeriod} 日</strong></li>
+                  <li>关注条件：当日 RSI ≤ <strong>{Number(result.rsiBuyThreshold)}</strong> → 模拟买入 <strong>¥{Number(result.fixedAmountPerTrade).toLocaleString()}</strong></li>
+                  <li>止盈条件：当日 RSI ≥ <strong>{Number(result.rsiSellThreshold)}</strong> → 模拟卖出 <strong>¥{Number(result.fixedAmountPerTrade).toLocaleString()}</strong></li>
+                  <li>连续触发：如果连续多天满足条件，每天都会生成一笔模拟交易</li>
+                  <li>模拟区间：<strong>{result.startDate}</strong> ~ <strong>{result.endDate}</strong></li>
                 </ul>
               </div>
 
               <div className="terminal-info-box terminal-info-box-amber terminal-field-offset-lg">
                 <strong>风险提示：</strong>
                 <p className="terminal-inline-note-space">
-                  历史回测结果不代表未来收益。任何策略都有局限性，请结合自身风险承受能力谨慎决策。
+                  历史模拟结果不代表未来收益，也不能作为买卖依据。结果未计入手续费、滑点、分红和最小交易单位，仅用于理解规则。
                 </p>
               </div>
             </div>

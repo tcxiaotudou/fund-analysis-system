@@ -6,6 +6,8 @@ import com.fund.analysis.dto.MaStrategyDTO;
 import com.fund.analysis.dto.MarketOverviewDTO;
 import com.fund.analysis.dto.RsiDataDTO;
 import com.fund.analysis.entity.FundInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +25,8 @@ import java.util.Map;
  */
 @Service
 public class DashboardDecisionService {
+
+    private static final Logger logger = LoggerFactory.getLogger(DashboardDecisionService.class);
 
     /**
      * 首页日期时间格式
@@ -105,7 +109,7 @@ public class DashboardDecisionService {
         try {
             return marketDataService.getCoreMarketOverview();
         } catch (RuntimeException e) {
-            addModuleError(result, "市场概览", e.getMessage());
+            addModuleError(result, "市场概览", e);
             return null;
         }
     }
@@ -125,7 +129,7 @@ public class DashboardDecisionService {
             portfolioRsi.setWeeklyRsi14(formatPortfolioRsiValue(portfolioSummary.get("weeklyRsi14"), "weeklyRsi14"));
             overview.setFundPortfolioRsi(portfolioRsi);
         } catch (RuntimeException e) {
-            addModuleError(result, "组合RSI", e.getMessage());
+            addModuleError(result, "组合RSI", e);
         }
     }
 
@@ -138,7 +142,7 @@ public class DashboardDecisionService {
         try {
             result.getEtfOpportunities().addAll(nonNullList(rsiAnalysisService.getEtfBuySignals()));
         } catch (RuntimeException e) {
-            addModuleError(result, "ETF机会", e.getMessage());
+            addModuleError(result, "ETF机会", e);
         }
     }
 
@@ -151,7 +155,7 @@ public class DashboardDecisionService {
         try {
             result.getMaSignals().addAll(nonNullList(maStrategyService.getMaActionSignals()));
         } catch (RuntimeException e) {
-            addModuleError(result, "MA信号", e.getMessage());
+            addModuleError(result, "趋势变化", e);
         }
     }
 
@@ -174,7 +178,7 @@ public class DashboardDecisionService {
                 result.getFundRecommendations().add(item);
             }
         } catch (RuntimeException e) {
-            addModuleError(result, "基金推荐", e.getMessage());
+            addModuleError(result, "基金优选", e);
         }
     }
 
@@ -187,7 +191,7 @@ public class DashboardDecisionService {
         try {
             result.getIndexValuations().add(danjuanIndexValuationService.getCachedNasdaq100Valuation());
         } catch (RuntimeException e) {
-            addModuleError(result, "指数估值", e.getMessage());
+            addModuleError(result, "指数估值", e);
         }
     }
 
@@ -199,13 +203,13 @@ public class DashboardDecisionService {
      */
     private void buildDecisionCards(DashboardDecisionDTO result, MarketOverviewDTO overview) {
         int buyCount = result.getEtfOpportunities().size();
-        result.getDecisions().add(createDecision("buy", "买入机会", String.valueOf(buyCount), "ETF信号",
-                "关注RSI与MA共振标的", buyCount > 0 ? "success" : "info"));
-        result.getDecisions().add(createDecision("rebalance", "再平衡建议",
-                marketDataService.formatStockBondRatio(overview.getBalanceSuggestion()), "股 / 债",
-                "根据90日RSI调整配置", "warning"));
-        result.getDecisions().add(createDecision("risk", "风险提示", resolveRiskText(overview.getRsi90()),
-                "市场温度", "结合风险溢价与均线偏离度控制仓位", resolveRiskLevel(overview.getRsi90())));
+        result.getDecisions().add(createDecision("buy", "值得关注", String.valueOf(buyCount), "ETF 低位信号",
+                "先查看标的估值与趋势，再决定是否分批关注", buyCount > 0 ? "success" : "info"));
+        result.getDecisions().add(createDecision("rebalance", "仓位参考",
+                marketDataService.formatStockBondRatio(overview.getBalanceSuggestion()), "股 / 债参考",
+                "基于中期市场温度给出的配置参考", "warning"));
+        result.getDecisions().add(createDecision("risk", "风险温度", resolveRiskText(overview.getRsi90()),
+                "中期市场状态", "结合风险溢价与长期均线判断，避免只看单一指标", resolveRiskLevel(overview.getRsi90())));
     }
 
     /**
@@ -253,14 +257,14 @@ public class DashboardDecisionService {
      * @param result 聚合结果
      */
     private void buildOperations(DashboardDecisionDTO result) {
-        result.getOperations().add(createOperation("rsi-backtest", "执行RSI回测",
-                "基于当前RSI阈值做区间分析", "/rsi-backtest", null, false));
+        result.getOperations().add(createOperation("rsi-backtest", "运行 RSI 模拟",
+                "基于当前 RSI 阈值试算历史区间", "/rsi-backtest", null, false));
         result.getOperations().add(createOperation("momentum", "查看动量轮动",
                 "查看21日动量最新结果", "/momentum-strategy", null, false));
         result.getOperations().add(createOperation("portfolio-weight", "编辑组合权重",
                 "调整基金组合配置比例", "/fund-portfolio", null, false));
-        result.getOperations().add(createOperation("send-email", "发送日报",
-                "发送今日投资分析日报", null, "sendEmailNow", true));
+        result.getOperations().add(createOperation("send-email", "发送简报",
+                "发送今日研究简报", null, "sendEmailNow", true));
     }
 
     /**
@@ -268,12 +272,13 @@ public class DashboardDecisionService {
      *
      * @param result 聚合结果
      * @param module 模块名称
-     * @param message 错误消息
+     * @param exception 原始异常，仅记录在服务端日志
      */
-    private void addModuleError(DashboardDecisionDTO result, String module, String message) {
+    private void addModuleError(DashboardDecisionDTO result, String module, RuntimeException exception) {
+        logger.warn("首页{}模块加载失败", module, exception);
         DashboardDecisionDTO.ModuleErrorDTO error = new DashboardDecisionDTO.ModuleErrorDTO();
         error.setModule(module);
-        error.setMessage(message == null || message.trim().isEmpty() ? "未知错误" : message);
+        error.setMessage("数据暂时不可用，请稍后重试");
         result.getDataStatus().getModuleErrors().add(error);
     }
 
@@ -377,7 +382,7 @@ public class DashboardDecisionService {
         if (fund.getIsHolding() != null && fund.getIsHolding() == 1) {
             return "已持有";
         }
-        return "推荐";
+        return "候选";
     }
 
     /**

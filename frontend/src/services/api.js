@@ -111,7 +111,8 @@ export const maStrategyApi = {
   // 执行回测
   runBacktest: (etfCode, startDate, endDate, initialCapital = 100000) =>
     api.post('/ma-strategy/backtest', null, {
-      params: { etfCode, startDate, endDate, initialCapital }
+      params: { etfCode, startDate, endDate, initialCapital },
+      timeout: 180000,
     }),
 }
 
@@ -206,7 +207,8 @@ export const momentumStrategyApi = {
   // 执行回测
   runBacktest: (startDate, endDate, initialCapital = 100000) =>
     api.post('/momentum-strategy/backtest/run', null, {
-      params: { startDate, endDate, initialCapital }
+      params: { startDate, endDate, initialCapital },
+      timeout: 180000,
     }),
   
   // 获取收益曲线数据
@@ -227,7 +229,8 @@ export const rsiBacktestApi = {
                 rsiPeriod = 14, rsiBuyThreshold = 30, rsiSellThreshold = 60,
                 fixedAmountPerTrade = 10000) =>
     api.post('/rsi-backtest/run', null, {
-      params: { etfCode, startDate, endDate, initialCapital, rsiPeriod, rsiBuyThreshold, rsiSellThreshold, fixedAmountPerTrade }
+      params: { etfCode, startDate, endDate, initialCapital, rsiPeriod, rsiBuyThreshold, rsiSellThreshold, fixedAmountPerTrade },
+      timeout: 180000,
     }),
 }
 

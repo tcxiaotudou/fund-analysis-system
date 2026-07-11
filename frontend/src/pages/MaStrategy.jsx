@@ -3,7 +3,7 @@
  * 展示基于10日/30日均线的双均线交易策略
  */
 import React, { useState, useEffect } from 'react'
-import { Card, Table, Tag, Button, Space, Tooltip, Input, DatePicker, InputNumber, message, Row, Col, Statistic, Divider } from 'antd'
+import { Alert, Card, Table, Tag, Button, Space, Tooltip, Input, DatePicker, InputNumber, message, Row, Col, Statistic, Divider } from 'antd'
 import { ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import TerminalPage from '../components/TerminalPage'
 import { maStrategyApi } from '../services/api'
@@ -14,8 +14,9 @@ import {
 import dayjs from 'dayjs'
 
 function MaStrategy() {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [data, setData] = useState([])
+  const [dataError, setDataError] = useState(null)
   
   // 回测相关状态
   const [backtestLoading, setBacktestLoading] = useState(false)
@@ -31,16 +32,22 @@ function MaStrategy() {
   const loadData = async () => {
     try {
       setLoading(true)
+      setDataError(null)
       const response = await maStrategyApi.getLatest()
       
       if (response.code === 0) {
         setData(response.data || [])
       } else {
-        message.error(response.message || '加载MA策略数据失败')
+        console.error('趋势信号服务返回失败:', response.code, response.message)
+        const errorMessage = `加载趋势信号失败（服务返回 ${response.code}）`
+        setDataError(errorMessage)
+        message.error(errorMessage)
       }
     } catch (error) {
       console.error('加载MA策略数据失败:', error)
-      message.error(error.normalizedMessage || '加载MA策略数据失败')
+      const errorMessage = '加载趋势信号失败，请检查网络后重试'
+      setDataError(errorMessage)
+      message.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -84,13 +91,14 @@ function MaStrategy() {
       
       if (response.code === 0) {
         setBacktestResult(response.data)
-        message.success('回测完成！')
+        message.success('模拟完成！')
       } else {
-        message.error(response.message || '回测失败')
+        console.error('趋势模拟服务返回失败:', response.code, response.message)
+        message.error(`模拟失败（服务返回 ${response.code}）`)
       }
     } catch (error) {
       console.error('回测失败:', error)
-      message.error('回测失败: ' + (error.message || '未知错误'))
+      message.error('模拟失败，数据源暂时不可用，请稍后重试')
     } finally {
       setBacktestLoading(false)
     }
@@ -145,17 +153,17 @@ function MaStrategy() {
       fixed: 'right',
       render: (_, record) => {
         if (record.isBuySignal) {
-          return <Tag color="success">买入</Tag>
+          return <Tag color="success">趋势转强</Tag>
         } else if (record.isSellSignal) {
-          return <Tag color="error">卖出</Tag>
+          return <Tag color="error">趋势转弱</Tag>
         } else {
-          return <Tag color="default">观望</Tag>
+          return <Tag color="default">继续观察</Tag>
         }
       },
       filters: [
-        { text: '买入', value: 'buy' },
-        { text: '卖出', value: 'sell' },
-        { text: '观望', value: 'hold' },
+        { text: '趋势转强', value: 'buy' },
+        { text: '趋势转弱', value: 'sell' },
+        { text: '继续观察', value: 'hold' },
       ],
       onFilter: (value, record) => {
         if (value === 'buy') return record.isBuySignal
@@ -198,18 +206,18 @@ function MaStrategy() {
 
   return (
     <TerminalPage
-      title="双均线策略"
-      subtitle="MA10 / MA30 金叉死叉信号和策略回测"
-      status={<span>买入 {buySignalCount} / 卖出 {sellSignalCount} / 观望 {holdCount}</span>}
+      title="趋势策略"
+      subtitle="用 MA10 / MA30 观察趋势变化，并用历史数据模拟规则"
+      status={<span>转强 {buySignalCount} / 转弱 {sellSignalCount} / 观察 {holdCount}</span>}
     >
       
       {/* 回测功能区域 */}
       <Card 
-        title="双均线策略回测" 
+        title="设置趋势模拟"
         className="terminal-section-gap"
         extra={
-          <Tooltip title="基于10日均线和30日均线的金叉（买入）和死叉（卖出）信号进行回测">
-            <span className="terminal-muted-text terminal-small-text">仅使用双均线策略</span>
+          <Tooltip title="根据 MA10 与 MA30 的交叉，在历史数据中记录模拟买入和模拟卖出点">
+            <span className="terminal-muted-text terminal-small-text">仅使用均线交叉规则</span>
           </Tooltip>
         }
       >
@@ -217,8 +225,9 @@ function MaStrategy() {
           <Row gutter={16}>
             <Col xs={24} sm={12} lg={6}>
               <div>
-                <div className="terminal-field-label">ETF编码：</div>
+                <label htmlFor="ma-etf-code" className="terminal-field-label">ETF 代码：</label>
                 <Input
+                  id="ma-etf-code"
                   placeholder="例如：sh510500"
                   value={etfCode}
                   onChange={(e) => setEtfCode(e.target.value)}
@@ -228,8 +237,9 @@ function MaStrategy() {
             </Col>
             <Col xs={24} sm={12} lg={6}>
               <div>
-                <div className="terminal-field-label">开始时间：</div>
+                <label htmlFor="ma-start-date" className="terminal-field-label">开始日期：</label>
                 <DatePicker
+                  id="ma-start-date"
                   className="terminal-full-width"
                   value={startDate}
                   onChange={setStartDate}
@@ -240,8 +250,9 @@ function MaStrategy() {
             </Col>
             <Col xs={24} sm={12} lg={6}>
               <div>
-                <div className="terminal-field-label">结束时间：</div>
+                <label htmlFor="ma-end-date" className="terminal-field-label">结束日期：</label>
                 <DatePicker
+                  id="ma-end-date"
                   className="terminal-full-width"
                   value={endDate}
                   onChange={setEndDate}
@@ -252,8 +263,9 @@ function MaStrategy() {
             </Col>
             <Col xs={24} sm={12} lg={6}>
               <div>
-                <div className="terminal-field-label">初始资金：</div>
+                <label htmlFor="ma-initial-capital" className="terminal-field-label">初始资金：</label>
                 <InputNumber
+                  id="ma-initial-capital"
                   className="terminal-full-width"
                   value={initialCapital}
                   onChange={setInitialCapital}
@@ -272,7 +284,7 @@ function MaStrategy() {
             loading={backtestLoading}
             size="large"
           >
-            开始回测
+            开始模拟
           </Button>
         </Space>
       </Card>
@@ -281,11 +293,11 @@ function MaStrategy() {
       {backtestResult && (
         <>
           {/* 回测统计信息 */}
-          <Card title={`回测结果：${backtestResult.etfName} (${backtestResult.etfCode})`} className="terminal-section-gap">
+          <Card title={`模拟结果：${backtestResult.etfName} (${backtestResult.etfCode})`} className="terminal-section-gap">
             <Row gutter={16}>
               <Col xs={12} sm={12} lg={6}>
                 <Statistic
-                  title="总收益率"
+                  title="模拟总收益率"
                   value={backtestResult.totalReturnRate}
                   precision={2}
                   suffix="%"
@@ -294,7 +306,7 @@ function MaStrategy() {
               </Col>
               <Col xs={12} sm={12} lg={6}>
                 <Statistic
-                  title="年化收益率"
+                  title="模拟年化收益率"
                   value={backtestResult.annualizedReturnRate}
                   precision={2}
                   suffix="%"
@@ -303,7 +315,7 @@ function MaStrategy() {
               </Col>
               <Col xs={12} sm={12} lg={6}>
                 <Statistic
-                  title="初始资金"
+                  title="初始模拟资金"
                   value={backtestResult.initialCapital}
                   precision={2}
                   prefix="¥"
@@ -311,7 +323,7 @@ function MaStrategy() {
               </Col>
               <Col xs={12} sm={12} lg={6}>
                 <Statistic
-                  title="最终资金"
+                  title="模拟期末资产"
                   value={backtestResult.finalCapital}
                   precision={2}
                   prefix="¥"
@@ -322,19 +334,19 @@ function MaStrategy() {
             <Divider />
             <Row gutter={16}>
               <Col xs={24} sm={8}>
-                <Statistic title="交易次数" value={backtestResult.tradeCount} />
+                <Statistic title="模拟交易次数" value={backtestResult.tradeCount} />
               </Col>
               <Col xs={24} sm={8}>
-                <Statistic title="买入次数" value={backtestResult.buyCount} valueStyle={{ color: '#52c41a' }} />
+                <Statistic title="模拟买入次数" value={backtestResult.buyCount} valueStyle={{ color: '#52c41a' }} />
               </Col>
               <Col xs={24} sm={8}>
-                <Statistic title="卖出次数" value={backtestResult.sellCount} valueStyle={{ color: '#ff4d4f' }} />
+                <Statistic title="模拟卖出次数" value={backtestResult.sellCount} valueStyle={{ color: '#ff4d4f' }} />
               </Col>
             </Row>
           </Card>
           
           {/* 交易记录表格 */}
-          <Card title="交易记录" className="terminal-section-gap">
+          <Card title="模拟记录" className="terminal-section-gap">
             <Table
               columns={[
                 {
@@ -350,7 +362,7 @@ function MaStrategy() {
                   width: 80,
                   render: (type) => (
                     <Tag color={type === 'BUY' ? 'success' : 'error'}>
-                      {type === 'BUY' ? '买入' : '卖出'}
+                      {type === 'BUY' ? '模拟买入' : '模拟卖出'}
                     </Tag>
                   ),
                 },
@@ -376,7 +388,7 @@ function MaStrategy() {
                   render: (val) => `¥${Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                 },
                 {
-                  title: '总资产',
+                  title: '模拟总资产',
                   dataIndex: 'totalValue',
                   key: 'totalValue',
                   width: 150,
@@ -393,123 +405,136 @@ function MaStrategy() {
               rowKey={(record) => `${record.date}-${record.type}-${record.price}-${record.quantity}-${record.amount}`}
               pagination={{
                 pageSize: 20,
-                showTotal: (total) => `共 ${total} 条交易记录`,
+                showTotal: (total) => `共 ${total} 条模拟记录`,
               }}
             />
           </Card>
         </>
       )}
 
-      {/* 统计信息卡片 */}
-      <Card className="terminal-section-gap">
+      {dataError && (
+        <Alert
+          type="error"
+          showIcon
+          message="趋势信号加载失败"
+          description={dataError}
+          className="terminal-section-gap"
+          action={(
+            <Button size="small" onClick={loadData} loading={loading}>
+              重试
+            </Button>
+          )}
+        />
+      )}
+
+      {!dataError && (
+        <>
+          {/* 统计信息卡片 */}
+          <Card className="terminal-section-gap">
         <Space className="terminal-stat-strip" size="middle" wrap>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#999' }}>总计：</span>
+            <span style={{ color: '#666' }}>总计：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {data.length}
             </span>
           </div>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#52c41a' }}>买入信号：</span>
+            <span style={{ color: '#52c41a' }}>趋势转强：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#52c41a', marginLeft: '8px' }}>
               {buySignalCount}
             </span>
           </div>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#ff4d4f' }}>卖出信号：</span>
+            <span style={{ color: '#ff4d4f' }}>趋势转弱：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#ff4d4f', marginLeft: '8px' }}>
               {sellSignalCount}
             </span>
           </div>
           <div className="terminal-stat-chip">
-            <span style={{ color: '#999' }}>观望：</span>
+            <span style={{ color: '#666' }}>继续观察：</span>
             <span style={{ fontSize: '20px', fontWeight: 'bold', marginLeft: '8px' }}>
               {holdCount}
             </span>
           </div>
-        </Space>
-      </Card>
+            </Space>
+          </Card>
 
-      <Card>
-        {/* 操作栏 */}
-        <Space className="terminal-toolbar" wrap>
-          <Button 
-            type="primary" 
-            icon={<ReloadOutlined />}
-            onClick={loadData}
-            loading={loading}
-          >
-            刷新数据
-          </Button>
-        </Space>
+          <Card>
+            {/* 操作栏 */}
+            <Space className="terminal-toolbar" wrap>
+              <Button
+                type="primary"
+                icon={<ReloadOutlined />}
+                onClick={loadData}
+                loading={loading}
+              >
+                刷新数据
+              </Button>
+            </Space>
 
-        {/* 数据表格 */}
-        <Table
-          columns={columns}
-          dataSource={data}
-          rowKey="etfCode"
-          loading={loading}
-          scroll={{ x: 1400 }}
-          pagination={{
-            pageSize: 20,
-            showTotal: (total) => `共 ${total} 条数据`,
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100'],
-          }}
-          locale={{ emptyText: loading ? '数据加载中...' : '当前没有 MA 策略数据' }}
-        />
-      </Card>
+            {/* 数据表格 */}
+            <Table
+              columns={columns}
+              dataSource={data}
+              rowKey="etfCode"
+              loading={loading}
+              scroll={{ x: 1400 }}
+              pagination={{
+                pageSize: 20,
+                showTotal: (total) => `共 ${total} 条数据`,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '20', '50', '100'],
+              }}
+              locale={{ emptyText: loading ? '数据加载中...' : '当前没有 MA 策略数据' }}
+            />
+          </Card>
+        </>
+      )}
 
       {/* 策略说明 */}
-      <Card title="双均线策略说明">
+      <Card title="均线策略如何工作">
         <div className="terminal-copy-block">
           <p>
-            <strong>双均线策略</strong>是一种基于趋势跟踪的交易策略，
-            通过观察10日均线和30日均线的交叉来判断买卖时机。
+            <strong>双均线规则</strong>通过观察 10 日均线和 30 日均线的交叉，记录趋势可能发生变化的时点。
           </p>
           
-          <h3>技术指标说明：</h3>
+          <h3>指标说明：</h3>
           <ul>
-            <li><strong>10日均线（MA10）：</strong>短期移动平均线，反映短期趋势</li>
-            <li><strong>30日均线（MA30）：</strong>中期移动平均线，反映中期趋势</li>
+            <li><strong>10 日均线（MA10）：</strong>反映相对短期的价格趋势</li>
+            <li><strong>30 日均线（MA30）：</strong>反映相对中期的价格趋势</li>
           </ul>
 
-          <h3>买入信号条件：</h3>
+          <h3>趋势转强条件：</h3>
           <div className="terminal-info-box terminal-info-box-cyan terminal-field-offset-lg">
             <p style={{ margin: 0 }}>
-              <strong>条件：</strong>10日均线上穿30日均线（金叉）
+              <strong>条件：</strong>MA10 上穿 MA30（金叉）
             </p>
           </div>
 
-          <h3 className="terminal-field-offset-xl">卖出信号条件：</h3>
+          <h3 className="terminal-field-offset-xl">趋势转弱条件：</h3>
           <div className="terminal-info-box terminal-info-box-red terminal-field-offset-lg">
             <p style={{ margin: 0 }}>
-              <strong>条件：</strong>10日均线下穿30日均线（死叉）
+              <strong>条件：</strong>MA10 下穿 MA30（死叉）
             </p>
           </div>
 
-          <h3 className="terminal-field-offset-xl">策略优势：</h3>
-          <ol>
-            <li><strong>趋势确认：</strong>均线交叉能够有效捕捉趋势变化</li>
-            <li><strong>简单明了：</strong>策略逻辑清晰，易于理解和执行</li>
-            <li><strong>减少噪音：</strong>通过均线平滑价格波动，过滤短期市场噪音</li>
-            <li><strong>适用性强：</strong>适用于不同市场环境和时间周期</li>
-          </ol>
-
-          <h3 className="terminal-field-offset-xl">使用建议：</h3>
+          <h3 className="terminal-field-offset-xl">适用场景与局限：</h3>
           <ul>
-            <li>买入信号出现后，建议观察成交量是否配合</li>
-            <li>卖出信号出现后，可以考虑止盈或减仓</li>
-            <li>在震荡市场中，可能出现频繁的买卖信号，需要结合其他指标综合判断</li>
-            <li>可结合其他指标（如RSI、MACD）综合判断，提高策略准确性</li>
+            <li>均线可帮助观察持续趋势，但信号会滞后于价格变化</li>
+            <li>震荡行情中可能频繁出现交叉，增加模拟交易次数</li>
+            <li>单一均线信号不能作为买卖依据，应结合更多信息判断</li>
+          </ul>
+
+          <h3 className="terminal-field-offset-xl">查看建议：</h3>
+          <ul>
+            <li>趋势转强或转弱时，可同时观察成交量和市场环境</li>
+            <li>可结合 RSI、MACD 等指标交叉验证，不应依赖单一信号</li>
           </ul>
 
           <div className="terminal-info-box terminal-info-box-amber terminal-field-offset-lg">
-            <strong>⚠️ 风险提示：</strong>
+            <strong>风险提示：</strong>
             <p className="terminal-inline-note-space">
-              任何技术分析策略都有局限性，市场走势受多种因素影响。
-              本策略仅供参考，不构成投资建议。请结合自身风险承受能力，谨慎决策。
-              投资有风险，入市需谨慎。
+              页面结果来自历史模拟，不代表未来收益，未计入交易成本与滑点，仅用于理解规则，不构成买卖依据。
             </p>
           </div>
         </div>

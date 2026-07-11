@@ -3,7 +3,7 @@
  * 展示持有的基金列表和组合 RSI 指标
  */
 import React, { useState, useEffect } from 'react'
-import { Card, Table, Tag, Button, Space, Modal, Input, message, Statistic, Row, Col, Spin, InputNumber, Tooltip } from 'antd'
+import { Alert, Card, Table, Button, Space, Modal, Input, message, Statistic, Row, Col, Spin, InputNumber, Tooltip } from 'antd'
 import { ReloadOutlined, PlusOutlined, DeleteOutlined, LineChartOutlined, SaveOutlined, EditOutlined } from '@ant-design/icons'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts'
 import TerminalPage from '../components/TerminalPage'
@@ -11,11 +11,14 @@ import { portfolioApi, fundApi } from '../services/api'
 
 function FundPortfolio() {
   const [loading, setLoading] = useState(false)
+  const [holdingError, setHoldingError] = useState('')
   const [holdingFunds, setHoldingFunds] = useState([])
   const [rsiData, setRsiData] = useState(null)
   const [rsiLoading, setRsiLoading] = useState(false)
+  const [rsiError, setRsiError] = useState('')
   const [rsiHistoryData, setRsiHistoryData] = useState([])
   const [rsiHistoryLoading, setRsiHistoryLoading] = useState(false)
+  const [rsiHistoryError, setRsiHistoryError] = useState('')
   const [addModalVisible, setAddModalVisible] = useState(false)
   const [fundCode, setFundCode] = useState('')
   const [fundName, setFundName] = useState('')
@@ -29,6 +32,7 @@ function FundPortfolio() {
   const loadHoldingFunds = async () => {
     try {
       setLoading(true)
+      setHoldingError('')
       const response = await portfolioApi.getHoldingFunds()
 
       if (response.code === 0) {
@@ -42,11 +46,12 @@ function FundPortfolio() {
         })
         setWeights(initialWeights)
       } else {
-        message.error(response.message || '加载持有基金失败')
+        console.error('加载组合基金服务返回失败:', response)
+        setHoldingError(`组合基金暂时无法读取（错误码：${response.code}），请稍后重试。`)
       }
     } catch (error) {
       console.error('加载持有基金失败:', error)
-      message.error('加载持有基金失败')
+      setHoldingError('组合基金暂时无法读取，请检查网络连接后重试。')
     } finally {
       setLoading(false)
     }
@@ -58,16 +63,18 @@ function FundPortfolio() {
   const loadPortfolioRsi = async () => {
     try {
       setRsiLoading(true)
+      setRsiError('')
       const response = await portfolioApi.getPortfolioRsi()
 
       if (response.code === 0) {
         setRsiData(response.data)
       } else {
-        message.error(response.message || '加载组合 RSI 失败')
+        console.error('加载组合温度服务返回失败:', response)
+        setRsiError(`组合温度暂时无法读取（错误码：${response.code}），请稍后重试。`)
       }
     } catch (error) {
       console.error('加载组合 RSI 失败:', error)
-      message.error('加载组合 RSI 失败')
+      setRsiError('组合温度暂时无法读取，请检查网络连接后重试。')
     } finally {
       setRsiLoading(false)
     }
@@ -79,6 +86,7 @@ function FundPortfolio() {
   const loadPortfolioRsiHistory = async () => {
     try {
       setRsiHistoryLoading(true)
+      setRsiHistoryError('')
       const response = await portfolioApi.getPortfolioRsiHistory(60)
 
       if (response.code === 0) {
@@ -88,11 +96,12 @@ function FundPortfolio() {
         })
         setRsiHistoryData(sortedData)
       } else {
-        message.error(response.message || '加载 RSI 历史数据失败')
+        console.error('加载组合温度历史服务返回失败:', response)
+        setRsiHistoryError(`组合温度历史暂时无法读取（错误码：${response.code}），请稍后重试。`)
       }
     } catch (error) {
       console.error('加载 RSI 历史数据失败:', error)
-      message.error('加载 RSI 历史数据失败')
+      setRsiHistoryError('组合温度历史暂时无法读取，请检查网络连接后重试。')
     } finally {
       setRsiHistoryLoading(false)
     }
@@ -119,6 +128,7 @@ function FundPortfolio() {
   const refreshPortfolioRsi = async () => {
     try {
       setRsiLoading(true)
+      setRsiError('')
       const response = await portfolioApi.refreshPortfolioRsi()
 
       if (response.code === 0) {
@@ -126,11 +136,12 @@ function FundPortfolio() {
         await loadPortfolioRsiHistory()
         message.success('组合 RSI 已刷新')
       } else {
-        message.error(response.message || '刷新组合 RSI 失败')
+        console.error('刷新组合温度服务返回失败:', response)
+        setRsiError(`组合温度刷新失败（错误码：${response.code}），请稍后重试。`)
       }
     } catch (error) {
       console.error('刷新组合 RSI 失败:', error)
-      message.error('刷新组合 RSI 失败: ' + (error.normalizedMessage || error.message || '网络错误'))
+      setRsiError('组合温度刷新失败，请检查网络连接后重试。')
     } finally {
       setRsiLoading(false)
     }
@@ -144,14 +155,15 @@ function FundPortfolio() {
       const response = await fundApi.updateHoldingStatus(fundCode, 0)
 
       if (response.code === 0) {
-        message.success('已取消持有')
+        message.success('已移出组合')
         await refreshPortfolioData()
       } else {
-        message.error(response.message || '操作失败')
+        console.error('移出组合服务返回失败:', response)
+        message.error(`移出组合失败（错误码：${response.code}）`)
       }
     } catch (error) {
       console.error('取消持有失败:', error)
-      message.error('操作失败')
+      message.error('移出组合失败，请稍后重试')
     }
   }
 
@@ -181,15 +193,16 @@ function FundPortfolio() {
       const response = await fundApi.addHoldingFund(fundCode.trim(), fundName.trim())
 
       if (response.code === 0) {
-        message.success('基金已添加')
+        message.success('已加入组合')
         setAddModalVisible(false)
         await refreshPortfolioData()
       } else {
-        message.error(response.message || '添加失败')
+        console.error('加入组合服务返回失败:', response)
+        message.error(`加入组合失败（错误码：${response.code}）`)
       }
     } catch (error) {
       console.error('添加基金失败:', error)
-      message.error('添加失败')
+      message.error('加入组合失败，请稍后重试')
     }
   }
 
@@ -262,7 +275,8 @@ function FundPortfolio() {
         setEditingWeights(false)
         await refreshPortfolioData()
       } else {
-        message.error(response.message || '权重保存失败')
+        console.error('保存组合权重服务返回失败:', response)
+        message.error(`权重保存失败（错误码：${response.code}）`)
       }
     } catch (error) {
       console.error('保存权重失败:', error)
@@ -465,13 +479,15 @@ function FundPortfolio() {
           icon={<DeleteOutlined />}
           onClick={() => {
             Modal.confirm({
-              title: '确认取消持有',
-              content: `确定要取消持有 ${record.fundName}？`,
+              title: '确认移出组合',
+              content: `确定要将 ${record.fundName} 移出组合吗？`,
+              okText: '移出组合',
+              cancelText: '取消',
               onOk: () => handleRemoveHolding(record.fundCode),
             })
           }}
         >
-          取消持有
+          移出组合
         </Button>
       ),
     },
@@ -491,10 +507,10 @@ function FundPortfolio() {
    * 获取 RSI 建议
    */
   const getRsiSuggestion = (rsi14, rsi90) => {
-    if (rsi14 < 30) return { text: '超卖，可考虑买入', color: '#52c41a' }
-    if (rsi14 > 70) return { text: '超买，建议谨慎', color: '#cf1322' }
-    if (rsi90 < 43) return { text: '中长期超卖', color: '#1890ff' }
-    if (rsi90 > 57) return { text: '中长期超买', color: '#fa8c16' }
+    if (rsi14 < 30) return { text: '短期处于低位', color: '#52c41a' }
+    if (rsi14 > 70) return { text: '短期偏热', color: '#cf1322' }
+    if (rsi90 < 43) return { text: '中期偏低', color: '#1890ff' }
+    if (rsi90 > 57) return { text: '中期偏高', color: '#fa8c16' }
     return { text: '中性区间', color: 'var(--terminal-dim)' }
   }
 
@@ -505,9 +521,15 @@ function FundPortfolio() {
 
   return (
     <TerminalPage
-      title="基金组合"
-      subtitle="持有基金、组合权重和组合 RSI 监控"
-      status={<span>持有基金：{holdingFunds.length}</span>}
+      title="组合观察"
+      subtitle="管理组合内的基金与权重，观察 RSI 温度"
+      status={(
+        <span>
+          {holdingError || rsiError || rsiHistoryError
+            ? '部分数据不可用'
+            : `组合内 ${holdingFunds.length} 只基金`}
+        </span>
+      )}
     >
 
       {/* 组合 RSI 指标 */}
@@ -515,7 +537,7 @@ function FundPortfolio() {
         title={
           <span>
             <LineChartOutlined style={{ marginRight: 8 }} />
-            组合 RSI 指标
+            组合温度
           </span>
         }
         extra={
@@ -530,7 +552,15 @@ function FundPortfolio() {
         }
         className="terminal-section-gap"
       >
-        {rsiLoading ? (
+        {rsiError ? (
+          <Alert
+            type="error"
+            showIcon
+            message="组合温度加载失败"
+            description={rsiError}
+            action={<Button size="small" onClick={loadPortfolioRsi}>重试</Button>}
+          />
+        ) : rsiLoading ? (
           <div className="terminal-empty-state">
             <Spin tip="计算中...">
               <div className="loading-spin-content" />
@@ -566,7 +596,7 @@ function FundPortfolio() {
           </Row>
             {rsiData.rsi14 != null && rsiData.rsi90 != null && (
               <div className="terminal-info-box terminal-info-box-cyan terminal-field-offset-lg">
-                <strong>建议：</strong>
+                <strong>温度判断：</strong>
                 <span style={{ color: getRsiSuggestion(rsiData.rsi14, rsiData.rsi90).color, marginLeft: 8 }}>
                   {getRsiSuggestion(rsiData.rsi14, rsiData.rsi90).text}
                 </span>
@@ -579,7 +609,7 @@ function FundPortfolio() {
           </>
         ) : (
           <div className="terminal-empty-state">
-            暂无数据，请先添加持有基金
+            组合中还没有可计算的数据，请先添加基金
           </div>
         )}
       </Card>
@@ -604,7 +634,15 @@ function FundPortfolio() {
         }
         className="terminal-section-gap"
       >
-        {rsiHistoryLoading ? (
+        {rsiHistoryError ? (
+          <Alert
+            type="error"
+            showIcon
+            message="组合温度历史加载失败"
+            description={rsiHistoryError}
+            action={<Button size="small" onClick={loadPortfolioRsiHistory}>重试</Button>}
+          />
+        ) : rsiHistoryLoading ? (
           <div className="terminal-empty-state">
             <Spin tip="加载中...">
               <div className="loading-spin-content" />
@@ -678,19 +716,19 @@ function FundPortfolio() {
             <div className="terminal-info-box terminal-field-offset-lg">
               <strong>图表更新说明：</strong>
               <p className="terminal-inline-note-space">
-                最新点：{latestRsiHistoryDate || '-'}。组合 RSI 历史按全部持仓基金的共同净值日期计算；若 QDII 或个别基金净值披露延迟，图表日期会晚于系统刷新时间。
+                最新点：{latestRsiHistoryDate || '-'}。组合 RSI 历史按全部组合基金的共同净值日期计算；若 QDII 或个别基金净值披露延迟，图表日期会晚于刷新时间。
               </p>
             </div>
           </>
         ) : (
           <div className="terminal-empty-state">
-            暂无历史数据，请先添加持有基金
+            暂无历史数据，加入基金并刷新后即可查看
           </div>
         )}
       </Card>
 
-      {/* 持有基金列表 */}
-      <Card>
+      {/* 组合基金列表 */}
+      <Card title="组合基金">
         {/* 操作栏 */}
         <Space className="terminal-toolbar" wrap>
           <Button
@@ -739,6 +777,17 @@ function FundPortfolio() {
           )}
         </Space>
 
+        {holdingError && (
+          <Alert
+            type="error"
+            showIcon
+            message="组合基金加载失败"
+            description={holdingError}
+            action={<Button size="small" onClick={loadHoldingFunds}>重试</Button>}
+            className="terminal-section-gap"
+          />
+        )}
+
         {/* 数据表格 */}
         <Table
           columns={columns}
@@ -751,18 +800,24 @@ function FundPortfolio() {
             showTotal: (total) => `共 ${total} 只基金`,
           }}
           scroll={{ x: 1600 }}
-          locale={{ emptyText: loading ? '数据加载中...' : '暂无持有基金，请先添加基金或从基金推荐中标记持有' }}
+          locale={{
+            emptyText: loading
+              ? '数据加载中...'
+              : holdingError
+                ? '组合基金加载失败，请重试'
+                : '组合中还没有基金，可点击“添加基金”或从基金优选中加入',
+          }}
         />
       </Card>
 
       {/* 说明 */}
-      <Card title="使用说明">
+      <Card title="如何使用">
         <div className="terminal-copy-block">
-          <h3>基金组合功能：</h3>
+          <h3>组合功能：</h3>
           <ul>
-            <li><strong>组合 RSI：</strong>基于所有持有基金的加权组合计算 RSI 指标</li>
-            <li><strong>14日 RSI：</strong>短期指标，低于30超卖，高于70超买</li>
-            <li><strong>90日 RSI：</strong>中长期指标，建议在43和57之间做再平衡</li>
+            <li><strong>组合 RSI：</strong>基于所有组合基金的加权组合计算 RSI 指标</li>
+            <li><strong>14日 RSI：</strong>短期指标，低于 30 表示处于低位，高于 70 表示偏热</li>
+            <li><strong>90日 RSI：</strong>中期指标，低于 43 表示偏低，高于 57 表示偏高</li>
             <li><strong>14周 RSI：</strong>周线指标，反映中期趋势</li>
           </ul>
 
@@ -775,11 +830,11 @@ function FundPortfolio() {
 
           <h3 className="terminal-field-offset-xl">操作说明：</h3>
           <ul>
-            <li><strong>添加基金：</strong>在"基金推荐"页面标记为持有，或手动添加基金代码和名称</li>
+            <li><strong>添加基金：</strong>在“基金优选”页面加入组合，或手动添加基金代码和名称</li>
             <li><strong>编辑权重：</strong>点击"编辑权重"按钮，修改每只基金在组合中的权重</li>
             <li><strong>权重规则：</strong>保存权重时，所有基金的权重总和必须等于 100%，最多保留小数点后 2 位</li>
             <li><strong>权重计算：</strong>组合 RSI 按已保存的基金权重计算；未保存前不会覆盖原权重</li>
-            <li><strong>取消持有：</strong>从组合中移除基金（不会删除基金数据）</li>
+            <li><strong>移出组合：</strong>从组合中移除基金（不会删除基金数据）</li>
             <li><strong>刷新数据：</strong>重新加载基金列表和计算组合 RSI</li>
           </ul>
 
@@ -794,7 +849,7 @@ function FundPortfolio() {
 
       {/* 添加基金对话框 */}
       <Modal
-        title="添加持有基金"
+        title="添加基金"
         open={addModalVisible}
         onOk={handleAddFund}
         onCancel={() => setAddModalVisible(false)}
@@ -802,10 +857,15 @@ function FundPortfolio() {
         cancelText="取消"
       >
         <div className="terminal-section-gap">
-          <p className="terminal-field-label">
+          <label
+            htmlFor="portfolio-fund-code"
+            className="terminal-field-label"
+            style={{ display: 'block' }}
+          >
             <strong style={{ color: 'red' }}>*</strong> 基金代码：
-          </p>
+          </label>
           <Input
+            id="portfolio-fund-code"
             placeholder="请输入基金代码，例如：004475"
             value={fundCode}
             onChange={(e) => setFundCode(e.target.value)}
@@ -813,10 +873,15 @@ function FundPortfolio() {
           />
         </div>
         <div>
-          <p className="terminal-field-label">
+          <label
+            htmlFor="portfolio-fund-name"
+            className="terminal-field-label"
+            style={{ display: 'block' }}
+          >
             <strong style={{ color: 'red' }}>*</strong> 基金名称：
-          </p>
+          </label>
           <Input
+            id="portfolio-fund-name"
             placeholder="请输入基金名称，例如：华泰柏瑞富利混合A"
             value={fundName}
             onChange={(e) => setFundName(e.target.value)}

@@ -69,25 +69,25 @@ export function getDashboardStatusColor(status) {
 
 // 获取风险级别颜色。
 export function getLevelColor(level) {
-  if (level === 'success') return '#0f9f6e'
-  if (level === 'warning') return '#d97706'
-  if (level === 'danger') return '#dc2626'
-  if (level === 'info') return '#2563eb'
-  return '#475569'
+  if (level === 'success') return '#18864b'
+  if (level === 'warning') return '#ab570a'
+  if (level === 'danger') return '#d91c1c'
+  if (level === 'info') return '#0070f3'
+  return '#4d4d4d'
 }
 
 // 市场概览指标分组定义，避免同一批指标在页面里重复展示。
 const MARKET_METRIC_SECTION_DEFINITIONS = [
   {
     key: 'temperature',
-    title: '市场温度',
-    description: '短中期 RSI 与组合持仓温度',
+    title: '短期情绪与持仓',
+    description: '14日、90日与组合 RSI',
     metricKeys: ['rsi14', 'rsi90', 'portfolioRsi'],
   },
   {
     key: 'allocation',
-    title: '配置与估值',
-    description: '风险溢价和长期趋势',
+    title: '长期位置参考',
+    description: '风险溢价与长期均线',
     metricKeys: ['riskPremium', 'ma5yDeviation'],
   },
 ]

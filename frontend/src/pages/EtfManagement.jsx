@@ -3,11 +3,10 @@
  * 管理监控的ETF列表，支持增删改查
  */
 import React, { useState, useEffect } from 'react'
-import { Card, Table, Button, Space, Modal, Form, Input, Select, InputNumber, message, Tag } from 'antd'
+import { Alert, Card, Table, Button, Space, Modal, Form, Input, Select, message, Tag } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
 import TerminalPage from '../components/TerminalPage'
 import { etfApi } from '../services/api'
-import { getRsiThresholdOrderError } from '../utils/backtestValidation'
 
 const { Option } = Select
 
@@ -16,6 +15,7 @@ function EtfManagement() {
   const [data, setData] = useState([])
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRecord, setEditingRecord] = useState(null)
+  const [pageError, setPageError] = useState(null)
   const [form] = Form.useForm()
 
   /**
@@ -24,14 +24,21 @@ function EtfManagement() {
   const loadData = async () => {
     try {
       setLoading(true)
+      setPageError(null)
       const response = await etfApi.getList()
-      
-      if (response.code === 0) {
-        setData(response.data || [])
+
+      if (response.code !== 0) {
+        console.error('关注标的服务返回失败:', response)
+        setPageError(response.code == null
+          ? '关注标的列表暂时无法加载，请稍后重试'
+          : `关注标的列表暂时无法加载（错误码：${response.code}），请稍后重试`)
+        return
       }
+
+      setData(response.data || [])
     } catch (error) {
-      console.error('加载ETF列表失败:', error)
-      message.error('加载数据失败')
+      console.error('加载关注标的失败:', error)
+      setPageError('关注标的列表暂时无法加载，请稍后重试')
     } finally {
       setLoading(false)
     }
@@ -60,24 +67,26 @@ function EtfManagement() {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
-      if (values.rsiBuyThreshold != null && values.rsiSellThreshold != null) {
-        const thresholdError = getRsiThresholdOrderError(values.rsiBuyThreshold, values.rsiSellThreshold)
-        if (thresholdError) {
-          message.warning(thresholdError)
-          return
-        }
-      }
+      const payload = { ...values }
+      delete payload.rsiBuyThreshold
+      delete payload.rsiSellThreshold
 
       const response = editingRecord
-        ? await etfApi.update({ ...values, id: editingRecord.id })
-        : await etfApi.add(values)
+        ? await etfApi.update({
+          ...payload,
+          id: editingRecord.id,
+          rsiBuyThreshold: editingRecord.rsiBuyThreshold,
+          rsiSellThreshold: editingRecord.rsiSellThreshold,
+        })
+        : await etfApi.add(payload)
 
       if (response.code !== 0) {
-        message.error(response.message || '保存失败')
+        console.error('保存关注标的服务返回失败:', response)
+        message.error(`${editingRecord ? '编辑' : '添加'}标的失败（错误码：${response.code}）`)
         return
       }
 
-      message.success(editingRecord ? '更新成功' : '添加成功')
+      message.success(editingRecord ? '标的已更新' : '已添加标的')
       setModalVisible(false)
       await loadData()
     } catch (error) {
@@ -87,25 +96,27 @@ function EtfManagement() {
   }
 
   /**
-   * 删除ETF
+   * 移除标的
    */
   const handleDelete = (record) => {
     Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除 ${record.etfName} 吗？`,
-      okText: '确定',
+      title: '确认移除标的',
+      content: `确定要从关注清单中移除 ${record.etfName} 吗？`,
+      okText: '移除标的',
       cancelText: '取消',
       onOk: async () => {
         try {
           const response = await etfApi.delete(record.id)
           if (response.code !== 0) {
-            message.error(response.message || '删除失败')
+            console.error('移除关注标的服务返回失败:', response)
+            message.error(`移除标的失败（错误码：${response.code}）`)
             return
           }
-          message.success('删除成功')
+          message.success('已移除标的')
           await loadData()
         } catch (error) {
-          message.error('删除失败')
+          console.error('移除关注标的失败:', error)
+          message.error('移除失败')
         }
       },
     })
@@ -164,18 +175,6 @@ function EtfManagement() {
       onFilter: (value, record) => record.enabled === value,
     },
     {
-      title: 'RSI买入阈值',
-      dataIndex: 'rsiBuyThreshold',
-      key: 'rsiBuyThreshold',
-      render: (val) => val || 30,
-    },
-    {
-      title: 'RSI卖出阈值',
-      dataIndex: 'rsiSellThreshold',
-      key: 'rsiSellThreshold',
-      render: (val) => val || 70,
-    },
-    {
       title: '备注',
       dataIndex: 'remark',
       key: 'remark',
@@ -193,7 +192,7 @@ function EtfManagement() {
             icon={<EditOutlined />}
             onClick={() => openModal(record)}
           >
-            编辑
+            编辑标的
           </Button>
           <Button 
             type="link" 
@@ -202,7 +201,7 @@ function EtfManagement() {
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
           >
-            删除
+            移除标的
           </Button>
         </Space>
       ),
@@ -211,12 +210,12 @@ function EtfManagement() {
 
   return (
     <TerminalPage
-      title="ETF监控管理"
-      subtitle="监控 ETF 列表、分类和 RSI 阈值"
-      status={<span>ETF 数：{data.length}</span>}
+      title="关注标的"
+      subtitle="维护纳入 RSI 与趋势观察的 ETF"
+      status={<span>{pageError ? '数据不可用' : `共 ${data.length} 个标的`}</span>}
     >
 
-      <Card title="ETF监控列表">
+      <Card title="关注清单">
         {/* 操作栏 */}
         <Space className="terminal-toolbar" wrap>
           <Button 
@@ -224,38 +223,54 @@ function EtfManagement() {
             icon={<PlusOutlined />}
             onClick={() => openModal()}
           >
-            添加ETF
+            添加标的
           </Button>
           <Button 
             icon={<ReloadOutlined />}
             onClick={loadData}
             loading={loading}
           >
-            刷新
+            更新列表
           </Button>
         </Space>
 
         {/* 数据表格 */}
-        <Table
-          columns={columns}
-          dataSource={data}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 900 }}
-          pagination={{
-            pageSize: 10,
-            showTotal: (total) => `共 ${total} 个ETF`,
-          }}
-          locale={{ emptyText: loading ? '数据加载中...' : '暂无 ETF 配置' }}
-        />
+        {pageError ? (
+          <Alert
+            type="error"
+            showIcon
+            message="关注标的加载失败"
+            description={pageError}
+            action={(
+              <Button size="small" onClick={loadData} loading={loading}>
+                重试
+              </Button>
+            )}
+          />
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={data}
+            rowKey="id"
+            loading={loading}
+            scroll={{ x: 900 }}
+            pagination={{
+              pageSize: 10,
+              showTotal: (total) => `共 ${total} 个标的`,
+            }}
+            locale={{ emptyText: loading ? '数据加载中...' : '暂无关注标的' }}
+          />
+        )}
       </Card>
 
       {/* 添加/编辑对话框 */}
       <Modal
-        title={editingRecord ? '编辑ETF' : '添加ETF'}
+        title={editingRecord ? '编辑标的' : '添加标的'}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
+        okText={editingRecord ? '保存修改' : '添加标的'}
+        cancelText="取消"
         width={600}
       >
         <Form
@@ -263,8 +278,6 @@ function EtfManagement() {
           layout="vertical"
           initialValues={{
             enabled: 1,
-            rsiBuyThreshold: 30,
-            rsiSellThreshold: 70,
             category: 2,
           }}
         >
@@ -307,20 +320,6 @@ function EtfManagement() {
               <Option value={1}>启用</Option>
               <Option value={0}>禁用</Option>
             </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="rsiBuyThreshold"
-            label="RSI买入阈值"
-          >
-            <InputNumber min={0} max={100} className="terminal-full-width" />
-          </Form.Item>
-
-          <Form.Item
-            name="rsiSellThreshold"
-            label="RSI卖出阈值"
-          >
-            <InputNumber min={0} max={100} className="terminal-full-width" />
           </Form.Item>
 
           <Form.Item

@@ -1,9 +1,7 @@
 import React from 'react'
 import {
   ArrowDownOutlined,
-  ArrowRightOutlined,
   ArrowUpOutlined,
-  RadarChartOutlined,
 } from '@ant-design/icons'
 import { buildMarketMetricSections, getLevelColor } from '../../utils/dashboardDecision'
 
@@ -11,7 +9,7 @@ import { buildMarketMetricSections, getLevelColor } from '../../utils/dashboardD
 const renderTrendIcon = (trend) => {
   if (trend === 'up') return <ArrowUpOutlined />
   if (trend === 'down') return <ArrowDownOutlined />
-  return <ArrowRightOutlined />
+  return null
 }
 
 // 将可解析的数值限定到进度条的展示区间。
@@ -31,10 +29,9 @@ function MarketOverviewWorkbench({ metrics, indexValuations }) {
     <section className="terminal-panel market-overview-panel">
       <div className="terminal-panel-header">
         <div>
-          <h2>动量与市场温度</h2>
-          <p>短中期趋势、组合温度与长期安全边际</p>
+          <h2>市场温度与估值</h2>
+          <p>短期情绪、持仓状态和长期位置</p>
         </div>
-        <RadarChartOutlined />
       </div>
 
       <div className="terminal-metric-sections">
@@ -47,7 +44,9 @@ function MarketOverviewWorkbench({ metrics, indexValuations }) {
             <div className="terminal-metric-list">
               {section.items.map(metric => {
                 const color = getLevelColor(metric.level)
-                const progress = getMetricProgress(metric.value)
+                const progress = ['rsi14', 'rsi90', 'portfolioRsi'].includes(metric.key)
+                  ? getMetricProgress(metric.value)
+                  : null
                 return (
                   <article className="terminal-metric-row" key={metric.key}>
                     <div className="terminal-metric-row-main">
@@ -67,12 +66,15 @@ function MarketOverviewWorkbench({ metrics, indexValuations }) {
             </div>
           </div>
         ))}
+        {metricSections.length === 0 && (
+          <div className="terminal-empty">暂无市场温度数据</div>
+        )}
       </div>
 
       <div className="terminal-valuation-section">
         <div className="terminal-section-title">
-          <strong>长期趋势与安全边际</strong>
-          <span>蛋卷估值表</span>
+          <strong>长期估值</strong>
+          <span>指数位置参考</span>
         </div>
         <div className="terminal-valuation-list">
           {indexValuations.map(valuation => (

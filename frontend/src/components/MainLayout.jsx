@@ -1,176 +1,179 @@
-/**
- * 主布局组件
- * 提供应用的整体布局结构，包括头部、侧边栏和内容区域
- */
-import React, { useEffect, useState } from 'react'
-import { Button, Layout, Menu, Grid } from 'antd'
-import { useNavigate, useLocation } from 'react-router-dom'
+import React, { useState } from 'react'
+import { Button, Drawer, Dropdown, Grid, Layout } from 'antd'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
-  DashboardOutlined,
-  LineChartOutlined,
-  RiseOutlined,
-  ThunderboltOutlined,
-  FundOutlined,
-  WalletOutlined,
   AppstoreOutlined,
-  SettingOutlined,
+  CompassOutlined,
   ExperimentOutlined,
+  HomeOutlined,
   MenuOutlined,
+  PieChartOutlined,
+  RiseOutlined,
+  SettingOutlined,
+  StarOutlined,
 } from '@ant-design/icons'
+import {
+  primaryNavigation,
+  utilityNavigation,
+} from '../config/navigation'
 
-const { Header, Sider, Content } = Layout
+const { Header, Content, Footer } = Layout
 const { useBreakpoint } = Grid
 
-/**
- * 侧边栏菜单配置
- */
-const menuItems = [
-  {
-    type: 'group',
-    label: '决策中心',
-    children: [
-      { key: '/', icon: <DashboardOutlined />, label: '市场概览' },
-      { key: '/rsi-analysis', icon: <LineChartOutlined />, label: 'RSI分析' },
-      { key: '/rsi-backtest', icon: <ExperimentOutlined />, label: 'RSI回测' },
-    ],
-  },
-  {
-    type: 'group',
-    label: '策略分析',
-    children: [
-      { key: '/ma-strategy', icon: <RiseOutlined />, label: 'MA策略' },
-      { key: '/momentum-strategy', icon: <ThunderboltOutlined />, label: '动量策略' },
-    ],
-  },
-  {
-    type: 'group',
-    label: '组合与推荐',
-    children: [
-      { key: '/fund-recommendation', icon: <FundOutlined />, label: '基金推荐' },
-      { key: '/fund-portfolio', icon: <WalletOutlined />, label: '基金组合' },
-    ],
-  },
-  {
-    type: 'group',
-    label: '基础配置',
-    children: [
-      { key: '/etf-management', icon: <AppstoreOutlined />, label: 'ETF管理' },
-      { key: '/system-config', icon: <SettingOutlined />, label: '系统配置' },
-    ],
-  },
-]
+const navigationIcons = {
+  '/': <HomeOutlined />,
+  '/rsi-analysis': <RiseOutlined />,
+  '/momentum-strategy': <ExperimentOutlined />,
+  '/fund-recommendation': <StarOutlined />,
+  '/fund-portfolio': <PieChartOutlined />,
+  '/rsi-backtest': <ExperimentOutlined />,
+  '/ma-strategy': <RiseOutlined />,
+  '/etf-management': <AppstoreOutlined />,
+  '/system-config': <SettingOutlined />,
+}
+
+const utilityGroupIcons = {
+  策略工具: <ExperimentOutlined />,
+  管理工具: <SettingOutlined />,
+}
+
+const utilityPaths = utilityNavigation.flatMap(group => group.items.map(item => item.path))
 
 function MainLayout({ children }) {
-  // 控制侧边栏的折叠状态
-  const [collapsed, setCollapsed] = useState(false)
-
-  // 根据屏幕断点调整侧边栏和内容间距
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const screens = useBreakpoint()
   const isMobile = screens.md === false
-  const siderWidth = collapsed ? 80 : 200
-  
-  // 路由导航钩子
-  const navigate = useNavigate()
-  
-  // 获取当前路由位置
   const location = useLocation()
+  const navigate = useNavigate()
+  const hasActiveUtility = utilityPaths.includes(location.pathname)
 
-  // 判断当前是否为首页终端驾驶舱。
-  const isDashboardHome = location.pathname === '/'
-
-  // 移动端默认收起侧栏，桌面端恢复展开。
-  useEffect(() => {
-    setCollapsed(isMobile)
-  }, [isMobile])
-
-  /**
-   * 处理菜单点击事件
-   * @param {Object} item - 被点击的菜单项
-   */
-  const handleMenuClick = ({ key }) => {
-    navigate(key)
-    if (isMobile) {
-      setCollapsed(true)
-    }
-  }
+  const utilityMenuItems = utilityNavigation.map(group => ({
+    type: 'group',
+    key: group.label,
+    label: (
+      <span className="app-tools-group-label">
+        {utilityGroupIcons[group.label]}
+        <span>{group.label}</span>
+      </span>
+    ),
+    children: group.items.map(item => ({
+      key: item.path,
+      icon: navigationIcons[item.path],
+      label: item.label,
+    })),
+  }))
 
   return (
-    <Layout className="app-layout app-layout-terminal" style={{ minHeight: '100vh' }}>
-      {/* 左侧边栏 */}
-      <Sider 
-        className="app-sider"
-        theme="dark"
-        collapsible 
-        collapsed={collapsed} 
-        onCollapse={setCollapsed}
-        breakpoint="md"
-        collapsedWidth={isMobile ? 0 : 80}
-        trigger={isMobile ? null : undefined}
-        style={{
-          overflow: 'auto',
-          height: '100vh',
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          zIndex: 1000,
-        }}
-      >
-        {/* Logo区域 */}
-        <div className="app-logo">
-          {collapsed ? '基金' : '基金分析系统'}
-        </div>
-        
-        {/* 导航菜单 */}
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          items={menuItems}
-          onClick={handleMenuClick}
-        />
-      </Sider>
+    <Layout className="app-layout">
+      <Header className="app-header">
+        <div className="app-header-inner">
+          <NavLink className="app-brand" to="/" aria-label="基金罗盘首页">
+            <CompassOutlined />
+            <span>基金罗盘</span>
+          </NavLink>
 
-      {isMobile && !collapsed && (
-        <button
-          className="mobile-sider-mask"
-          type="button"
-          aria-label="关闭导航"
-          onClick={() => setCollapsed(true)}
-        />
-      )}
+          {!isMobile && (
+            <nav className="app-primary-navigation" aria-label="主导航">
+              {primaryNavigation.map(item => (
+                <NavLink
+                  key={item.path}
+                  className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}
+                  end={item.path === '/'}
+                  to={item.path}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
 
-      {/* 右侧内容区域 */}
-      <Layout style={{ marginLeft: isMobile ? 0 : siderWidth, transition: 'all 0.2s' }}>
-        {/* 顶部导航栏 */}
-        <Header className="app-header" style={{
-          padding: isMobile ? '0 12px' : '0 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          {isMobile && collapsed && (
+              <Dropdown
+                menu={{
+                  items: utilityMenuItems,
+                  selectedKeys: [location.pathname],
+                  onClick: ({ key }) => navigate(key),
+                }}
+                placement="bottomRight"
+                trigger={['click']}
+              >
+                <Button
+                  className={`app-tools-trigger${hasActiveUtility ? ' active' : ''}`}
+                  type="text"
+                  icon={<AppstoreOutlined />}
+                  aria-current={hasActiveUtility ? 'page' : undefined}
+                >
+                  更多工具
+                </Button>
+              </Dropdown>
+            </nav>
+          )}
+
+          {isMobile && (
             <Button
+              className="app-mobile-menu-button"
               type="text"
               icon={<MenuOutlined />}
               aria-label="打开导航"
-              onClick={() => setCollapsed(false)}
+              aria-expanded={drawerOpen}
+              aria-controls="app-navigation-drawer"
+              onClick={() => setDrawerOpen(true)}
             />
           )}
-          <h1 style={{ margin: 0, fontSize: isMobile ? '18px' : '20px', fontWeight: '500' }}>
-            基金和ETF投资策略分析系统
-          </h1>
-        </Header>
+        </div>
+      </Header>
 
-        {/* 主内容区域 */}
-        <Content className="app-content" style={{
-          margin: isDashboardHome ? '10px' : isMobile ? '12px' : '24px',
-          padding: isDashboardHome ? 0 : isMobile ? '12px' : '24px',
-          minHeight: 280,
-        }}>
-          {children}
-        </Content>
-      </Layout>
+      <Content className="app-content">
+        <div className="app-content-inner">{children}</div>
+      </Content>
+
+      <Footer className="app-footer">
+        数据来自公开市场信息，仅供研究参考，不构成投资建议。
+      </Footer>
+
+      <Drawer
+        id="app-navigation-drawer"
+        className="app-navigation-drawer"
+        title="基金罗盘"
+        placement="right"
+        width={320}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      >
+        <nav className="app-mobile-navigation" aria-label="移动端导航">
+          <div className="app-mobile-navigation-section">
+            {primaryNavigation.map(item => (
+              <NavLink
+                key={item.path}
+                className={({ isActive }) => `app-mobile-nav-link${isActive ? ' active' : ''}`}
+                end={item.path === '/'}
+                to={item.path}
+                onClick={() => setDrawerOpen(false)}
+              >
+                {navigationIcons[item.path]}
+                <span>{item.label}</span>
+              </NavLink>
+            ))}
+          </div>
+
+          {utilityNavigation.map(group => (
+            <section className="app-mobile-navigation-section" key={group.label}>
+              <h2 className="app-mobile-navigation-title">
+                {utilityGroupIcons[group.label]}
+                <span>{group.label}</span>
+              </h2>
+              {group.items.map(item => (
+                <NavLink
+                  key={item.path}
+                  className={({ isActive }) => `app-mobile-nav-link${isActive ? ' active' : ''}`}
+                  to={item.path}
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  {navigationIcons[item.path]}
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </section>
+          ))}
+        </nav>
+      </Drawer>
     </Layout>
   )
 }
