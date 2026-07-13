@@ -10,7 +10,6 @@ import com.fund.analysis.mapper.EtfInfoMapper;
 import com.fund.analysis.utils.RsiCalculator;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -302,19 +301,42 @@ public class RsiBacktestService {
 
             Thread.sleep(2000);
 
+            boolean index = isIndexCode(code);
+            String adjustment = index ? "" : "qfq";
             String url = String.format(
-                    "https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData?symbol=%s&scale=240&ma=no&datalen=%d",
-                    code, dataLen);
+                    "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=%s,day,,,%d,%s",
+                    code, dataLen, adjustment);
 
             logger.debug("请求ETF历史数据: {}", url);
 
             JsonElement jsonElement = externalApiClient.getJson(url);
 
-            if (!jsonElement.isJsonArray()) {
-                throw new ExternalApiException("获取" + code + "历史数据失败: 响应不是JSON数组");
+            if (!jsonElement.isJsonObject()
+                    || !jsonElement.getAsJsonObject().has("code")
+                    || jsonElement.getAsJsonObject().get("code").getAsInt() != 0) {
+                throw new ExternalApiException("获取" + code + "历史数据失败: " + jsonElement);
             }
 
-            JsonArray jsonArray = jsonElement.getAsJsonArray();
+            JsonElement data = jsonElement.getAsJsonObject().get("data");
+            if (data == null || !data.isJsonObject()) {
+                throw new ExternalApiException("获取" + code + "历史数据失败: 响应缺少data");
+            }
+
+            JsonElement codeData = data.getAsJsonObject().get(code);
+            if (codeData == null || !codeData.isJsonObject()) {
+                throw new DataUnavailableException("获取" + code + "历史数据失败: 缺少标的数据");
+            }
+            String seriesName = index || !codeData.getAsJsonObject().has("qfqday")
+                    ? "day"
+                    : "qfqday";
+            if (!codeData.getAsJsonObject().has(seriesName)
+                    || !codeData.getAsJsonObject().get(seriesName).isJsonArray()) {
+                throw new DataUnavailableException(
+                        "获取" + code + "历史数据失败: 缺少"
+                                + (index ? "指数原始" : "ETF前复权") + "序列");
+            }
+
+            JsonArray jsonArray = codeData.getAsJsonObject().getAsJsonArray(seriesName);
             if (jsonArray.size() == 0) {
                 throw new DataUnavailableException("获取" + code + "历史数据失败: 数据为空");
             }
@@ -323,13 +345,12 @@ public class RsiBacktestService {
             SimpleDateFormat dateParser = new SimpleDateFormat("yyyy-MM-dd");
 
             for (JsonElement element : jsonArray) {
-                if (!element.isJsonObject()) continue;
-                JsonObject obj = element.getAsJsonObject();
-                if (!obj.has("day") || !obj.has("open") || !obj.has("close")) continue;
+                if (!element.isJsonArray() || element.getAsJsonArray().size() < 3) continue;
+                JsonArray bar = element.getAsJsonArray();
 
-                String dateStr = obj.get("day").getAsString();
-                String openStr = obj.get("open").getAsString();
-                String closeStr = obj.get("close").getAsString();
+                String dateStr = bar.get(0).getAsString();
+                String openStr = bar.get(1).getAsString();
+                String closeStr = bar.get(2).getAsString();
 
                 try {
                     if (dateStr == null || dateStr.length() < 10) continue;
@@ -356,5 +377,9 @@ public class RsiBacktestService {
             }
             throw new ExternalApiException("获取" + code + "历史数据失败", e);
         }
+    }
+
+    private boolean isIndexCode(String code) {
+        return code != null && (code.startsWith("sh000") || code.startsWith("sz399"));
     }
 }

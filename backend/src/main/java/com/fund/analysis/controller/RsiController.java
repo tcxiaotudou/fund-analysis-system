@@ -34,7 +34,7 @@ public class RsiController {
     }
 
     @GetMapping("/etf-signals")
-    public Result<List<RsiDataDTO>> getEtfBuySignals() {
-        return Result.success(rsiAnalysisService.getEtfBuySignals());
+    public Result<List<RsiDataDTO>> getEtfAnalysis() {
+        return Result.success(rsiAnalysisService.getEtfAnalysis());
     }
 }

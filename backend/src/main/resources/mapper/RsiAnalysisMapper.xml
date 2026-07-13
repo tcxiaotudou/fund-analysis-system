@@ -9,12 +9,13 @@
         LIMIT #{limit}
     </select>
     
-    <!-- 查询有买入信号的RSI分析记录 -->
-    <select id="selectBuySignals" resultType="com.fund.analysis.entity.RsiAnalysis">
-        SELECT * FROM rsi_analysis 
-        WHERE is_buy_signal = 1
-        AND data_time >= DATE_SUB(NOW(), INTERVAL 1 DAY)
-        ORDER BY current_rsi ASC, data_time DESC
+    <!-- 查询所有启用标的的当前RSI分析记录，低位信号优先 -->
+    <select id="selectCurrentAnalysis" resultType="com.fund.analysis.entity.RsiAnalysis">
+        SELECT r.*
+        FROM rsi_analysis r
+        INNER JOIN etf_info e ON e.etf_code = r.code
+        WHERE e.enabled = 1 AND e.deleted = 0
+        ORDER BY r.is_buy_signal DESC, r.current_rsi ASC, r.period ASC, r.data_time DESC
     </select>
     
     <!-- 查询指定标的和周期的最新RSI分析记录 -->

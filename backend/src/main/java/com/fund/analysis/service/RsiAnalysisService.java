@@ -33,6 +33,7 @@ public class RsiAnalysisService {
     
     private static final Logger logger = LoggerFactory.getLogger(RsiAnalysisService.class);
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private static final long EXTERNAL_API_INTERVAL_MILLIS = 1000L;
     
     @Autowired
     private RsiAnalysisMapper rsiAnalysisMapper;
@@ -207,31 +208,59 @@ public class RsiAnalysisService {
     private List<BigDecimal> getPrices(String code, int period) {
         try {
             // 延迟避免请求过快
-            Thread.sleep(5000);
+            Thread.sleep(EXTERNAL_API_INTERVAL_MILLIS);
             
             int dataLen = 201;
             if (period > dataLen / 3) {
                 dataLen = period * 11;
             }
             
+            boolean index = isIndexCode(code);
+            String adjustment = index ? "" : "qfq";
             String url = String.format(
-                    "https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData?symbol=%s&scale=240&ma=no&datalen=%d",
-                    code, dataLen);
+                    "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=%s,day,,,%d,%s",
+                    code, dataLen, adjustment);
 
-            JsonArray jsonArray = externalApiClient.getJson(url).getAsJsonArray();
+            JsonElement response = externalApiClient.getJson(url);
+            if (!response.isJsonObject()
+                    || !response.getAsJsonObject().has("code")
+                    || response.getAsJsonObject().get("code").getAsInt() != 0) {
+                throw new ExternalApiException("获取RSI日线失败: " + code + ", response=" + response);
+            }
+
+            JsonElement data = response.getAsJsonObject().get("data");
+            if (data == null || !data.isJsonObject()) {
+                throw new ExternalApiException("获取RSI日线失败: 响应缺少data, code=" + code);
+            }
+
+            JsonElement codeData = data.getAsJsonObject().get(code);
+            if (codeData == null || !codeData.isJsonObject()) {
+                throw new DataUnavailableException("RSI日线缺少标的数据: " + code);
+            }
+            String seriesName = index || !codeData.getAsJsonObject().has("qfqday")
+                    ? "day"
+                    : "qfqday";
+            if (!codeData.getAsJsonObject().has(seriesName)
+                    || !codeData.getAsJsonObject().get(seriesName).isJsonArray()) {
+                throw new DataUnavailableException(
+                        "RSI日线缺少" + (index ? "指数原始" : "ETF前复权") + "序列: " + code);
+            }
+
+            JsonArray jsonArray = codeData.getAsJsonObject().getAsJsonArray(seriesName);
             List<BigDecimal> prices = new ArrayList<>();
             
             for (JsonElement element : jsonArray) {
-                if (!element.isJsonObject()
-                        || !element.getAsJsonObject().has("day")
-                        || !element.getAsJsonObject().has("close")) {
+                if (!element.isJsonArray() || element.getAsJsonArray().size() < 3) {
                     continue;
                 }
 
-                String closeStr = element.getAsJsonObject().get("close").getAsString();
+                String closeStr = element.getAsJsonArray().get(2).getAsString();
                 prices.add(new BigDecimal(closeStr));
             }
-            
+
+            if (prices.isEmpty()) {
+                throw new DataUnavailableException("RSI日线数据为空: " + code);
+            }
             return prices;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -243,19 +272,37 @@ public class RsiAnalysisService {
             throw new ExternalApiException("获取RSI价格数据失败: " + code, e);
         }
     }
+
+    private boolean isIndexCode(String code) {
+        return code != null && (code.startsWith("sh000") || code.startsWith("sz399"));
+    }
     
     /**
-     * 获取所有ETF的RSI分析结果（有买入信号的，从数据库读取）
+     * 获取所有启用标的的当前RSI分析结果（从数据库读取）
      * @return RSI分析结果列表
+     */
+    public List<RsiDataDTO> getEtfAnalysis() {
+        List<RsiDataDTO> analysis = new ArrayList<>();
+        List<RsiAnalysis> currentAnalysis = rsiAnalysisMapper.selectCurrentAnalysis();
+        
+        for (RsiAnalysis entity : currentAnalysis) {
+            analysis.add(convertToDTO(entity));
+        }
+        
+        return analysis;
+    }
+
+    /**
+     * 获取当前低位信号（邮件和决策面板使用）
+     * @return 低位信号列表
      */
     public List<RsiDataDTO> getEtfBuySignals() {
         List<RsiDataDTO> signals = new ArrayList<>();
-        List<RsiAnalysis> buySignals = rsiAnalysisMapper.selectBuySignals();
-        
-        for (RsiAnalysis entity : buySignals) {
-            signals.add(convertToDTO(entity));
+        for (RsiDataDTO item : getEtfAnalysis()) {
+            if (Boolean.TRUE.equals(item.getIsBuySignal())) {
+                signals.add(item);
+            }
         }
-        
         return signals;
     }
     

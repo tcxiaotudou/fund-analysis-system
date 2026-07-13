@@ -1,6 +1,6 @@
 /**
  * RSI分析页面
- * 展示ETF的RSI技术指标分析
+ * 展示全部启用标的的RSI技术指标分析
  */
 import React, { useState, useEffect, useMemo } from 'react'
 import { Alert, Card, Table, Tag, Input, Button, Space, message } from 'antd'
@@ -16,13 +16,15 @@ function RsiAnalysis() {
   const [searchText, setSearchText] = useState('')
   const [pageError, setPageError] = useState(null)
 
-  // 搜索框只过滤 ETF 名称，避免 AntD 单列 filteredValue 触发表格配置告警。
+  // 搜索框过滤标的名称和代码，避免 AntD 单列 filteredValue 触发表格配置告警。
   const filteredData = useMemo(() => {
     const keyword = searchText.trim().toLowerCase()
     if (!keyword) {
       return data
     }
-    return data.filter(item => item.name?.toLowerCase().includes(keyword))
+    return data.filter(item => (
+      item.name?.toLowerCase().includes(keyword) || item.code?.toLowerCase().includes(keyword)
+    ))
   }, [data, searchText])
 
   /**
@@ -35,14 +37,14 @@ function RsiAnalysis() {
       const response = await rsiApi.getEtfSignals()
 
       if (response.code !== 0) {
-        console.error('ETF 机会服务返回失败:', response.code, response.message)
-        throw new Error(`ETF 机会加载失败（服务返回 ${response.code}）`)
+        console.error('RSI 分析服务返回失败:', response.code, response.message)
+        throw new Error(`RSI 分析加载失败（服务返回 ${response.code}）`)
       }
 
       setData(response.data || [])
     } catch (error) {
       console.error('加载RSI数据失败:', error)
-      const errorMessage = error.normalizedMessage || error.message || 'ETF 机会加载失败'
+      const errorMessage = error.normalizedMessage || error.message || 'RSI 分析加载失败'
       setPageError(errorMessage)
       message.error(errorMessage)
     } finally {
@@ -73,6 +75,15 @@ function RsiAnalysis() {
       dataIndex: 'period',
       key: 'period',
       render: (val) => `${val}日`,
+    },
+    {
+      title: '行情口径',
+      key: 'priceMode',
+      render: (_, record) => (
+        record.code?.startsWith('sh000') || record.code?.startsWith('sz399')
+          ? '指数原始日线'
+          : 'ETF 前复权日线'
+      ),
     },
     {
       title: '当前 RSI',
@@ -144,16 +155,20 @@ function RsiAnalysis() {
 
   return (
     <TerminalPage
-      title="ETF 机会"
-      subtitle="用 RSI 观察价格是否进入短期低位"
-      status={<span>共 {data.length} 个标的</span>}
+      title="RSI 观察"
+      subtitle="查看全部标的的收盘日线 RSI，低位信号优先显示"
+      status={(
+        <span>
+          共 {data.length} 条结果 · {data.filter(item => item.isBuySignal).length} 个低位信号
+        </span>
+      )}
     >
 
       <Card>
         {/* 搜索和操作栏 */}
         <Space className="terminal-toolbar" wrap>
           <Input
-            placeholder="搜索 ETF 名称"
+            placeholder="搜索名称或代码"
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -166,7 +181,7 @@ function RsiAnalysis() {
             onClick={loadData}
             loading={loading}
           >
-            更新机会
+            刷新列表
           </Button>
         </Space>
 
@@ -175,7 +190,7 @@ function RsiAnalysis() {
           <Alert
             type="error"
             showIcon
-            message="ETF 机会加载失败"
+            message="RSI 分析加载失败"
             description={pageError}
             action={(
               <Button size="small" onClick={loadData} loading={loading}>
@@ -187,15 +202,15 @@ function RsiAnalysis() {
           <Table
             columns={columns}
             dataSource={filteredData}
-            rowKey="code"
+            rowKey={(record) => `${record.code}-${record.period}`}
             loading={loading}
             pagination={{
               pageSize: 10,
               showSizeChanger: true,
-              showTotal: (total) => `共 ${total} 个标的`,
+              showTotal: (total) => `共 ${total} 条结果`,
             }}
-            locale={{ emptyText: loading ? '数据加载中...' : '暂时没有进入低位的 ETF' }}
-            scroll={{ x: 1300 }}
+            locale={{ emptyText: loading ? '数据加载中...' : '暂无 RSI 数据' }}
+            scroll={{ x: 1450 }}
           />
         )}
       </Card>
@@ -214,6 +229,8 @@ function RsiAnalysis() {
             <li>当前 RSI ≤ 30，或</li>
             <li>阶段高点 ≥ 70、回落低点在 38—43 之间，且当前 RSI ≤ 43</li>
           </ul>
+          <p><strong>行情口径：</strong>ETF 使用前复权收盘日线，避免分红或拆分造成价格断层；指数使用原始收盘日线。</p>
+          <p><strong>更新时间：</strong>系统在每个交易日收盘后自动计算；“刷新列表”只重新读取已保存的结果，不会触发计算。</p>
           <p>RSI 只反映一个观察维度，单一指标不能作为买卖依据；历史信号也不代表未来表现。</p>
         </div>
       </Card>

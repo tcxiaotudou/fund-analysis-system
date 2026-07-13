@@ -22,10 +22,10 @@ public interface RsiAnalysisMapper extends BaseMapper<RsiAnalysis> {
     List<RsiAnalysis> selectLatestAnalysis(@Param("limit") Integer limit);
     
     /**
-     * 查询有买入信号的RSI分析记录
-     * @return 买入信号列表
+     * 查询所有启用标的的当前RSI分析记录
+     * @return 当前RSI分析记录
      */
-    List<RsiAnalysis> selectBuySignals();
+    List<RsiAnalysis> selectCurrentAnalysis();
     
     /**
      * 查询指定标的和周期的最新RSI分析记录
@@ -43,4 +43,3 @@ public interface RsiAnalysisMapper extends BaseMapper<RsiAnalysis> {
      */
     void deleteOldData(@Param("code") String code, @Param("period") Integer period, @Param("keepCount") Integer keepCount);
 }
-
