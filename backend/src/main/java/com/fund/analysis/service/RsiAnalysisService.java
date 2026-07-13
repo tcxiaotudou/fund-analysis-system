@@ -82,16 +82,7 @@ public class RsiAnalysisService {
             throw new DataUnavailableException("RSI数据不足: " + code + ", period=" + period);
         }
 
-        List<BigDecimal> validRsiList = new ArrayList<>();
-        for (int i = period; i < rsiList.size(); i++) {
-            validRsiList.add(rsiList.get(i));
-        }
-
-        if (validRsiList.isEmpty()) {
-            throw new DataUnavailableException("有效RSI数据为空: " + code + ", period=" + period);
-        }
-
-        RsiDataDTO rsiData = analyzeRsi(code, period, validRsiList);
+        RsiDataDTO rsiData = analyzeRsi(code, period, rsiList);
         transactionTemplate.executeWithoutResult(status -> {
             saveRsiAnalysis(rsiData);
             rsiAnalysisMapper.deleteOldData(code, period, 1);
@@ -107,7 +98,7 @@ public class RsiAnalysisService {
      * @param rsiList RSI值列表
      * @return RSI数据DTO
      */
-    private RsiDataDTO analyzeRsi(String code, int period, List<BigDecimal> rsiList) {
+    RsiDataDTO analyzeRsi(String code, int period, List<BigDecimal> rsiList) {
         BigDecimal currentRsi = rsiList.get(rsiList.size() - 1);
         BigDecimal highRsi = BigDecimal.ZERO;
         BigDecimal lowRsi = new BigDecimal("100");
@@ -150,20 +141,36 @@ public class RsiAnalysisService {
             }
         }
         
-        // 判断买入信号
-        boolean isBuySignal = (currentRsi.compareTo(new BigDecimal("30")) <= 0) ||
-                (highRsi.compareTo(new BigDecimal("70")) >= 0 && 
+        EtfInfo etfInfo = etfInfoMapper.selectByCode(code);
+        BigDecimal buyThreshold = etfInfo != null && etfInfo.getRsiBuyThreshold() != null
+                ? BigDecimal.valueOf(etfInfo.getRsiBuyThreshold())
+                : new BigDecimal("30");
+        BigDecimal sellThreshold = etfInfo != null && etfInfo.getRsiSellThreshold() != null
+                ? BigDecimal.valueOf(etfInfo.getRsiSellThreshold())
+                : new BigDecimal("70");
+        if (buyThreshold.compareTo(BigDecimal.ZERO) < 0
+                || buyThreshold.compareTo(new BigDecimal("100")) > 0
+                || sellThreshold.compareTo(BigDecimal.ZERO) < 0
+                || sellThreshold.compareTo(new BigDecimal("100")) > 0
+                || buyThreshold.compareTo(sellThreshold) >= 0) {
+            throw new BusinessException("ETF RSI阈值配置无效: " + code);
+        }
+
+        // 卖出阈值表示超买区起点，买入阈值表示当前超卖信号。
+        boolean isBuySignal = (currentRsi.compareTo(buyThreshold) <= 0) ||
+                (highRsi.compareTo(sellThreshold) >= 0 &&
                  high2NowLow.compareTo(new BigDecimal("43")) <= 0 && 
                  high2NowLow.compareTo(new BigDecimal("38")) >= 0 && 
                  currentRsi.compareTo(new BigDecimal("43")) <= 0);
         
         // 构建消息
-        String message = String.format("数据%d天, 70以上有%d天, 65以上有%d天, 60以上有%d天, 55以上有%d天, 当前与最低点之间有%d天",
-                rsiList.size(), rsi70Days, rsi65Days, rsi60Days, rsi55Days, daysFromLow);
+        String message = String.format("数据%d天, 70以上有%d天, 65以上有%d天, 60以上有%d天, 55以上有%d天, 当前与最低点之间有%d天, 买入/超买阈值%s/%s",
+                rsiList.size(), rsi70Days, rsi65Days, rsi60Days, rsi55Days, daysFromLow,
+                buyThreshold.stripTrailingZeros().toPlainString(),
+                sellThreshold.stripTrailingZeros().toPlainString());
         
         // 查询ETF名称
         String name = code;
-        EtfInfo etfInfo = etfInfoMapper.selectByCode(code);
         if (etfInfo != null) {
             name = etfInfo.getEtfName();
         }
@@ -208,22 +215,20 @@ public class RsiAnalysisService {
             }
             
             String url = String.format(
-                    "http://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData?symbol=%s&scale=120&ma=no&datalen=%d",
+                    "https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData?symbol=%s&scale=240&ma=no&datalen=%d",
                     code, dataLen);
 
             JsonArray jsonArray = externalApiClient.getJson(url).getAsJsonArray();
             List<BigDecimal> prices = new ArrayList<>();
             
-            for (int i = 0; i < jsonArray.size(); i++) {
-                JsonElement element = jsonArray.get(i);
-                String dateStr = element.getAsJsonObject().get("day").getAsString();
-                String closeStr = element.getAsJsonObject().get("close").getAsString();
-                
-                // 只取15:00:00的数据（或最后一条）
-                if (i != jsonArray.size() - 1 && !dateStr.contains("15:00:00")) {
+            for (JsonElement element : jsonArray) {
+                if (!element.isJsonObject()
+                        || !element.getAsJsonObject().has("day")
+                        || !element.getAsJsonObject().has("close")) {
                     continue;
                 }
-                
+
+                String closeStr = element.getAsJsonObject().get("close").getAsString();
                 prices.add(new BigDecimal(closeStr));
             }
             

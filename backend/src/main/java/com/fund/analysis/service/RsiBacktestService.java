@@ -30,6 +30,9 @@ public class RsiBacktestService {
 
     private static final Logger logger = LoggerFactory.getLogger(RsiBacktestService.class);
     private static final SimpleDateFormat dateOnlyFormat = new SimpleDateFormat("yyyy-MM-dd");
+    private static final int KLINE_DATA_BUFFER = 10;
+    private static final int MAX_KLINE_DATA_LEN = 1950;
+    private static final long MILLIS_PER_DAY = 24L * 60 * 60 * 1000;
 
     @Autowired
     private EtfInfoMapper etfInfoMapper;
@@ -61,25 +64,36 @@ public class RsiBacktestService {
         }
         result.setEtfName(etfName);
 
-        int extraDays = rsiPeriod + 30;
-        List<PriceData> allPrices = getHistoricalPrices(etfCode, startDate, endDate, extraDays);
-        if (allPrices.size() < rsiPeriod + 10) {
-            throw new DataUnavailableException("RSI回测历史数据不足: " + etfCode + ", 数据量=" + allPrices.size());
+        List<PriceData> allPrices = getHistoricalPrices(etfCode, startDate, endDate, rsiPeriod);
+
+        int lookbackCount = 0;
+        int backtestStartIdx = -1;
+        int backtestDataCount = 0;
+        for (int i = 0; i < allPrices.size(); i++) {
+            Date date = allPrices.get(i).getDate();
+            if (date.before(startDate)) {
+                lookbackCount++;
+            } else if (!date.after(endDate)) {
+                if (backtestStartIdx < 0) {
+                    backtestStartIdx = i;
+                }
+                backtestDataCount++;
+            }
+        }
+
+        if (lookbackCount < rsiPeriod) {
+            throw new DataUnavailableException("RSI回测开始日前历史数据不足: " + etfCode
+                    + ", 需要=" + rsiPeriod + ", 实际=" + lookbackCount);
+        }
+        if (backtestStartIdx < 0 || backtestDataCount == 0) {
+            throw new DataUnavailableException("RSI回测日期范围内没有可用数据: " + etfCode);
         }
 
         List<BigDecimal> allCloses = new ArrayList<>();
         for (PriceData pd : allPrices) {
-            allCloses.add(pd.getPrice());
+            allCloses.add(pd.getClose());
         }
         List<BigDecimal> rsiValues = RsiCalculator.calculateRSI(allCloses, rsiPeriod);
-
-        int backtestStartIdx = 0;
-        for (int i = 0; i < allPrices.size(); i++) {
-            if (!allPrices.get(i).getDate().before(startDate)) {
-                backtestStartIdx = i;
-                break;
-            }
-        }
 
         List<RsiBacktestDTO.BacktestTransaction> transactions = new ArrayList<>();
         List<RsiBacktestDTO.DailyValue> dailyValues = new ArrayList<>();
@@ -94,58 +108,65 @@ public class RsiBacktestService {
         BigDecimal maxDrawdown = BigDecimal.ZERO;
         int winTrades = 0;
         int totalSellTrades = 0;
+        BigDecimal lastClose = null;
 
-        for (int i = Math.max(backtestStartIdx, rsiPeriod); i < allPrices.size(); i++) {
+        for (int i = backtestStartIdx; i < allPrices.size(); i++) {
             PriceData current = allPrices.get(i);
             if (current.getDate().after(endDate)) break;
 
-            BigDecimal price = current.getPrice();
-            int rsiIdx = i - 1;
-            if (rsiIdx < 0 || rsiIdx >= rsiValues.size()) continue;
-            BigDecimal rsi = rsiValues.get(rsiIdx);
-            if (rsi.compareTo(BigDecimal.ZERO) == 0) continue;
+            BigDecimal executionPrice = current.getOpen();
+            BigDecimal valuationPrice = current.getClose();
+            lastClose = valuationPrice;
 
-            boolean isBuySignal = rsi.compareTo(rsiBuyThreshold) <= 0;
-            boolean isSellSignal = rsi.compareTo(rsiSellThreshold) >= 0;
+            int currentRsiIdx = i - rsiPeriod;
+            BigDecimal currentRsi = rsiValues.get(currentRsiIdx);
+
+            BigDecimal signalRsi = null;
+            if (i > backtestStartIdx) {
+                signalRsi = rsiValues.get(i - 1 - rsiPeriod);
+            }
+
+            boolean isBuySignal = signalRsi != null && signalRsi.compareTo(rsiBuyThreshold) <= 0;
+            boolean isSellSignal = signalRsi != null && signalRsi.compareTo(rsiSellThreshold) >= 0;
 
             BigDecimal actualBuyAmount = fixedAmountPerTrade.min(cash);
 
-            if (isBuySignal && actualBuyAmount.compareTo(price) >= 0) {
-                long quantity = actualBuyAmount.divide(price, 0, RoundingMode.DOWN).longValue();
+            if (isBuySignal && actualBuyAmount.compareTo(executionPrice) >= 0) {
+                long quantity = actualBuyAmount.divide(executionPrice, 0, RoundingMode.DOWN).longValue();
                 if (quantity > 0) {
-                    BigDecimal amount = price.multiply(BigDecimal.valueOf(quantity));
+                    BigDecimal amount = executionPrice.multiply(BigDecimal.valueOf(quantity));
                     totalCost = totalCost.add(amount);
                     holdingQuantity += quantity;
                     cash = cash.subtract(amount);
                     totalInvested = totalInvested.add(amount);
 
                     BigDecimal avgCost = totalCost.divide(BigDecimal.valueOf(holdingQuantity), 4, RoundingMode.HALF_UP);
-                    BigDecimal totalValue = cash.add(price.multiply(BigDecimal.valueOf(holdingQuantity)));
+                    BigDecimal totalValue = cash.add(executionPrice.multiply(BigDecimal.valueOf(holdingQuantity)));
 
                     RsiBacktestDTO.BacktestTransaction tx = new RsiBacktestDTO.BacktestTransaction();
                     tx.setDate(dateOnlyFormat.format(current.getDate()));
                     tx.setType("BUY");
-                    tx.setPrice(price);
+                    tx.setPrice(executionPrice);
                     tx.setQuantity(quantity);
                     tx.setAmount(amount);
                     tx.setTotalValue(totalValue);
-                    tx.setRsiValue(rsi);
+                    tx.setRsiValue(signalRsi);
                     tx.setProfit(BigDecimal.ZERO);
                     tx.setHoldingQuantityAfter(holdingQuantity);
                     tx.setAvgCostAfter(avgCost);
                     tx.setCashAfter(cash);
-                    tx.setSignalDescription("RSI(" + rsiPeriod + ")=" + rsi.setScale(2, RoundingMode.HALF_UP)
+                    tx.setSignalDescription("RSI(" + rsiPeriod + ")=" + signalRsi.setScale(2, RoundingMode.HALF_UP)
                             + " ≤ " + rsiBuyThreshold + "，定额买入" + amount.setScale(2, RoundingMode.HALF_UP));
                     transactions.add(tx);
                     buyCount++;
                 }
             } else if (isSellSignal && holdingQuantity > 0) {
-                long sellQuantity = fixedAmountPerTrade.divide(price, 0, RoundingMode.DOWN).longValue();
+                long sellQuantity = fixedAmountPerTrade.divide(executionPrice, 0, RoundingMode.DOWN).longValue();
                 sellQuantity = Math.min(sellQuantity, holdingQuantity);
 
                 if (sellQuantity > 0) {
                     BigDecimal avgCost = totalCost.divide(BigDecimal.valueOf(holdingQuantity), 4, RoundingMode.HALF_UP);
-                    BigDecimal amount = price.multiply(BigDecimal.valueOf(sellQuantity));
+                    BigDecimal amount = executionPrice.multiply(BigDecimal.valueOf(sellQuantity));
                     BigDecimal costOfSold = avgCost.multiply(BigDecimal.valueOf(sellQuantity));
                     BigDecimal profit = amount.subtract(costOfSold);
 
@@ -160,21 +181,21 @@ public class RsiBacktestService {
                     BigDecimal newAvgCost = holdingQuantity > 0
                             ? totalCost.divide(BigDecimal.valueOf(holdingQuantity), 4, RoundingMode.HALF_UP)
                             : BigDecimal.ZERO;
-                    BigDecimal totalValue = cash.add(price.multiply(BigDecimal.valueOf(holdingQuantity)));
+                    BigDecimal totalValue = cash.add(executionPrice.multiply(BigDecimal.valueOf(holdingQuantity)));
 
                     RsiBacktestDTO.BacktestTransaction tx = new RsiBacktestDTO.BacktestTransaction();
                     tx.setDate(dateOnlyFormat.format(current.getDate()));
                     tx.setType("SELL");
-                    tx.setPrice(price);
+                    tx.setPrice(executionPrice);
                     tx.setQuantity(sellQuantity);
                     tx.setAmount(amount);
                     tx.setTotalValue(totalValue);
-                    tx.setRsiValue(rsi);
+                    tx.setRsiValue(signalRsi);
                     tx.setProfit(profit);
                     tx.setHoldingQuantityAfter(holdingQuantity);
                     tx.setAvgCostAfter(newAvgCost);
                     tx.setCashAfter(cash);
-                    tx.setSignalDescription("RSI(" + rsiPeriod + ")=" + rsi.setScale(2, RoundingMode.HALF_UP)
+                    tx.setSignalDescription("RSI(" + rsiPeriod + ")=" + signalRsi.setScale(2, RoundingMode.HALF_UP)
                             + " ≥ " + rsiSellThreshold + "，定额卖出" + amount.setScale(2, RoundingMode.HALF_UP));
                     transactions.add(tx);
 
@@ -188,7 +209,7 @@ public class RsiBacktestService {
 
             BigDecimal totalValue = cash;
             if (holdingQuantity > 0) {
-                totalValue = totalValue.add(price.multiply(BigDecimal.valueOf(holdingQuantity)));
+                totalValue = totalValue.add(valuationPrice.multiply(BigDecimal.valueOf(holdingQuantity)));
             }
 
             if (totalValue.compareTo(peakValue) > 0) {
@@ -203,9 +224,9 @@ public class RsiBacktestService {
 
             RsiBacktestDTO.DailyValue dv = new RsiBacktestDTO.DailyValue();
             dv.setDate(dateOnlyFormat.format(current.getDate()));
-            dv.setPrice(price);
+            dv.setPrice(valuationPrice);
             dv.setTotalValue(totalValue);
-            dv.setRsiValue(rsi);
+            dv.setRsiValue(currentRsi);
             BigDecimal returnRate = totalValue.subtract(initialCapital)
                     .divide(initialCapital, 4, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100));
@@ -214,9 +235,8 @@ public class RsiBacktestService {
         }
 
         BigDecimal finalCapital = cash;
-        if (holdingQuantity > 0 && !allPrices.isEmpty()) {
-            BigDecimal lastPrice = allPrices.get(allPrices.size() - 1).getPrice();
-            finalCapital = finalCapital.add(lastPrice.multiply(BigDecimal.valueOf(holdingQuantity)));
+        if (holdingQuantity > 0) {
+            finalCapital = finalCapital.add(lastClose.multiply(BigDecimal.valueOf(holdingQuantity)));
         }
 
         result.setFinalCapital(finalCapital);
@@ -259,21 +279,26 @@ public class RsiBacktestService {
 
     private static class PriceData {
         private final Date date;
-        private final BigDecimal price;
+        private final BigDecimal open;
+        private final BigDecimal close;
 
-        PriceData(Date date, BigDecimal price) {
+        PriceData(Date date, BigDecimal open, BigDecimal close) {
             this.date = date;
-            this.price = price;
+            this.open = open;
+            this.close = close;
         }
 
         Date getDate() { return date; }
-        BigDecimal getPrice() { return price; }
+        BigDecimal getOpen() { return open; }
+        BigDecimal getClose() { return close; }
     }
 
-    private List<PriceData> getHistoricalPrices(String code, Date startDate, Date endDate, int extraDays) {
+    private List<PriceData> getHistoricalPrices(String code, Date startDate, Date endDate, int rsiPeriod) {
         try {
-            long days = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24) + extraDays + 50;
-            int dataLen = (int) Math.min(days, 1950);
+            Date latestDate = endDate.after(new Date()) ? endDate : new Date();
+            long rangeDays = Math.max(0, (latestDate.getTime() - startDate.getTime()) / MILLIS_PER_DAY);
+            long requestedDataLen = rangeDays + rsiPeriod + KLINE_DATA_BUFFER;
+            int dataLen = (int) Math.min(Math.max(requestedDataLen, 1), MAX_KLINE_DATA_LEN);
 
             Thread.sleep(2000);
 
@@ -300,20 +325,20 @@ public class RsiBacktestService {
             for (JsonElement element : jsonArray) {
                 if (!element.isJsonObject()) continue;
                 JsonObject obj = element.getAsJsonObject();
-                if (!obj.has("day") || !obj.has("close")) continue;
+                if (!obj.has("day") || !obj.has("open") || !obj.has("close")) continue;
 
                 String dateStr = obj.get("day").getAsString();
+                String openStr = obj.get("open").getAsString();
                 String closeStr = obj.get("close").getAsString();
 
                 try {
                     if (dateStr == null || dateStr.length() < 10) continue;
                     Date date = dateParser.parse(dateStr.substring(0, 10));
 
-                    Date extendedStart = new Date(startDate.getTime() - (long) extraDays * 24 * 60 * 60 * 1000);
-                    if (!date.before(extendedStart) && !date.after(endDate)) {
-                        prices.add(new PriceData(date, new BigDecimal(closeStr)));
+                    if (!date.after(endDate)) {
+                        prices.add(new PriceData(date, new BigDecimal(openStr), new BigDecimal(closeStr)));
                     }
-                } catch (ParseException e) {
+                } catch (ParseException | NumberFormatException e) {
                     continue;
                 }
             }

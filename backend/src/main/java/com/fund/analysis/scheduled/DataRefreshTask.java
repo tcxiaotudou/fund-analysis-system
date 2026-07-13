@@ -76,9 +76,9 @@ public class DataRefreshTask {
     }
 
     /**
-     * 每天早上9点到15点之间每1分钟执行一次ETF RSI数据刷新
+     * 每个交易日收盘后刷新一次 ETF RSI；15:30 的全量任务继续作为兜底
      */
-    @Scheduled(cron = "0 0/2 9-16 * * MON-FRI")
+    @Scheduled(cron = "0 10 15 * * MON-FRI")
     public void refreshEtfRsi() {
         runRefreshTask("刷新ETF RSI数据", () -> {
             int count = rsiAnalysisService.refreshAllEtfRsi();

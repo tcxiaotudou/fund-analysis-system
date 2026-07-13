@@ -1,11 +1,13 @@
 package com.fund.analysis.service;
 
 import com.fund.analysis.client.ExternalApiClient;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fund.analysis.entity.FundInfo;
 import com.fund.analysis.entity.FundPortfolioRsi;
 import com.fund.analysis.entity.FundPortfolioRsiHistory;
 import com.fund.analysis.exception.DataUnavailableException;
 import com.fund.analysis.exception.ExternalApiException;
+import com.fund.analysis.exception.BadRequestException;
 import com.fund.analysis.mapper.FundInfoMapper;
 import com.fund.analysis.mapper.FundPortfolioRsiMapper;
 import com.fund.analysis.mapper.FundPortfolioRsiHistoryMapper;
@@ -75,6 +77,12 @@ public class FundPortfolioService {
         }
 
         PortfolioPriceAligner.AlignedPortfolioPrices alignedPrices = buildAlignedPortfolioPrices(holdingFunds);
+        return calculatePortfolioRsi(alignedPrices, period);
+    }
+
+    private BigDecimal calculatePortfolioRsi(
+            PortfolioPriceAligner.AlignedPortfolioPrices alignedPrices,
+            int period) {
         List<BigDecimal> rsiValues = RsiCalculator.calculateRSI(alignedPrices.getPrices(), period);
         if (rsiValues.isEmpty()) {
             throw new DataUnavailableException("组合RSI数据不足，period=" + period);
@@ -95,7 +103,14 @@ public class FundPortfolioService {
         }
 
         PortfolioPriceAligner.AlignedPortfolioPrices alignedPrices = buildAlignedPortfolioPrices(holdingFunds);
-        List<BigDecimal> weeklyPrices = extractWeeklyPrices(alignedPrices.getPrices());
+        return calculatePortfolioWeeklyRsi(alignedPrices, period);
+    }
+
+    private BigDecimal calculatePortfolioWeeklyRsi(
+            PortfolioPriceAligner.AlignedPortfolioPrices alignedPrices,
+            int period) {
+        List<BigDecimal> weeklyPrices =
+                PortfolioPriceAligner.extractWeeklyClosingPrices(alignedPrices);
         List<BigDecimal> rsiValues = RsiCalculator.calculateRSI(weeklyPrices, period);
         if (rsiValues.isEmpty()) {
             throw new DataUnavailableException("组合周RSI数据不足，period=" + period);
@@ -113,57 +128,44 @@ public class FundPortfolioService {
     private PortfolioPriceAligner.AlignedPortfolioPrices buildAlignedPortfolioPrices(List<FundInfo> holdingFunds) {
         List<BigDecimal> weights = resolvePortfolioWeights(holdingFunds);
         List<PortfolioPriceAligner.FundPriceSeries> seriesList = new ArrayList<>();
+        List<BigDecimal> positiveWeights = new ArrayList<>();
 
-        for (FundInfo fund : holdingFunds) {
+        for (int index = 0; index < holdingFunds.size(); index++) {
+            BigDecimal weight = weights.get(index);
+            if (weight.compareTo(BigDecimal.ZERO) == 0) {
+                continue;
+            }
+            FundInfo fund = holdingFunds.get(index);
             seriesList.add(getFundPriceSeries(fund.getFundCode()));
+            positiveWeights.add(weight);
         }
 
-        return PortfolioPriceAligner.align(seriesList, weights);
+        return PortfolioPriceAligner.align(seriesList, positiveWeights);
     }
 
     /**
-     * 解析组合权重，权重总和不等于100时使用等权重
+     * 解析并校验组合权重
      *
      * @param holdingFunds 持有基金列表
      * @return 权重列表
      */
     private List<BigDecimal> resolvePortfolioWeights(List<FundInfo> holdingFunds) {
-        BigDecimal totalWeight = holdingFunds.stream()
-                .map(f -> f.getPortfolioWeight() != null ? f.getPortfolioWeight() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        boolean useEqualWeight = totalWeight.compareTo(new BigDecimal("100")) != 0;
-        if (useEqualWeight) {
-            logger.info("Total weight is {}, using equal weight", totalWeight);
-        }
-
         List<BigDecimal> weights = new ArrayList<>();
-        int fundCount = holdingFunds.size();
+        BigDecimal totalWeight = BigDecimal.ZERO;
         for (FundInfo fund : holdingFunds) {
-            BigDecimal weight = useEqualWeight
-                    ? BigDecimal.valueOf(100.0 / fundCount)
-                    : fund.getPortfolioWeight() != null ? fund.getPortfolioWeight() : BigDecimal.ZERO;
+            BigDecimal weight = fund.getPortfolioWeight();
+            if (weight == null || weight.compareTo(BigDecimal.ZERO) < 0) {
+                throw new DataUnavailableException(
+                        "持仓基金权重未配置或无效: " + fund.getFundCode());
+            }
             weights.add(weight);
+            totalWeight = totalWeight.add(weight);
+        }
+        if (totalWeight.compareTo(new BigDecimal("100")) != 0) {
+            throw new DataUnavailableException(
+                    "持仓基金权重总和必须等于100，当前为: " + totalWeight);
         }
         return weights;
-    }
-
-    /**
-     * 从日价格中提取周价格
-     *
-     * @param dailyWeightedPrices 日组合价格
-     * @return 周组合价格
-     */
-    private List<BigDecimal> extractWeeklyPrices(List<BigDecimal> dailyWeightedPrices) {
-        List<BigDecimal> weeklyPrices = new ArrayList<>();
-        for (int i = 4; i < dailyWeightedPrices.size(); i += 5) {
-            weeklyPrices.add(dailyWeightedPrices.get(i));
-        }
-
-        int remainder = dailyWeightedPrices.size() % 5;
-        if (remainder != 0 && !dailyWeightedPrices.isEmpty()) {
-            weeklyPrices.add(dailyWeightedPrices.get(dailyWeightedPrices.size() - 1));
-        }
-        return weeklyPrices;
     }
 
     /**
@@ -207,9 +209,11 @@ public class FundPortfolioService {
             return false;
         }
 
-        BigDecimal rsi14 = calculatePortfolioRsi(14);
-        BigDecimal rsi90 = calculatePortfolioRsi(90);
-        BigDecimal weeklyRsi14 = calculatePortfolioWeeklyRsi(14);
+        PortfolioPriceAligner.AlignedPortfolioPrices alignedPrices =
+                buildAlignedPortfolioPrices(holdingFunds);
+        BigDecimal rsi14 = calculatePortfolioRsi(alignedPrices, 14);
+        BigDecimal rsi90 = calculatePortfolioRsi(alignedPrices, 90);
+        BigDecimal weeklyRsi14 = calculatePortfolioWeeklyRsi(alignedPrices, 14);
 
         String fundCodes = holdingFunds.stream()
                 .map(FundInfo::getFundCode)
@@ -242,17 +246,28 @@ public class FundPortfolioService {
      */
     @Transactional
     public boolean updateFundWeight(String fundCode, BigDecimal weight) {
-        Map<String, Object> queryMap = new HashMap<>();
-        queryMap.put("fund_code", fundCode);
-        queryMap.put("deleted", 0);
-        List<FundInfo> funds = fundInfoMapper.selectByMap(queryMap);
+        validateWeightInput(fundCode, weight);
+        List<FundInfo> holdingFunds = getHoldingFundsForUpdate();
+        FundInfo fund = holdingFunds.stream()
+                .filter(item -> fundCode.equals(item.getFundCode()))
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException("基金不在当前持仓中: " + fundCode));
 
-        if (funds.isEmpty()) {
-            logger.error("Fund not found: {}", fundCode);
-            return false;
+        BigDecimal projectedTotal = BigDecimal.ZERO;
+        for (FundInfo holdingFund : holdingFunds) {
+            BigDecimal currentWeight = fundCode.equals(holdingFund.getFundCode())
+                    ? weight
+                    : holdingFund.getPortfolioWeight();
+            if (currentWeight == null) {
+                throw new BadRequestException("持仓基金存在未配置权重: " + holdingFund.getFundCode());
+            }
+            projectedTotal = projectedTotal.add(currentWeight);
+        }
+        if (projectedTotal.compareTo(new BigDecimal("100")) != 0) {
+            throw new BadRequestException("权重更新后总和必须等于 100%，当前为: "
+                    + projectedTotal + "%");
         }
 
-        FundInfo fund = funds.get(0);
         fund.setPortfolioWeight(weight);
         int count = fundInfoMapper.updateById(fund);
 
@@ -267,15 +282,61 @@ public class FundPortfolioService {
      */
     @Transactional
     public boolean updateFundWeights(Map<String, BigDecimal> weights) {
+        if (weights == null || weights.isEmpty()) {
+            throw new BadRequestException("权重配置不能为空");
+        }
+        BigDecimal totalWeight = BigDecimal.ZERO;
         for (Map.Entry<String, BigDecimal> entry : weights.entrySet()) {
-            boolean success = updateFundWeight(entry.getKey(), entry.getValue());
-            if (!success) {
-                throw new DataUnavailableException("Failed to update weight for fund: " + entry.getKey());
+            validateWeightInput(entry.getKey(), entry.getValue());
+            totalWeight = totalWeight.add(entry.getValue());
+        }
+        if (totalWeight.compareTo(new BigDecimal("100")) != 0) {
+            throw new BadRequestException("权重总和必须等于 100%，当前为: " + totalWeight + "%");
+        }
+
+        List<FundInfo> holdingFunds = getHoldingFundsForUpdate();
+        Set<String> holdingFundCodes = holdingFunds.stream()
+                .map(FundInfo::getFundCode)
+                .collect(Collectors.toSet());
+        if (!holdingFundCodes.equals(weights.keySet())) {
+            throw new BadRequestException("批量权重必须完整覆盖当前全部持仓基金");
+        }
+
+        for (FundInfo fund : holdingFunds) {
+            fund.setPortfolioWeight(weights.get(fund.getFundCode()));
+            if (fundInfoMapper.updateById(fund) != 1) {
+                throw new DataUnavailableException("权重更新失败: " + fund.getFundCode());
             }
         }
 
         logger.info("Successfully updated weights for {} funds", weights.size());
         return true;
+    }
+
+    private List<FundInfo> getHoldingFundsForUpdate() {
+        QueryWrapper<FundInfo> query = new QueryWrapper<>();
+        query.eq("is_holding", 1)
+                .eq("deleted", 0)
+                .last("FOR UPDATE");
+        List<FundInfo> holdingFunds = fundInfoMapper.selectList(query);
+        if (holdingFunds == null || holdingFunds.isEmpty()) {
+            throw new BadRequestException("当前没有持仓基金");
+        }
+        return holdingFunds;
+    }
+
+    private void validateWeightInput(String fundCode, BigDecimal weight) {
+        if (fundCode == null || fundCode.trim().isEmpty()) {
+            throw new BadRequestException("基金代码不能为空");
+        }
+        if (weight == null
+                || weight.compareTo(BigDecimal.ZERO) < 0
+                || weight.compareTo(new BigDecimal("100")) > 0) {
+            throw new BadRequestException("权重必须在 0-100 之间");
+        }
+        if (weight.scale() > 2) {
+            throw new BadRequestException("权重最多保留2位小数");
+        }
     }
 
     /**
@@ -401,15 +462,29 @@ public class FundPortfolioService {
         }
 
         JsonArray dateArray = listArray.get(0).getAsJsonArray();
-        JsonArray priceArray = listArray.get(1).getAsJsonArray();
-        if (dateArray.size() != priceArray.size()) {
-            throw new DataUnavailableException("基金净值日期与价格数量不一致: " + fundCode);
+        JsonArray cumulativePriceArray = null;
+        for (int index = 1; index < listArray.size(); index++) {
+            JsonArray candidate = listArray.get(index).getAsJsonArray();
+            if (!candidate.isEmpty()
+                    && candidate.get(0).isJsonObject()
+                    && candidate.get(0).getAsJsonObject().has("name")
+                    && "累计净值".equals(
+                            candidate.get(0).getAsJsonObject().get("name").getAsString())) {
+                cumulativePriceArray = candidate;
+                break;
+            }
+        }
+        if (cumulativePriceArray == null) {
+            throw new DataUnavailableException("基金历史数据缺少累计净值序列: " + fundCode);
+        }
+        if (dateArray.size() != cumulativePriceArray.size()) {
+            throw new DataUnavailableException("基金净值日期与累计净值数量不一致: " + fundCode);
         }
 
         Map<String, BigDecimal> pricesByDate = new LinkedHashMap<>();
-        for (int i = 1; i < priceArray.size(); i++) {
+        for (int i = 1; i < cumulativePriceArray.size(); i++) {
             JsonObject dateItem = dateArray.get(i).getAsJsonObject();
-            JsonObject priceItem = priceArray.get(i).getAsJsonObject();
+            JsonObject priceItem = cumulativePriceArray.get(i).getAsJsonObject();
             pricesByDate.put(dateItem.get("name").getAsString(), new BigDecimal(priceItem.get("name").getAsString()));
         }
 

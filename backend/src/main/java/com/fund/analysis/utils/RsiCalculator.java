@@ -10,6 +10,9 @@ import java.util.List;
  * 实现相对强弱指标（RSI）的计算
  */
 public class RsiCalculator {
+
+    private static final int CALCULATION_SCALE = 10;
+    private static final int RESULT_SCALE = 2;
     
     /**
      * 计算RSI指标
@@ -19,72 +22,74 @@ public class RsiCalculator {
      */
     public static List<BigDecimal> calculateRSI(List<BigDecimal> prices, int period) {
         List<BigDecimal> rsiList = new ArrayList<>();
-        
-        if (prices == null || prices.size() < period + 1) {
+
+        if (period <= 0) {
+            throw new IllegalArgumentException("RSI周期必须大于0");
+        }
+        if (prices == null || prices.size() <= period) {
             return rsiList;
         }
-        
-        List<BigDecimal> gains = new ArrayList<>();
-        List<BigDecimal> losses = new ArrayList<>();
-        
-        // 计算每日涨跌幅
-        for (int i = 1; i < prices.size(); i++) {
-            BigDecimal change = prices.get(i).subtract(prices.get(i - 1));
-            if (change.compareTo(BigDecimal.ZERO) > 0) {
-                gains.add(change);
-                losses.add(BigDecimal.ZERO);
+
+        BigDecimal totalGain = BigDecimal.ZERO;
+        BigDecimal totalLoss = BigDecimal.ZERO;
+        for (int i = 1; i <= period; i++) {
+            BigDecimal change = change(prices, i);
+            if (change.signum() > 0) {
+                totalGain = totalGain.add(change);
             } else {
-                gains.add(BigDecimal.ZERO);
-                losses.add(change.abs());
+                totalLoss = totalLoss.add(change.abs());
             }
         }
-        
-        // 填充前期空值
-        for (int i = 0; i < period - 1; i++) {
-            rsiList.add(BigDecimal.ZERO);
-        }
-        
-        // 计算第一个RSI值
-        BigDecimal avgGain = sumList(gains.subList(0, period))
-                .divide(BigDecimal.valueOf(period), 4, RoundingMode.HALF_UP);
-        BigDecimal avgLoss = sumList(losses.subList(0, period))
-                .divide(BigDecimal.valueOf(period), 4, RoundingMode.HALF_UP);
-        
-        BigDecimal rs = avgGain.divide(avgLoss.add(BigDecimal.valueOf(0.0001)), 4, RoundingMode.HALF_UP);
-        BigDecimal rsi = BigDecimal.valueOf(100)
-                .subtract(BigDecimal.valueOf(100).divide(BigDecimal.ONE.add(rs), 2, RoundingMode.HALF_UP));
-        rsiList.add(rsi);
-        
-        // 计算后续的RSI值
-        for (int i = period; i < gains.size(); i++) {
+
+        BigDecimal periodValue = BigDecimal.valueOf(period);
+        BigDecimal avgGain = totalGain.divide(
+                periodValue, CALCULATION_SCALE, RoundingMode.HALF_UP);
+        BigDecimal avgLoss = totalLoss.divide(
+                periodValue, CALCULATION_SCALE, RoundingMode.HALF_UP);
+        rsiList.add(calculateValue(avgGain, avgLoss));
+
+        for (int i = period + 1; i < prices.size(); i++) {
+            BigDecimal change = change(prices, i);
+            BigDecimal gain = change.signum() > 0 ? change : BigDecimal.ZERO;
+            BigDecimal loss = change.signum() < 0 ? change.abs() : BigDecimal.ZERO;
             avgGain = avgGain.multiply(BigDecimal.valueOf(period - 1))
-                    .add(gains.get(i))
-                    .divide(BigDecimal.valueOf(period), 4, RoundingMode.HALF_UP);
-            
+                    .add(gain)
+                    .divide(periodValue, CALCULATION_SCALE, RoundingMode.HALF_UP);
             avgLoss = avgLoss.multiply(BigDecimal.valueOf(period - 1))
-                    .add(losses.get(i))
-                    .divide(BigDecimal.valueOf(period), 4, RoundingMode.HALF_UP);
-            
-            rs = avgGain.divide(avgLoss.add(BigDecimal.valueOf(0.0001)), 4, RoundingMode.HALF_UP);
-            rsi = BigDecimal.valueOf(100)
-                    .subtract(BigDecimal.valueOf(100).divide(BigDecimal.ONE.add(rs), 2, RoundingMode.HALF_UP));
-            rsiList.add(rsi);
+                    .add(loss)
+                    .divide(periodValue, CALCULATION_SCALE, RoundingMode.HALF_UP);
+            rsiList.add(calculateValue(avgGain, avgLoss));
         }
-        
+
         return rsiList;
     }
-    
-    /**
-     * 计算列表元素总和
-     * @param list BigDecimal列表
-     * @return 总和
-     */
-    private static BigDecimal sumList(List<BigDecimal> list) {
-        BigDecimal sum = BigDecimal.ZERO;
-        for (BigDecimal value : list) {
-            sum = sum.add(value);
+
+    private static BigDecimal change(List<BigDecimal> prices, int index) {
+        BigDecimal current = prices.get(index);
+        BigDecimal previous = prices.get(index - 1);
+        if (current == null || previous == null) {
+            throw new IllegalArgumentException("价格序列不能包含空值");
         }
-        return sum;
+        return current.subtract(previous);
+    }
+
+    private static BigDecimal calculateValue(BigDecimal avgGain, BigDecimal avgLoss) {
+        if (avgGain.signum() == 0 && avgLoss.signum() == 0) {
+            return BigDecimal.valueOf(50).setScale(RESULT_SCALE);
+        }
+        if (avgLoss.signum() == 0) {
+            return BigDecimal.valueOf(100).setScale(RESULT_SCALE);
+        }
+        if (avgGain.signum() == 0) {
+            return BigDecimal.ZERO.setScale(RESULT_SCALE);
+        }
+        BigDecimal relativeStrength = avgGain.divide(
+                avgLoss, CALCULATION_SCALE, RoundingMode.HALF_UP);
+        return BigDecimal.valueOf(100)
+                .subtract(BigDecimal.valueOf(100).divide(
+                        BigDecimal.ONE.add(relativeStrength),
+                        CALCULATION_SCALE,
+                        RoundingMode.HALF_UP))
+                .setScale(RESULT_SCALE, RoundingMode.HALF_UP);
     }
 }
-

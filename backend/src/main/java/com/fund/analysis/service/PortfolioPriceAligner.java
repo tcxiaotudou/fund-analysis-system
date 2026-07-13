@@ -3,6 +3,10 @@ package com.fund.analysis.service;
 import com.fund.analysis.exception.DataUnavailableException;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.WeekFields;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,9 +35,26 @@ class PortfolioPriceAligner {
         if (weights == null || weights.size() != seriesList.size()) {
             throw new DataUnavailableException("基金权重数量与价格序列数量不一致");
         }
+        BigDecimal totalWeight = BigDecimal.ZERO;
+        for (BigDecimal weight : weights) {
+            if (weight == null || weight.compareTo(BigDecimal.ZERO) < 0) {
+                throw new DataUnavailableException("基金权重不能为负数或空值");
+            }
+            totalWeight = totalWeight.add(weight);
+        }
+        if (totalWeight.compareTo(new BigDecimal("100")) != 0) {
+            throw new DataUnavailableException("基金组合权重总和必须等于100");
+        }
 
         Set<String> commonDates = null;
-        for (FundPriceSeries series : seriesList) {
+        for (int index = 0; index < seriesList.size(); index++) {
+            if (weights.get(index).compareTo(BigDecimal.ZERO) == 0) {
+                continue;
+            }
+            FundPriceSeries series = seriesList.get(index);
+            if (series == null) {
+                throw new DataUnavailableException("正权重基金价格序列为空");
+            }
             if (series.getPricesByDate().isEmpty()) {
                 throw new DataUnavailableException("基金净值数据为空: " + series.getFundCode());
             }
@@ -53,17 +74,50 @@ class PortfolioPriceAligner {
         Collections.sort(dates);
 
         List<BigDecimal> prices = new ArrayList<>();
-        for (String date : dates) {
-            BigDecimal weightedPrice = BigDecimal.ZERO;
+        prices.add(new BigDecimal("100"));
+        validatePositivePrices(seriesList, weights, dates.get(0));
+        for (int dateIndex = 1; dateIndex < dates.size(); dateIndex++) {
+            String previousDate = dates.get(dateIndex - 1);
+            String currentDate = dates.get(dateIndex);
+            BigDecimal weightedReturn = BigDecimal.ZERO;
             for (int i = 0; i < seriesList.size(); i++) {
-                BigDecimal price = seriesList.get(i).getPricesByDate().get(date);
                 BigDecimal weight = weights.get(i);
-                weightedPrice = weightedPrice.add(price.multiply(weight));
+                if (weight.compareTo(BigDecimal.ZERO) == 0) {
+                    continue;
+                }
+                FundPriceSeries series = seriesList.get(i);
+                BigDecimal previousPrice = requirePositivePrice(series, previousDate);
+                BigDecimal currentPrice = requirePositivePrice(series, currentDate);
+                BigDecimal fundReturn = currentPrice.divide(
+                                previousPrice, 12, RoundingMode.HALF_UP)
+                        .subtract(BigDecimal.ONE);
+                weightedReturn = weightedReturn.add(
+                        fundReturn.multiply(weight.movePointLeft(2)));
             }
-            prices.add(weightedPrice);
+            prices.add(prices.get(dateIndex - 1).multiply(
+                    BigDecimal.ONE.add(weightedReturn)));
         }
 
         return new AlignedPortfolioPrices(dates, prices);
+    }
+
+    private static void validatePositivePrices(
+            List<FundPriceSeries> seriesList,
+            List<BigDecimal> weights,
+            String date) {
+        for (int index = 0; index < seriesList.size(); index++) {
+            if (weights.get(index).compareTo(BigDecimal.ZERO) > 0) {
+                requirePositivePrice(seriesList.get(index), date);
+            }
+        }
+    }
+
+    private static BigDecimal requirePositivePrice(FundPriceSeries series, String date) {
+        BigDecimal price = series.getPricesByDate().get(date);
+        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new DataUnavailableException("基金净值必须大于0: " + series.getFundCode());
+        }
+        return price;
     }
 
     /**
@@ -86,6 +140,35 @@ class PortfolioPriceAligner {
 
         int startIndex = dates.size() - rsiValueCount;
         return new ArrayList<>(dates.subList(startIndex, dates.size()));
+    }
+
+    /**
+     * 按 ISO 自然周提取每周最后一个有效交易日的组合价格。
+     * 最后一周尚未结束时，使用当前已有的最后一个交易日。
+     *
+     * @param alignedPrices 已按日期升序对齐的组合价格
+     * @return 周收盘价格序列
+     */
+    static List<BigDecimal> extractWeeklyClosingPrices(
+            AlignedPortfolioPrices alignedPrices) {
+        if (alignedPrices == null
+                || alignedPrices.getDates().size() != alignedPrices.getPrices().size()) {
+            throw new DataUnavailableException("组合价格与日期数量不一致");
+        }
+        Map<String, BigDecimal> weeklyCloses = new LinkedHashMap<>();
+        WeekFields isoWeek = WeekFields.ISO;
+        for (int i = 0; i < alignedPrices.getDates().size(); i++) {
+            String rawDate = alignedPrices.getDates().get(i);
+            try {
+                LocalDate date = LocalDate.parse(rawDate);
+                String weekKey = date.get(isoWeek.weekBasedYear())
+                        + "-" + date.get(isoWeek.weekOfWeekBasedYear());
+                weeklyCloses.put(weekKey, alignedPrices.getPrices().get(i));
+            } catch (DateTimeParseException exception) {
+                throw new DataUnavailableException("基金净值日期格式无效: " + rawDate);
+            }
+        }
+        return new ArrayList<>(weeklyCloses.values());
     }
 
     /**
